@@ -1,0 +1,22 @@
+#!/bin/bash
+
+docker build \
+  --no-cache \
+  -t dm-report-generation-service:experimental \
+  .
+
+docker run \
+  --volume /Users/dv/Documents/abb/dm-report-generation-service:/app/ \
+  --volume /Users/dv/Documents/abb/dm-report-generation-service/test-config:/config/ \
+  --env NODE_ENV="development" \
+  --env DISABLE_DEBUG_ENDPOINT="false" \
+  --env ADMIN_UNIT_ENDPOINT="http://localhost:8890/sparql" \
+  --env REPORT_ENDPOINT="http://localhost:8890/sparql" \
+  --hostname "dm-report-generation-service" \
+  --publish 9300:80 \
+  --network="host" \
+  -it \
+  dm-report-generation-service:experimental \
+
+
+echo "Run script stopped"
