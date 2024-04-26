@@ -35,7 +35,11 @@ PREFIX dcterms: <http://purl.org/dc/terms/>
 PREFIX owl: <http://www.w3.org/2002/07/owl#>
 PREFIX rdfa: <http://www.w3.org/ns/rdfa#>
 PREFIX xhv: <http://www.w3.org/1999/xhtml/vocab#>
+PREFIX datamonitoring: <http://lblod.data.gift/vocabularies/datamonitoring/>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 `
 
 export const RESOURCE_CLASS_SHORT_URI_REGEX = /^([\w\d-]+)\:([\w\d-]+)$/;
+
+export const DEFAULT_TIMEZONE = 'Europe/Brussels';
 

@@ -20,7 +20,6 @@ if (!config.env.DISABLE_DEBUG_ENDPOINT) {
   // no operatio
 }
 
-console.log(`Service started.`)
 
 async function test() {
   await generateReports();
@@ -28,9 +27,9 @@ async function test() {
 
 test().then((res)=> {
   console.log("Test finished",res);
-  app.listen()
+  app.listen();
 }).catch((reason)=>{
   console.error(reason);
-})
+});
 
 

@@ -65,7 +65,7 @@ export type DmReportGenerationServiceEnv = z.infer<typeof dmReportGenerationServ
 
 export type DmReportGenerationServiceConfig = {
   file: EndpointConfig[],
-  env: DmReportGenerationServiceEnv,
+  env: Required<DmReportGenerationServiceEnv>,
 }
 
 // Manage and parse environment

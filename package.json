@@ -22,9 +22,11 @@
     "@comunica/query-sparql": "^3.0.3",
     "@rdfjs/types": "^1.1.0",
     "cors": "^2.8.5",
+    "dayjs": "^1.11.10",
     "express": "^4.19.2",
     "handlebars": "^4.7.8",
     "rdfjs": "^0.0.1",
+    "uuid": "^9.0.1",
     "zod": "^3.22.4",
     "zod-error": "^1.5.0"
   },
