@@ -1,16 +1,14 @@
 import { z } from 'zod';
-import { ZodParseError } from './types/errors';
 import fs from 'node:fs';
-import { PREFIXES } from './report-generation/queries';
+import { ZodParseError } from 'types/errors';
+import { PREFIXES, RESOURCE_CLASS_SHORT_URI_REGEX } from 'local-constants'; // Not named 'constants' because of name conflict with node. Same of the nam of this module.
 
-// Constants
-
-const RESOURCE_CLASS_SHORT_URI_REGEX = /^([\w\d-]+)\:([\w\d-]+)$/;
-const EXTRACT_NAMESPACES_FROM_PREFIX_REGEX = /PREFIX\s([a-z]+)\:\s+<(.+)>/g;
+// Extract namespaces and build a conversion function to convert short URI's to full ones
 
 export function isShortUri(uri:string):boolean {
   return RESOURCE_CLASS_SHORT_URI_REGEX.test(uri);
 }
+const EXTRACT_NAMESPACES_FROM_PREFIX_REGEX = /PREFIX\s([a-z]+)\:\s+<(.+)>/g;
 const prefixMap = [...PREFIXES.matchAll(EXTRACT_NAMESPACES_FROM_PREFIX_REGEX)].reduce<Map<string,string>>(
   (acc,curr) => {
     acc.set(curr[1]!,curr[2]!);
@@ -24,6 +22,7 @@ function convertUri(shortOrLong:string):string {
   return match ? `${prefixMap.get(match[1]!)}${match[2]!}` : shortOrLong;
 }
 
+// Zod schemas to parse env and the file.
 const allowedTrueValues = ["true","on","1"];
 const allowedFalseValues = ["false","off","0"];
 const envBooleanSchema = z.string().toLowerCase().transform((x,ctx) => {
@@ -50,7 +49,10 @@ const dmReportGenerationServiceEnvSchema = z.object({
   'REPORT_GRAPH_URI': z.string().optional(),
   'ADMIN_UNIT_ENDPOINT': z.string().url(),
   'REPORT_ENDPOINT': z.string().url(),
+  'CONFIG_FILE_LOCATION': z.string().optional(),
 })
+
+// Useful types
 
 export type DmReportGenerationServiceConfigFile = z.infer<typeof dmReportGenerationServiceConfigFileSchema>;
 
@@ -66,12 +68,14 @@ export type DmReportGenerationServiceConfig = {
   env: DmReportGenerationServiceEnv,
 }
 
+// Manage and parse environment
+
 const defaultEnv = {
   DISABLE_DEBUG_ENDPOINT: false,
-  REPORT_GRAPH_URI: "http://mu.semte.ch/graphs/public"
+  REPORT_GRAPH_URI: "http://mu.semte.ch/graphs/public",
+  CONFIG_FILE_LOCATION: "/config",
 };
 
-// Parse env
 const envResult = dmReportGenerationServiceEnvSchema.safeParse(process.env);
 
 if (!envResult.success) {
@@ -83,8 +87,9 @@ const defaultedEnv: Required<DmReportGenerationServiceEnv>  = {
   ...envResult.data,
 }
 
-// Parse file and validate
-const fileContents = JSON.parse(fs.readFileSync("/config/config.json",{encoding: "utf-8"}));
+// Parse config file, validate and export
+
+const fileContents = JSON.parse(fs.readFileSync(defaultedEnv.CONFIG_FILE_LOCATION + "/config.json",{encoding: "utf-8"}));
 
 const fileResult = dmReportGenerationServiceConfigFileSchema.safeParse(fileContents);
 
@@ -99,11 +104,7 @@ const endpointConfig: EndpointConfig[] = fileResult.data.endpoints.map((fileEndp
   }
 });
 
-const config: DmReportGenerationServiceConfig = {
+export const config: DmReportGenerationServiceConfig = {
   env: defaultedEnv,
   file: endpointConfig,
 }
-
-
-// Config is 100% Safe and validated
-export default config;

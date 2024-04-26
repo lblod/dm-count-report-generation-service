@@ -1,7 +1,9 @@
-import config from './config';
-import { getCountForOrgQueryTemplate, PREFIXES } from './report-generation/queries';
+
+import { config } from 'configuration';
+import { getCountForOrgQueryTemplate } from './report-generation/queries';
 import { queryEngine } from './report-generation/query-engine';
 import { EncapsulatedQuery } from './report-generation/util';
+import { PREFIXES } from 'local-constants';
 
 type CountInput = {
   prefixes: string;

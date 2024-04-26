@@ -1,0 +1,6 @@
+#!/bin/zsh
+export DISABLE_DEBUG_ENDPOINT="false"
+export ADMIN_UNIT_ENDPOINT="http://localhost:8890/sparql"
+export REPORT_ENDPOINT="http://localhost:8890/sparql"
+export NODE_PATH=./dist
+export CONFIG_FILE_LOCATION="/Users/dv/Documents/abb/dm-report-generation-service/test-config"

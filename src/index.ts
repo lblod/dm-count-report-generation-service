@@ -1,8 +1,7 @@
+import { config } from 'configuration';
 import cors, { CorsOptions } from 'cors';
 import express, { Express, } from "express";
 import { generateReports } from './report-generation';
-import config from './config';
-
 
 const corsOptions: CorsOptions   = {
   origin: ['http://localhost:4200','http://localhost:9300'],
