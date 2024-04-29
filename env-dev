@@ -7,3 +7,4 @@ export CONFIG_FILE_LOCATION="/Users/dv/Documents/abb/dm-report-generation-servic
 export SHOW_SPARQL_QUERIES="true"
 export LIMIT_NUMBER_ADMIN_UNITS=5
 export ORG_RESOURCES_TTL_S=300
+export SERVER_PORT=4199

@@ -1,0 +1,4 @@
+#!/bin/bash
+
+curl http://localhost:4199/generate-report-now
+echo ""

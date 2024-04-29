@@ -1,12 +1,12 @@
 import type { Dayjs } from 'dayjs';
-import dayjs from 'dayjs';
+import dayjs, { isDayjs } from 'dayjs';
 import timezone from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
 import { DEFAULT_TIMEZONE } from 'local-constants';
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-const VALID_ISO_DATE_REGEX = /^(\d{4})\-(\d{2})\-(\d{2})$/;
+export const VALID_ISO_DATE_REGEX = /^(\d{4})\-(\d{1,2})\-(\d{1,2})$/;
 
 /**
  * This immutable class models a date and a date only. This is NOT a timestamp.
@@ -39,6 +39,13 @@ export class DateOnly {
           .set('m', 0)
           .set('s', 0)
           .set('ms', 0);
+      } else if (args.length===1 && isDayjs(args[0])) {
+        return dayjs(args[0])
+          .tz(DEFAULT_TIMEZONE, true)
+          .set('h', 0)
+          .set('m', 0)
+          .set('s', 0)
+          .set('ms', 0);
       } else if (
           args.length === 3 &&
           typeof args[0] === "number" &&
@@ -49,7 +56,7 @@ export class DateOnly {
         this._month = args[1];
         this._day = args[2];
         return dayjs()
-        .tz(DEFAULT_TIMEZONE, true)
+          .tz(DEFAULT_TIMEZONE, true)
           .set('year',args[0])
           .set('month',args[1])
           .set('day',args[2])
@@ -74,6 +81,15 @@ export class DateOnly {
 
   toDateRdfLiteral(fullDataTypeUri=false):string {
     return fullDataTypeUri? `"${this.toString()}"^^<http://www.w3.org/2001/XMLSchema#:date>`:`"${this.toString()}"^^xsd:date`
+  }
+
+  static today(): DateOnly {
+    return new DateOnly(dayjs());
+  }
+
+  static yesterday(): DateOnly {
+    const yesterdayTs = dayjs().add(-1,'day');
+    return new DateOnly(yesterdayTs);
   }
 
 }

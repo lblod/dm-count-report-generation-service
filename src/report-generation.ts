@@ -76,7 +76,7 @@ export async function getOrgResoucesCached(): Promise<OrganisationsAndGovBodies>
   return orgResourcesCache;
 }
 
-export async function generateReports() {
+export async function generateReports(day:DateOnly) {
   //For every org query counts for all resource types
   const orgResources = await getOrgResoucesCached();
   console.log(JSON.stringify(orgResources,undefined,3));
