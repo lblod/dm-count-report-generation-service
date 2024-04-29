@@ -1,5 +1,5 @@
 {
-  "name": "dm-report-generation-service",
+  "name": "dm-count-report-generation-service",
   "version": "0.0.1",
   "description": "Microservice for generating data quality reports in the data monitoring tool",
   "main": "index.js",
@@ -10,14 +10,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/DennisVanEecke/dm-report-generation-service.git"
+    "url": "git+https://github.com/lblod/dm-count-report-generation-service.git"
   },
   "author": "Codifly",
   "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/DennisVanEecke/dm-report-generation-service/issues"
-  },
-  "homepage": "https://github.com/DennisVanEecke/dm-report-generation-service#readme",
+  "homepage": "https://github.com/lblod/dm-count-report-generation-service/README.md",
   "dependencies": {
     "@comunica/query-sparql": "^3.0.3",
     "@rdfjs/types": "^1.1.0",
