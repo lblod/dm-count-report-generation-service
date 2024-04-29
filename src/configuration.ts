@@ -35,6 +35,17 @@ const envBooleanSchema = z.string().toLowerCase().transform((x,ctx) => {
   });
   return z.never;
 }).pipe(z.boolean());
+const envIntegerSchema = z.string().transform((x,ctx) => {
+  const integer = parseInt(x);
+  if (isNaN(integer)) {
+    ctx.addIssue({
+      code:z.ZodIssueCode.custom,
+      message: `Integer env vars need to be able to be parsed as an integer.`,
+    });
+    return z.never;
+  }
+  return integer;
+}).pipe(z.number().int());
 const uriSchema = z.string().url().or(z.string().regex(RESOURCE_CLASS_SHORT_URI_REGEX));
 
 const dmReportGenerationServiceConfigFileSchema = z.object({
@@ -50,6 +61,10 @@ const dmReportGenerationServiceEnvSchema = z.object({
   'ADMIN_UNIT_ENDPOINT': z.string().url(),
   'REPORT_ENDPOINT': z.string().url(),
   'CONFIG_FILE_LOCATION': z.string().optional(),
+  'SLEEP_BETWEEN_QUERIES_MS': envIntegerSchema.optional(),
+  'SHOW_SPARQL_QUERIES': envBooleanSchema.optional(),
+  'LIMIT_NUMBER_ADMIN_UNITS': envIntegerSchema.optional(),
+  'ORG_RESOURCES_TTL_S': envIntegerSchema.optional(),
 })
 
 // Useful types
@@ -74,6 +89,10 @@ const defaultEnv = {
   DISABLE_DEBUG_ENDPOINT: false,
   REPORT_GRAPH_URI: "http://mu.semte.ch/graphs/public",
   CONFIG_FILE_LOCATION: "/config",
+  SLEEP_BETWEEN_QUERIES_MS: 0,
+  SHOW_SPARQL_QUERIES: false,
+  LIMIT_NUMBER_ADMIN_UNITS: 0, // Default value of 0 means no limit
+  ORG_RESOURCES_TTL_S: 300, // Default cache TTL is five minutes
 };
 
 const envResult = dmReportGenerationServiceEnvSchema.safeParse(process.env);

@@ -3,7 +3,16 @@ import { Bindings, Term } from "@rdfjs/types";
 import type { QueryStringContext } from "@rdfjs/types";
 import { config } from "configuration";
 
-export type PrefixesInput = {
+export function logQuery(endpoint:string,query:string) {
+  console.log(`SPARQL query to endpoint: ${endpoint}\n- - - - - - \n${query}\n- - - - - - `);
+}
+
+export function delay(millis: number):Promise<void> {
+  if (millis === 0) return Promise.resolve();
+  return new Promise<void>((res)=>setTimeout(res,millis));
+}
+
+export type GetOrganisationsInput = {
   prefixes: string,
 }
 
@@ -26,9 +35,8 @@ function toObject(term:Term): string | number | boolean {
         default:
           throw new Error(`No conversion function for literal of type ${term.datatype.value}`);
       }
-      break;
-    case "NamedNode":
-      return `<${term.value}>`;
+    case "NamedNode": // For named nodes we just return the URI
+      return term.value;
     case "BlankNode":
       return `<_>`;
     default:
@@ -36,39 +44,94 @@ function toObject(term:Term): string | number | boolean {
   }
 }
 
+function getKeysOfHeaders(headers:Headers): string[] {
+  const result: string[] = [];
+  headers.forEach((_,key)=>result.push(key))
+  return result;
+}
+
+function getHeaderTypeSafe(headers: any, key:string): string {
+  if (!headers) throw new Error('No headers');
+  // Headers as Headers
+  if (headers instanceof Headers) {
+    const targetHeader = headers.get(key.toLowerCase());
+    if (!targetHeader) throw new Error(`Header wirth key ${key} not found in ${getKeysOfHeaders(headers)}`);
+    return targetHeader;
+  };
+  // Headers as array
+  if (Array.isArray(headers)) {
+    const targetHeader = headers.find((header)=>{
+      if (Array.isArray(header) && header.length === 2) {
+        return header[0]===key;
+      }
+      throw new Error(`Headers as array not formed correctly`);
+    });
+    if (!targetHeader) throw new Error(`Header wirth key ${key} not found`);
+    return targetHeader[1];
+  }
+  // Headers as object of type Record<string,string>
+  const result = headers[key];
+  if (result && typeof result === 'string') return result;
+  throw new Error(`Was not able to extract header from headers object with key ${key}\nAs String:${headers}\nType: ${typeof headers}\nConstructor: ${headers.constructor?.name}\nAs JSON:\n${JSON.stringify(headers,undefined,3)}`);
+}
+
 function getCustomFetchFunction(query:string):(input: URL | string | Request,options:RequestInit | undefined)=>Promise<Response> {
   return async function(input: URL | string | Request,options:RequestInit | undefined): Promise<Response> {
-    if (!(options?.method==='POST')) return await fetch(input,options);
+    // if (!(options?.method==='POST')) return await fetch(input,options);
+    if (!(options?.method==='POST') || !(options?.headers)) throw new Error(
+      `This custom fetch function should only be used for INSERT queries with a POST type method. The method is ${options?.method}`
+    );
+    const userAgent = getHeaderTypeSafe(options.headers,'user-agent');
+    if (!(userAgent.includes('Comunica/actor-http-fetch'))) throw new Error(
+      `Custom fetch function only for comunica fetches. Wrong user agent.`
+    )
 
-    const newHttpHeaders = {
-      "mu-auth-sudo":"true",
-      // "authentication":"Basic dba:dba",
-      "content-type":"application/x-www-form-urlencoded",
-      "user-agent":"abb-report-generation-service",
-      "accept":"application/sparql-results+json,application/json",
-    }
-    const formBody = new URLSearchParams();
-    formBody.append('update',query);
-    formBody.append('url',config.env.REPORT_ENDPOINT);
-    console.log(formBody.toString());
+    // const acceptHeaderFromComunica = (()=>{
+    //   if (!options) return "application/json";
+    //   if (!options.headers) throw new Error('Comunica did not pass a headers object');
+    //   if (options.headers instanceof Headers) {
+    //     const acceptHeader = options.headers.get('accept');
+    //     if (!acceptHeader) throw new Error('No accept header passed');
+    //     return acceptHeader;
+    //   };
+    //   if (Array.isArray(options.headers)) {
+    //     const acceptHeader = options.headers.find((header)=>header[0]==='accept');
+    //     if (!acceptHeader || acceptHeader[1]) throw new Error('No accept header passed');
+    //     return acceptHeader[1];
+    //   }
+    //   try {
+    //     return options.headers
+    //     throw new Error(`Was not able to extract header`);
+    //   } catch (e) {
+    //     throw new Error('Header extraction from headers object failed.')
+    //   }
+    // })();
 
+    console.log('comunicaheaders',options.headers);
+
+
+    const headers = new Headers();
+    headers.append("mu-auth-sudo","true");
+    headers.append("Content-Type","application/x-www-form-urlencoded");
+    headers.append("user-agent",userAgent);
+    headers.append("Accept","application/json");
+
+    const body = new URLSearchParams();
+    body.append('query',query);
+    body.append('url',config.env.REPORT_ENDPOINT);
 
     const totalOptions: RequestInit = {
       ...options,
       method:'POST',
-      headers: {
-        ...newHttpHeaders,
-        ...options?.headers,
-      },
-      body: formBody,
+      headers,
+      body,
     };
     const response = await fetch(input,totalOptions);
-    console.log(response.toString());
     return response;
   }
 }
 
-export class TemplatedQuery<T extends {},U extends {}> {
+class TemplatedQueryBase<T extends {}> {
   queryEngine: QueryEngine;
   endpoint: string;
   template: HandlebarsTemplateDelegate<T>;
@@ -85,10 +148,12 @@ export class TemplatedQuery<T extends {},U extends {}> {
   getQuery(input:T):string {
     return this.template(input);
   }
+}
 
-
+export class TemplatedInsert<T extends {}> extends TemplatedQueryBase<T> {
   async insertData(input:T):Promise<void> {
     const query = this.getQuery(input);
+    if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint,query);
     this.queryEngine.queryVoid(query,{
       sources: [{
         type:'sparql',
@@ -97,15 +162,21 @@ export class TemplatedQuery<T extends {},U extends {}> {
       fetch:getCustomFetchFunction(query),
     });
   }
-  async getBindings(input: T):Promise<Bindings[]> {
+}
+
+export class TemplatedSelect<T extends {},U extends {}> extends TemplatedQueryBase<T> {
+  async bindings(input: T):Promise<Bindings[]> {
     const query = this.getQuery(input);
+    if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint,query);
     const bindingsStream = await this.queryEngine.queryBindings(query,{
       sources: [this.endpoint],
     });
     return (bindingsStream.toArray());
   }
-  async getObjects(input: T): Promise<U[]> {
+
+  async objects(input: T): Promise<U[]> {
     const query = this.getQuery(input);
+    if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint,query);
     const bindingsStream = await this.queryEngine.queryBindings(query,{
       sources: [this.endpoint],
     });
