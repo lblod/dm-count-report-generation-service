@@ -82,10 +82,10 @@ const dmReportGenerationServiceConfigFileSchema = z.object({
 });
 
 const dmReportGenerationServiceEnvSchema = z.object({
-  DISABLE_DEBUG_ENDPOINT: envBooleanSchema.optional(),
-  REPORT_GRAPH_URI: z.string().optional(),
   ADMIN_UNIT_ENDPOINT: z.string().url(),
   REPORT_ENDPOINT: z.string().url(),
+  DISABLE_DEBUG_ENDPOINT: envBooleanSchema.optional(),
+  REPORT_GRAPH_URI: z.string().optional(),
   CONFIG_FILE_LOCATION: z.string().optional(),
   SLEEP_BETWEEN_QUERIES_MS: envIntegerSchema.optional(),
   SHOW_SPARQL_QUERIES: envBooleanSchema.optional(),

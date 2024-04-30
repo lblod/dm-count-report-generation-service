@@ -1,8 +1,11 @@
 {
   "endpoints": [
     {
-      "url":"http://localhost:8890/sparql",
-      "classes": ["besluit:Besluit","besluit:Agendapunt"]
+      "url": "http://localhost:8890/sparql",
+      "classes": [
+        "besluit:Besluit",
+        "besluit:Agendapunt"
+      ]
     }
   ]
 }
