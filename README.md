@@ -47,6 +47,7 @@ When using this service you'll need to make a volume that links a directory to t
 
 ```JSON
 {
+  "$schema": "https://raw.githubusercontent.com/lblod/dm-count-report-generation-service/master/config-schema.json",
   "endpoints": [
     {
       "url":"...",
@@ -61,4 +62,30 @@ When using this service you'll need to make a volume that links a directory to t
 }
 ```
 
-It's a list of endpoints specifying a SPARQL endpoint 
+It's a list of endpoints specifying a SPARQL endpoint URL and a list of resources to count. There is a JSON schema so you should not make any mistaktes. If you do mess up the schema though the program will crash on startup and you'll get a slap on the wrist.
+
+## Testing
+
+### Running locally
+
+You'll need node v20.12.2 or higher. I suggest using [NVM](https://github.com/nvm-sh/nvm). If you do use NVM you can run:
+
+1. `nvm install lts/iron`
+2. `nvm use lts/iron`
+
+To run locally:
+
+1. Clone the repo
+2. Run `npm install` in the folder
+3. Change the file `env-dev` to your preferences.
+4. Run `npm run dev` and nodemon will start. It will run the service using TSX
+
+VSCode users can use the debugger. Again make sure `env-dev` is adapted to your circumstance and press play in the debugger sidebar.
+
+### Running from a container
+
+Adapt the environment variables in the `run` file. Then run it `./run`.
+
+It will build the image and then spin up a container. There will be strict type checking.
+
+### 

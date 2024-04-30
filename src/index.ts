@@ -78,3 +78,9 @@ app.listen(config.env.SERVER_PORT, () => {
     `Report generation microservice started and listening on ${config.env.SERVER_PORT}.`
   );
 });
+
+// Catch CTRL+C and docker kill signal
+process.on("SIGINT", () => {
+  logger.info("SIGIT received. Stopping.");
+  process.exit(0);
+});
