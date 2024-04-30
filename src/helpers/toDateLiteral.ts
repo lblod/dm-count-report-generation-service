@@ -1,4 +1,4 @@
-import { DateOnly } from "date";
+import { DateOnly } from "./../date.js";
 import Handlebars from "handlebars";
 
 Handlebars.registerHelper("toDateLiteral", function(dateOnly: unknown) {

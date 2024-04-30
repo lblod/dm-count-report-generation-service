@@ -1,17 +1,16 @@
-import { config } from 'configuration';
+
 import cors, { CorsOptions } from 'cors';
 import express, { Express, } from "express";
-import { generateReports } from 'report-generation';
+import { generateReports } from './report-generation.js';
 import { ZodObject, z } from 'zod';
-import { DateOnly, VALID_ISO_DATE_REGEX } from 'date';
+import { DateOnly, VALID_ISO_DATE_REGEX } from './date.js';
 import { fromZodError } from 'zod-validation-error';
 import { schedule } from 'node-cron'
 import dayjs from 'dayjs';
-import duration from 'dayjs/plugin/duration';
-import { durationWrapper } from 'cron';
-import logger from 'logger';
+import { durationWrapper } from './cron.js';
+import logger from './logger.js';
+import { config } from './configuration.js';
 
-dayjs.extend(duration)
 
 // Init express server
 

@@ -1,6 +1,6 @@
 import Handlebars from "handlebars";
 import dayjs from 'dayjs';
-import "helpers"; // Make sure the modules in the helpers folder are loaded before these templates are compiled
+import "./../helpers/index.js"; // Making sure the modules in the helpers folder are loaded before these templates are compiled
 
 export type GetOrganisationsInput = {
   prefixes: string;

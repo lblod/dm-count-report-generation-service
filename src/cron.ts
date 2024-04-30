@@ -1,6 +1,6 @@
-import { LogLevel, config } from "configuration";
+import { LogLevel, config } from "./configuration.js";
 import dayjs from "dayjs";
-import logger from 'logger';
+import logger from './logger.js';
 
 /**
  * Measures the execution duration of the wrapped function using dayjs diff and prints info

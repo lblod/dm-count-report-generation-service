@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import fs from 'node:fs';
-import { ZodParseError } from 'types/errors';
-import { PREFIXES, RESOURCE_CLASS_SHORT_URI_REGEX } from 'local-constants'; // Not named 'constants' because of name conflict with node. Same of the nam of this module.
+import { PREFIXES, RESOURCE_CLASS_SHORT_URI_REGEX } from './local-constants.js'; // Not named 'constants' because of name conflict with node. Same of the nam of this module.
+import { fromError } from 'zod-validation-error';
 
 // Extract namespaces and build a conversion function to convert short URI's to full ones
 
@@ -118,7 +118,7 @@ const defaultEnv = {
 const envResult = dmReportGenerationServiceEnvSchema.safeParse(process.env);
 
 if (!envResult.success) {
-  throw new ZodParseError(`Environment variables are not in the correct schema`,envResult.error)
+  throw fromError(envResult.error);
 }
 
 const defaultedEnv: Required<DmReportGenerationServiceEnv>  = {
@@ -133,7 +133,7 @@ const fileContents = JSON.parse(fs.readFileSync(defaultedEnv.CONFIG_FILE_LOCATIO
 const fileResult = dmReportGenerationServiceConfigFileSchema.safeParse(fileContents);
 
 if (!fileResult.success) {
-  throw new ZodParseError(`Config file is not in the correct schema`,fileResult.error);
+  throw fromError(fileResult.error);
 }
 
 const endpointConfig: EndpointConfig[] = fileResult.data.endpoints.map((fileEndpoint)=> {

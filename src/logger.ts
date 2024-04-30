@@ -1,4 +1,4 @@
-import { config } from "configuration";
+import { config } from "./configuration.js";
 import winston from "winston";
 
 export default winston.createLogger({

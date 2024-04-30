@@ -1,13 +1,13 @@
 
-import { config } from 'configuration';
-import { GetGoveringBodiesInput, GetGoveringBodiesOutput, GetOrganisationsOutput, GetOrganisationsInput, WriteReportInput, getGoverningBodiesOfAdminUnitTemplate, getOrganisationsTemplate, writeCountReportQueryTemplate, countSessionsQueryTemplate, CountSessionsQueryInput, CountSessionsQueryOutput, countAgendaItemsQueryTemplate } from './report-generation/queries';
-import { queryEngine } from './report-generation/query-engine';
-import { PREFIXES } from 'local-constants';
+import { config } from './configuration.js';
+import { GetGoveringBodiesInput, GetGoveringBodiesOutput, GetOrganisationsOutput, GetOrganisationsInput, WriteReportInput, getGoverningBodiesOfAdminUnitTemplate, getOrganisationsTemplate, writeCountReportQueryTemplate, countSessionsQueryTemplate, CountSessionsQueryInput, CountSessionsQueryOutput, countAgendaItemsQueryTemplate } from './report-generation/queries.js';
+import { queryEngine } from './report-generation/query-engine.js';
+import { PREFIXES } from './local-constants.js';
+import { DateOnly } from './date.js';
+import { TemplatedInsert, TemplatedSelect, delay } from './report-generation/util.js';
+import logger from './logger.js';
 import { v4 as uuidv4 } from 'uuid';
-import { DateOnly } from 'date';
-import { TemplatedInsert, TemplatedSelect, delay } from 'report-generation/util';
 import dayjs from 'dayjs';
-import logger from 'logger';
 
 type OrganisationsAndGovBodies = {
   adminUnits: {
