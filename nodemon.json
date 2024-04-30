@@ -1,8 +1,10 @@
 {
   "verbose": true,
   "ignore": [],
-  "watch": ["src/**/*.ts"],
+  "watch": [
+    "src/**/*.ts"
+  ],
   "execMap": {
-    "ts": "npx tsx"
+    "ts": "npx tsx inspect"
   }
 }

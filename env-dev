@@ -1,5 +1,6 @@
 #!/bin/zsh
 export NODE_ENV="development"
+export NODE_INSPECT_RESUME_ON_START=1
 export DISABLE_DEBUG_ENDPOINT="false"
 export ADMIN_UNIT_ENDPOINT="http://localhost:8890/sparql"
 export REPORT_ENDPOINT="http://localhost:8890/sparql"
@@ -8,3 +9,4 @@ export SHOW_SPARQL_QUERIES="true"
 export LIMIT_NUMBER_ADMIN_UNITS=5
 export ORG_RESOURCES_TTL_S=300
 export SERVER_PORT=4199
+export LOG_LEVEL="debug"

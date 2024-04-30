@@ -1,19 +1,20 @@
 import Handlebars from "handlebars";
-import dayjs from 'dayjs';
+import dayjs from "dayjs";
 import "./../helpers/index.js"; // Making sure the modules in the helpers folder are loaded before these templates are compiled
 
 export type GetOrganisationsInput = {
   prefixes: string;
   limit: number;
-}
+};
 
 export type GetOrganisationsOutput = {
   organisationUri: string;
   label: string;
   id: string;
-}
+};
 
-export const getOrganisationsTemplate = Handlebars.compile(`\
+export const getOrganisationsTemplate = Handlebars.compile(
+  `\
 {{prefixes}}
 SELECT ?organisationUri ?label ?id WHERE {
   ?organisationUri a besluit:Bestuurseenheid;
@@ -21,15 +22,17 @@ SELECT ?organisationUri ?label ?id WHERE {
     skos:prefLabel ?label;
     org:classification <http://data.vlaanderen.be/id/concept/BestuurseenheidClassificatieCode/5ab0e9b8a3b2ca7c5e000001>.
 } {{limitClause limit}}
-`, {noEscape:true});
-
+`,
+  { noEscape: true }
+);
 
 export type CountInput = {
   prefixes: string;
   classes: readonly string[];
-}
+};
 
-export const getCountForOrgQueryTemplate = Handlebars.compile(`\
+export const getCountForOrgQueryTemplate = Handlebars.compile(
+  `\
 {{prefixes}}
 SELECT * WHERE {
   {{#each classes}}
@@ -40,40 +43,46 @@ SELECT * WHERE {
   }
   {{/each}}
 }
-`, {noEscape:true})
+`,
+  { noEscape: true }
+);
 
 export type GetGoveringBodiesInput = {
-  prefixes: string,
-  adminitrativeUnitUri: string,
+  prefixes: string;
+  adminitrativeUnitUri: string;
 };
 
 export type GetGoveringBodiesOutput = {
   goveringBody: string;
   label: string;
-}
+};
 
-export const getGoverningBodiesOfAdminUnitTemplate = Handlebars.compile(`\
+export const getGoverningBodiesOfAdminUnitTemplate = Handlebars.compile(
+  `\
 {{prefixes}}
 SELECT ?goveringBody ?label WHERE {
   ?goveringBody a besluit:Bestuursorgaan;
     besluit:bestuurt <{{adminitrativeUnitUri}}>;
     skos:prefLabel ?label.
 }
-`, {noEscape:true})
+`,
+  { noEscape: true }
+);
 
 export type WriteReportInput = {
-  prefixes: string,
-  reportGraphUri: string,
-  reportUri: string,
-  createdAt: dayjs.Dayjs,
-  govBodyUri: string,
+  prefixes: string;
+  reportGraphUri: string;
+  reportUri: string;
+  createdAt: dayjs.Dayjs;
+  govBodyUri: string;
   counts: {
     classUri: string;
     count: number;
-  }[],
-}
+  }[];
+};
 
-export const writeCountReportQueryTemplate = Handlebars.compile(`\
+export const writeCountReportQueryTemplate = Handlebars.compile(
+  `\
 {{prefixes}}
 INSERT {
   GRAPH <{{reportGraphUri}}> {
@@ -92,24 +101,25 @@ INSERT {
 } WHERE {
 
 }
-`, {noEscape: true});
-
-
+`,
+  { noEscape: true }
+);
 
 export type CountSessionsQueryInput = {
   prefixes: string;
   governingBodyUri: string;
   from: dayjs.Dayjs;
   to: dayjs.Dayjs;
-}
+};
 
 export type CountSessionsQueryOutput = {
-  count:number;
-}
+  count: number;
+};
 
-export const countSessionsQueryTemplate = Handlebars.compile(`\
+export const countSessionsQueryTemplate = Handlebars.compile(
+  `\
 {{prefixes}}
-SELECT (COUNT(DISTINCT ?session) as ?count) ?plannedStart WHERE {
+SELECT (COUNT(DISTINCT ?session) as ?count) WHERE {
   {
     ?session a besluit:Zitting;
       besluit:isGehoudenDoor <{{governingBodyUri}}>.
@@ -125,20 +135,23 @@ SELECT (COUNT(DISTINCT ?session) as ?count) ?plannedStart WHERE {
   FILTER(?plannedStart < {{toDateTimeLiteral to}})
 }
 
-`);
+`,
+  { noEscape: true }
+);
 
 export type CountAgendaItemsQueryInput = {
   prefixes: string;
   governingBodyUri: string;
   from: dayjs.Dayjs;
   to: dayjs.Dayjs;
-}
+};
 
 export type CountAgendaItemsQueryOutput = {
-  count:number;
-}
+  count: number;
+};
 
-export const countAgendaItemsQueryTemplate = Handlebars.compile(`\
+export const countAgendaItemsQueryTemplate = Handlebars.compile(
+  `\
 {{prefixes}}
 SELECT (COUNT(DISTINCT ?agendaItem) as ?count) WHERE {
   {
@@ -160,6 +173,6 @@ SELECT (COUNT(DISTINCT ?agendaItem) as ?count) WHERE {
   FILTER(?plannedStart < {{toDateTimeLiteral to}})
 }
 
-`);
-
-
+`,
+  { noEscape: true }
+);

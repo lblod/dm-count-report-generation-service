@@ -5,6 +5,7 @@ import fs from "node:fs";
 import { durationWrapper } from "cron.js";
 import dayjs from "dayjs";
 import Handlebars from "handlebars";
+import logger from "logger.js";
 
 const debugResultTemplate = Handlebars.compile(
   fs.readFileSync("./templates/debug-output.hbs", { encoding: "utf-8" })
@@ -33,13 +34,14 @@ export function getZodQueryValidationMiddleware(
         method: req.method + " " + req.originalUrl,
         message: validationError.message,
         query: JSON.stringify(req.query),
-        error: validationError.toString(),
+        error: `${parse.error}\n${parse.error.stack}`,
       });
       res.statusCode = 500;
       res.statusMessage = "Validation error";
       res.send(html);
       return;
     }
+    req.query = parse.data;
     next();
   };
 }
@@ -63,7 +65,8 @@ export function debugErrorHandlingMiddelware(
   err: Error,
   req: express.Request,
   res: express.Response,
-  next: express.NextFunction
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _next: express.NextFunction
 ) {
   res.appendHeader("content-type", "text/html");
   const html = errorResultTemplate({
@@ -71,7 +74,7 @@ export function debugErrorHandlingMiddelware(
     method: req.method + " " + req.originalUrl,
     query: JSON.stringify(req.query),
     message: err.message,
-    error: err.toString(),
+    error: `${err}\n${err.stack}`,
   });
   res.statusCode = 500;
   res.statusMessage = err.message;
@@ -122,6 +125,7 @@ export function addDebugEndpoint<F extends FunctionTakingQueryAndReturnPromise>(
         };
         next();
       } catch (e: any) {
+        logger.error(e.message);
         next(e);
       }
     },

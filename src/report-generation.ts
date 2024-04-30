@@ -1,13 +1,29 @@
-
-import { config } from './configuration.js';
-import { GetGoveringBodiesInput, GetGoveringBodiesOutput, GetOrganisationsOutput, GetOrganisationsInput, WriteReportInput, getGoverningBodiesOfAdminUnitTemplate, getOrganisationsTemplate, writeCountReportQueryTemplate, countSessionsQueryTemplate, CountSessionsQueryInput, CountSessionsQueryOutput, countAgendaItemsQueryTemplate } from './report-generation/queries.js';
-import { queryEngine } from './report-generation/query-engine.js';
-import { PREFIXES } from './local-constants.js';
-import { DateOnly } from './date.js';
-import { TemplatedInsert, TemplatedSelect, delay } from './report-generation/util.js';
-import logger from './logger.js';
-import { v4 as uuidv4 } from 'uuid';
-import dayjs from 'dayjs';
+import { config } from "./configuration.js";
+import {
+  GetGoveringBodiesInput,
+  GetGoveringBodiesOutput,
+  GetOrganisationsOutput,
+  GetOrganisationsInput,
+  WriteReportInput,
+  getGoverningBodiesOfAdminUnitTemplate,
+  getOrganisationsTemplate,
+  writeCountReportQueryTemplate,
+  countSessionsQueryTemplate,
+  CountSessionsQueryInput,
+  CountSessionsQueryOutput,
+  countAgendaItemsQueryTemplate,
+} from "./report-generation/queries.js";
+import { queryEngine } from "./report-generation/query-engine.js";
+import { PREFIXES } from "./local-constants.js";
+import { DateOnly } from "./date.js";
+import {
+  TemplatedInsert,
+  TemplatedSelect,
+  delay,
+} from "./report-generation/util.js";
+import logger from "./logger.js";
+import { v4 as uuidv4 } from "uuid";
+import dayjs from "dayjs";
 
 type OrganisationsAndGovBodies = {
   adminUnits: {
@@ -19,23 +35,25 @@ type OrganisationsAndGovBodies = {
       label: string;
     }[];
   }[];
-}
+};
 
-let orgResourcesCache : OrganisationsAndGovBodies | null = null;
+let orgResourcesCache: OrganisationsAndGovBodies | null = null;
 let timer: NodeJS.Timeout | null = null;
 
 async function getOrgResouces(): Promise<OrganisationsAndGovBodies> {
-  const result: OrganisationsAndGovBodies = {adminUnits: []};
-  const getOrganisationsQuery = new TemplatedSelect<GetOrganisationsInput,GetOrganisationsOutput>(
+  const result: OrganisationsAndGovBodies = { adminUnits: [] };
+  const getOrganisationsQuery = new TemplatedSelect<
+    GetOrganisationsInput,
+    GetOrganisationsOutput
+  >(queryEngine, config.env.ADMIN_UNIT_ENDPOINT, getOrganisationsTemplate);
+  const getGoveringBodiesOfAdminUnitQuery = new TemplatedSelect<
+    GetGoveringBodiesInput,
+    GetGoveringBodiesOutput
+  >(
     queryEngine,
     config.env.ADMIN_UNIT_ENDPOINT,
-    getOrganisationsTemplate,
+    getGoverningBodiesOfAdminUnitTemplate
   );
-  const getGoveringBodiesOfAdminUnitQuery = new TemplatedSelect<GetGoveringBodiesInput,GetGoveringBodiesOutput> (
-    queryEngine,
-    config.env.ADMIN_UNIT_ENDPOINT,
-    getGoverningBodiesOfAdminUnitTemplate,
-  )
 
   const orgs = await getOrganisationsQuery.objects({
     prefixes: PREFIXES,
@@ -51,79 +69,78 @@ async function getOrgResouces(): Promise<OrganisationsAndGovBodies> {
     result.adminUnits.push({
       uri: org.organisationUri,
       label: org.label,
-      id:org.id,
-      govBodies: govBodies.map((record)=>{
+      id: org.id,
+      govBodies: govBodies.map((record) => {
         return {
           uri: record.goveringBody,
           label: record.label,
-        }
-      })
+        };
+      }),
     });
     await delay(config.env.SLEEP_BETWEEN_QUERIES_MS); // Await in for loop is icky. But here we have no choice.
   }
   // Cache is successfully loded. Reset or set timer
   if (timer) clearTimeout(timer);
-  timer = setTimeout(()=>{
+  timer = setTimeout(() => {
     orgResourcesCache = null;
-  },config.env.ORG_RESOURCES_TTL_S*1000);
+  }, config.env.ORG_RESOURCES_TTL_S * 1000);
   return result;
 }
 
 export async function getOrgResoucesCached(): Promise<OrganisationsAndGovBodies> {
   if (orgResourcesCache) {
-    console.info('Got org resources from cache.')
+    console.info("Got org resources from cache.");
     return orgResourcesCache;
   }
   orgResourcesCache = await getOrgResouces();
   return orgResourcesCache;
 }
 
-export async function generateReports(day:DateOnly) {
+export async function generateReports(day: DateOnly) {
   //For every org query counts for all resource types
   const orgResources = await getOrgResoucesCached();
-  logger.info(JSON.stringify(orgResources,undefined,3));
 
   for (const endpoint of config.file) {
-      // Prepare the machines
+    // Prepare the machines
     const countSessionsQuery = new TemplatedSelect<
       CountSessionsQueryInput,
       CountSessionsQueryOutput
-    >(
-      queryEngine,
-      endpoint.url,
-      countSessionsQueryTemplate
-    );
+    >(queryEngine, endpoint.url, countSessionsQueryTemplate);
     const countAgendaItemsQuery = new TemplatedSelect<
       CountSessionsQueryInput,
       CountSessionsQueryOutput
-    >(
-      queryEngine,
-      endpoint.url,
-      countAgendaItemsQueryTemplate,
-    );
+    >(queryEngine, endpoint.url, countAgendaItemsQueryTemplate);
 
     const writeCountReportQuery = new TemplatedInsert<WriteReportInput>(
       queryEngine,
       endpoint.url,
-      writeCountReportQueryTemplate,
+      writeCountReportQueryTemplate
     );
 
     for (const adminUnit of orgResources.adminUnits) {
-      const governingBodyReportUriList: string [] = [];
+      const governingBodyReportUriList: string[] = [];
       // TODO: make a catalog of query machines for each resource type
       for (const goveringBody of adminUnit.govBodies) {
+        logger.debug(`Derp`, {
+          day,
+          isDateOnly: day instanceof DateOnly,
+
+          from: day.localStartOfDay,
+          to: day.localEndOfDay,
+        });
+
         const sessionsResult = await countSessionsQuery.result({
           prefixes: PREFIXES,
           governingBodyUri: goveringBody.uri,
           from: day.localStartOfDay,
-          to:day.localEndOfDay,
+          to: day.localEndOfDay,
         });
 
         const agendaItemResult = await countAgendaItemsQuery.result({
           prefixes: PREFIXES,
           governingBodyUri: goveringBody.uri,
           from: day.localStartOfDay,
-          to:day.localEndOfDay,
+          to: day.localEndOfDay,
         });
 
         const reportUri = `http://lblod.data.gift/vocabularies/datamonitoring/countReport/${uuidv4()}`;
@@ -139,20 +156,18 @@ export async function generateReports(day:DateOnly) {
           counts: [
             {
               classUri: `http://data.vlaanderen.be/ns/besluit#Zitting`,
-              count: sessionsResult.count
+              count: sessionsResult.count,
             },
             {
               classUri: `http://data.vlaanderen.be/ns/besluit#Agendapunt`,
-              count: agendaItemResult.count
+              count: agendaItemResult.count,
             },
-          ]
+          ],
         });
       }
       // Write admin unit report
     }
   }
 
-// async function getOrganisations() {
-
-
+  // async function getOrganisations() {
 }

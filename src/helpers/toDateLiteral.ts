@@ -1,7 +1,10 @@
 import { DateOnly } from "./../date.js";
 import Handlebars from "handlebars";
 
-Handlebars.registerHelper("toDateLiteral", function(dateOnly: unknown) {
-  if (!(dateOnly instanceof DateOnly)) throw new Error('toDateLiteral only takes a DateOnly instance as an argument');
-  return arguments[0].toDateRdfLiteral();
+Handlebars.registerHelper("toDateLiteral", function (dateOnly: unknown) {
+  if (!(dateOnly instanceof DateOnly))
+    throw new Error(
+      "toDateLiteral only takes a DateOnly instance as an argument"
+    );
+  return dateOnly.toDateRdfLiteral();
 });
