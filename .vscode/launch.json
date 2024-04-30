@@ -1,6 +1,5 @@
 {
   "version": "0.2.0",
-
   "configurations": [
     {
       "type": "node",
@@ -11,7 +10,8 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": [
         "run", "for-launch-json-vscode"
-      ]
+      ],
+      "outputCapture": "std"
     }
-  ],
+  ]
 }

@@ -1,6 +1,6 @@
 import express from "express";
 import { z, ZodObject } from "zod";
-import { fromError, fromZodError } from "zod-validation-error";
+import { fromError } from "zod-validation-error";
 import fs from "node:fs";
 import { durationWrapper } from "cron.js";
 import dayjs from "dayjs";
@@ -37,7 +37,7 @@ export function getZodQueryValidationMiddleware(
         error: `${parse.error}\n${parse.error.stack}`,
       });
       res.statusCode = 500;
-      res.statusMessage = "Validation error";
+      res.statusMessage = "Validation error for query";
       res.send(html);
       return;
     }
@@ -77,7 +77,7 @@ export function debugErrorHandlingMiddelware(
     error: `${err}\n${err.stack}`,
   });
   res.statusCode = 500;
-  res.statusMessage = err.message;
+  res.statusMessage = `Runtime error in nodejs`;
   res.send(html);
 }
 

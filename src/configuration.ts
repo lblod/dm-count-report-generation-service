@@ -94,6 +94,7 @@ const dmReportGenerationServiceEnvSchema = z.object({
   SERVER_PORT: envIntegerSchema.optional(),
   REPORT_CRON_EXPRESSION: z.string().regex(CRON_REGEX).optional(),
   LOG_LEVEL: z.enum(LOG_LEVELS).optional(),
+  NO_TIME_FILTER: envBooleanSchema.optional(),
 });
 
 // Useful types
@@ -129,6 +130,7 @@ const defaultEnv = {
   SERVER_PORT: 80, // HTTP (TODO add HTTPS port)
   REPORT_CRON_EXPRESSION: "0 0 * * *", // Default cron invocation is midnight
   LOG_LEVEL: "info" as const,
+  NO_TIME_FILTER: false,
 };
 
 const envResult = dmReportGenerationServiceEnvSchema.safeParse(process.env);

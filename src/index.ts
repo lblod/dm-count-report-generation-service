@@ -3,16 +3,10 @@ import express, { Express } from "express";
 import { generateReports } from "./report-generation.js";
 import { DateOnly, VALID_ISO_DATE_REGEX } from "./date.js";
 import { schedule } from "node-cron";
-import dayjs from "dayjs";
 import { durationWrapper } from "./cron.js";
 import logger from "./logger.js";
 import { config } from "./configuration.js";
-import {
-  addDebugEndpoint,
-  debugErrorHandlingMiddelware,
-  debugHtmlRenderMiddleware,
-  getZodQueryValidationMiddleware,
-} from "middleware.js";
+import { addDebugEndpoint } from "middleware.js";
 import { z } from "zod";
 
 // Init express server

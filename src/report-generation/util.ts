@@ -5,14 +5,18 @@ import { DateOnly } from "../date.js";
 import dayjs from "dayjs";
 import logger from "./../logger.js";
 
+const SKIP_PREFIX_REGEX =
+  /^PREFIX[.\w\s\:<>\/\-\#]+PREFIX[.\w\s\:<>\/\-\#]+\n/g;
+
 /**
  * Wrapper around logger.info
  * @param endpoint The url
  * @param query The query
  */
 export function logQuery(endpoint: string, query: string) {
+  const toPrint = query.replace(SKIP_PREFIX_REGEX, "# Prefixes omitted\n");
   logger.info(
-    `SPARQL query to endpoint: ${endpoint}\n- - - - - - \n${query}\n- - - - - - `
+    `SPARQL query to endpoint: ${endpoint}\n- - - - - - \n${toPrint}\n- - - - - - `
   );
 }
 

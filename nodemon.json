@@ -5,6 +5,6 @@
     "src/**/*.ts"
   ],
   "execMap": {
-    "ts": "npx tsx inspect"
+    "ts": "npx tsx"
   }
 }

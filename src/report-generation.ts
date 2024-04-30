@@ -12,6 +12,14 @@ import {
   CountSessionsQueryInput,
   CountSessionsQueryOutput,
   countAgendaItemsQueryTemplate,
+  CountResolutionsQueryInput,
+  CountResolutionsQueryOutput,
+  countResolutionsQueryTemplate,
+  writeAdminUnitCountReportTemplate,
+  WriteAdminUnitReportInput,
+  CountVoteQueryInput,
+  countVoteQueryTemplate,
+  CountVoteQueryOutput,
 } from "./report-generation/queries.js";
 import { queryEngine } from "./report-generation/query-engine.js";
 import { PREFIXES } from "./local-constants.js";
@@ -21,9 +29,9 @@ import {
   TemplatedSelect,
   delay,
 } from "./report-generation/util.js";
-import logger from "./logger.js";
 import { v4 as uuidv4 } from "uuid";
 import dayjs from "dayjs";
+import { QueryEngine } from "@comunica/query-sparql";
 
 type OrganisationsAndGovBodies = {
   adminUnits: {
@@ -96,44 +104,73 @@ export async function getOrgResoucesCached(): Promise<OrganisationsAndGovBodies>
   return orgResourcesCache;
 }
 
+function getQueryMachines(queryEngine: QueryEngine, endpoint: string) {
+  const countSessionsQuery = new TemplatedSelect<
+    CountSessionsQueryInput,
+    CountSessionsQueryOutput
+  >(queryEngine, endpoint, countSessionsQueryTemplate);
+  const countAgendaItemsQuery = new TemplatedSelect<
+    CountSessionsQueryInput,
+    CountSessionsQueryOutput
+  >(queryEngine, endpoint, countAgendaItemsQueryTemplate);
+  const countResolutionsQuery = new TemplatedSelect<
+    CountResolutionsQueryInput,
+    CountResolutionsQueryOutput
+  >(queryEngine, endpoint, countResolutionsQueryTemplate);
+
+  const countVoteQuery = new TemplatedSelect<
+    CountVoteQueryInput,
+    CountVoteQueryOutput
+  >(queryEngine, endpoint, countVoteQueryTemplate);
+
+  const writeCountReportQuery = new TemplatedInsert<WriteReportInput>(
+    queryEngine,
+    endpoint,
+    writeCountReportQueryTemplate
+  );
+
+  const writeAdminUnitCountReportQuery =
+    new TemplatedInsert<WriteAdminUnitReportInput>(
+      queryEngine,
+      endpoint,
+      writeAdminUnitCountReportTemplate
+    );
+
+  return {
+    countSessionsQuery,
+    countAgendaItemsQuery,
+    countResolutionsQuery,
+    countVoteQuery,
+    writeCountReportQuery,
+    writeAdminUnitCountReportQuery,
+  };
+}
+
 export async function generateReports(day: DateOnly) {
   //For every org query counts for all resource types
   const orgResources = await getOrgResoucesCached();
 
   for (const endpoint of config.file) {
-    // Prepare the machines
-    const countSessionsQuery = new TemplatedSelect<
-      CountSessionsQueryInput,
-      CountSessionsQueryOutput
-    >(queryEngine, endpoint.url, countSessionsQueryTemplate);
-    const countAgendaItemsQuery = new TemplatedSelect<
-      CountSessionsQueryInput,
-      CountSessionsQueryOutput
-    >(queryEngine, endpoint.url, countAgendaItemsQueryTemplate);
-
-    const writeCountReportQuery = new TemplatedInsert<WriteReportInput>(
-      queryEngine,
-      endpoint.url,
-      writeCountReportQueryTemplate
-    );
+    // Prepare the death machines
+    const {
+      countSessionsQuery,
+      countAgendaItemsQuery,
+      countResolutionsQuery,
+      countVoteQuery,
+      writeCountReportQuery,
+      writeAdminUnitCountReportQuery,
+    } = getQueryMachines(queryEngine, endpoint.url);
 
     for (const adminUnit of orgResources.adminUnits) {
       const governingBodyReportUriList: string[] = [];
       // TODO: make a catalog of query machines for each resource type
       for (const goveringBody of adminUnit.govBodies) {
-        logger.debug(`Derp`, {
-          day,
-          isDateOnly: day instanceof DateOnly,
-
-          from: day.localStartOfDay,
-          to: day.localEndOfDay,
-        });
-
         const sessionsResult = await countSessionsQuery.result({
           prefixes: PREFIXES,
           governingBodyUri: goveringBody.uri,
           from: day.localStartOfDay,
           to: day.localEndOfDay,
+          noFilterForDebug: config.env.NO_TIME_FILTER,
         });
 
         const agendaItemResult = await countAgendaItemsQuery.result({
@@ -141,6 +178,23 @@ export async function generateReports(day: DateOnly) {
           governingBodyUri: goveringBody.uri,
           from: day.localStartOfDay,
           to: day.localEndOfDay,
+          noFilterForDebug: config.env.NO_TIME_FILTER,
+        });
+
+        const resolutionResult = await countResolutionsQuery.result({
+          prefixes: PREFIXES,
+          governingBodyUri: goveringBody.uri,
+          from: day.localStartOfDay,
+          to: day.localEndOfDay,
+          noFilterForDebug: config.env.NO_TIME_FILTER,
+        });
+
+        const voteResult = await countVoteQuery.result({
+          prefixes: PREFIXES,
+          governingBodyUri: goveringBody.uri,
+          from: day.localStartOfDay,
+          to: day.localEndOfDay,
+          noFilterForDebug: config.env.NO_TIME_FILTER,
         });
 
         const reportUri = `http://lblod.data.gift/vocabularies/datamonitoring/countReport/${uuidv4()}`;
@@ -153,6 +207,9 @@ export async function generateReports(day: DateOnly) {
           createdAt: dayjs(),
           reportUri,
           reportGraphUri: config.env.REPORT_GRAPH_URI,
+          adminUnitUri: adminUnit.uri,
+          prefLabel: `Count report for governing body '${goveringBody.label}' on ${day}`,
+          day,
           counts: [
             {
               classUri: `http://data.vlaanderen.be/ns/besluit#Zitting`,
@@ -162,10 +219,28 @@ export async function generateReports(day: DateOnly) {
               classUri: `http://data.vlaanderen.be/ns/besluit#Agendapunt`,
               count: agendaItemResult.count,
             },
+            {
+              classUri: `http://data.vlaanderen.be/ns/besluit#Besluit`,
+              count: resolutionResult.count,
+            },
+            {
+              classUri: `http://data.vlaanderen.be/ns/besluit#Stemming`,
+              count: voteResult.count,
+            },
           ],
         });
       }
       // Write admin unit report
+      await writeAdminUnitCountReportQuery.execute({
+        prefixes: PREFIXES,
+        reportGraphUri: config.env.REPORT_GRAPH_URI,
+        adminUnitUri: adminUnit.uri,
+        prefLabel: `Count report for admin unit '${adminUnit.label}' on ${day}`,
+        reportUri: `http://lblod.data.gift/vocabularies/datamonitoring/countReport/${uuidv4()}`,
+        createdAt: dayjs(),
+        day,
+        reportUris: governingBodyReportUriList,
+      });
     }
   }
 
