@@ -39,7 +39,7 @@ PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 
 # Example of report of a single day for a governing body
 
-<http://lblod.data.gift/vocabularies/datamonitoring/govbodycountreports/uuid> a datamonitoring:GovBodyCountReport;
+<http://lblod.data.gift/vocabularies/datamonitoring/govbodycountreports/uuid> a datamonitoring:GoverningBodyCountReport;
   datamonitring:targetAdminitrativeUnit <...>;
   datamonitring:targetGoverningBody <...>;
   skos:preflabel: "...";
@@ -49,7 +49,9 @@ PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
       skos:prefLabel: "...";
       datamonitoring:targetClass <...>;
       datamonitoring: firstTimestamp: "..."^xsd:dateTime;
-      datamonitoring:count: ""^^xsd:nonNegativeInteger
+      datamonitoring:count: ""^^xsd:nonNegativeInteger;
+      datamonitoring:minDateTime "..."^xsd:dateTime;
+      datamonitoring:maxDateTime "..."^xsd:dateTime;
     ],
     [
       # other counts

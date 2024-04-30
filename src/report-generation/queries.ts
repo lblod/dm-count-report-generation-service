@@ -1,6 +1,5 @@
 import Handlebars from "handlebars";
-import { config } from "configuration";
-import { DateOnly } from "date";
+import dayjs from 'dayjs';
 import "helpers"; // Make sure the modules in the helpers folder are loaded before these templates are compiled
 
 export type GetOrganisationsInput = {
@@ -65,8 +64,8 @@ SELECT ?goveringBody ?label WHERE {
 export type WriteReportInput = {
   prefixes: string,
   reportGraphUri: string,
-  newUuid: string,
-  createdAt: DateOnly,
+  reportUri: string,
+  createdAt: dayjs.Dayjs,
   govBodyUri: string,
   counts: {
     classUri: string;
@@ -78,8 +77,8 @@ export const writeCountReportQueryTemplate = Handlebars.compile(`\
 {{prefixes}}
 INSERT {
   GRAPH <{{reportGraphUri}}> {
-    <http://lblod.data.gift/vocabularies/datamonitoring/countReport/{{newUuid}}> a datamonitoring:GoverningBodyCountReport;
-      datamonitoring:createdAt {{toDateLiteral createdAt}};
+    <{{reportUri}}> a datamonitoring:GoverningBodyCountReport;
+      datamonitoring:createdAt {{toDateTimeLiteral createdAt}};
       datamonitoring:governingBody <{{govBodyUri}}>;
       datamonitoring:istest "true"^^xsd:boolean;
       datamonitoring:counts
@@ -93,4 +92,74 @@ INSERT {
 } WHERE {
 
 }
-`, {noEscape: true})
+`, {noEscape: true});
+
+
+
+export type CountSessionsQueryInput = {
+  prefixes: string;
+  governingBodyUri: string;
+  from: dayjs.Dayjs;
+  to: dayjs.Dayjs;
+}
+
+export type CountSessionsQueryOutput = {
+  count:number;
+}
+
+export const countSessionsQueryTemplate = Handlebars.compile(`\
+{{prefixes}}
+SELECT (COUNT(DISTINCT ?session) as ?count) ?plannedStart WHERE {
+  {
+    ?session a besluit:Zitting;
+      besluit:isGehoudenDoor <{{governingBodyUri}}>.
+  } UNION {
+    ?session a besluit:Zitting;
+      besluit:isGehoudenDoor ?governingBodyTimeSpecified.
+
+    ?governingBodyTimeSpecified a besluit:Bestuursorgaan;
+        mandaat:isTijdspecialisatieVan <{{governingBodyUri}}>.
+  }
+  ?session besluit:geplandeStart ?plannedStart.
+  FILTER(?plannedStart >= {{toDateTimeLiteral from}})
+  FILTER(?plannedStart < {{toDateTimeLiteral to}})
+}
+
+`);
+
+export type CountAgendaItemsQueryInput = {
+  prefixes: string;
+  governingBodyUri: string;
+  from: dayjs.Dayjs;
+  to: dayjs.Dayjs;
+}
+
+export type CountAgendaItemsQueryOutput = {
+  count:number;
+}
+
+export const countAgendaItemsQueryTemplate = Handlebars.compile(`\
+{{prefixes}}
+SELECT (COUNT(DISTINCT ?agendaItem) as ?count) WHERE {
+  {
+    ?session a besluit:Zitting;
+      besluit:behandelt ?agendaItem;
+      besluit:isGehoudenDoor <{{governingBodyUri}}>.
+  } UNION {
+    ?session a besluit:Zitting;
+      besluit:behandelt ?agendaItem;
+      besluit:isGehoudenDoor ?governingBodyTimeSpecified.
+
+    ?governingBodyTimeSpecified a besluit:Bestuursorgaan;
+        mandaat:isTijdspecialisatieVan <{{governingBodyUri}}>.
+  }
+  ?session besluit:geplandeStart ?plannedStart.
+  ?agendaItem a besluit:Agendapunt.
+
+  FILTER(?plannedStart >= {{toDateTimeLiteral from}})
+  FILTER(?plannedStart < {{toDateTimeLiteral to}})
+}
+
+`);
+
+

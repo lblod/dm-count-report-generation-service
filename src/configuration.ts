@@ -24,6 +24,18 @@ function convertUri(shortOrLong:string):string {
   return match ? `${prefixMap.get(match[1]!)}${match[2]!}` : shortOrLong;
 }
 
+export const levels = [
+  'error',
+  'warn',
+  'info',
+  'http',
+  'verbose',
+  'debug',
+  'silly',
+ ] as const;
+
+export type LogLevel = typeof levels[number];
+
 // Zod schemas to parse env and the file.
 const allowedTrueValues = ["true","on","1"];
 const allowedFalseValues = ["false","off","0"];
@@ -69,6 +81,7 @@ const dmReportGenerationServiceEnvSchema = z.object({
   'ORG_RESOURCES_TTL_S': envIntegerSchema.optional(),
   'SERVER_PORT': envIntegerSchema.optional(),
   'REPORT_CRON_EXPRESSION': z.string().regex(CRON_REGEX).optional(),
+  'LOG_LEVEL': z.enum(levels).optional(),
 })
 
 // Useful types
@@ -98,7 +111,8 @@ const defaultEnv = {
   LIMIT_NUMBER_ADMIN_UNITS: 0, // Default value of 0 means no limit
   ORG_RESOURCES_TTL_S: 300, // Default cache TTL is five minutes
   SERVER_PORT: 80, // HTTP (TODO add HTTPS port)
-  REPORT_CRON_EXPRESSION: "0 0 * * *" // Default cron invocation is midnight
+  REPORT_CRON_EXPRESSION: "0 0 * * *", // Default cron invocation is midnight
+  LOG_LEVEL: 'info' as const,
 };
 
 const envResult = dmReportGenerationServiceEnvSchema.safeParse(process.env);

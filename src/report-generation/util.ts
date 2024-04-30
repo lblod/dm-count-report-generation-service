@@ -1,12 +1,24 @@
 import { QueryEngine } from "@comunica/query-sparql";
 import { Bindings, Term } from "@rdfjs/types";
-import type { QueryStringContext } from "@rdfjs/types";
 import { config } from "configuration";
+import { DateOnly } from "date";
+import dayjs from "dayjs";
+import logger from 'logger';
 
+/**
+ * Wrapper around logger.info
+ * @param endpoint The url
+ * @param query The query
+ */
 export function logQuery(endpoint:string,query:string) {
-  console.log(`SPARQL query to endpoint: ${endpoint}\n- - - - - - \n${query}\n- - - - - - `);
+  logger.info(`SPARQL query to endpoint: ${endpoint}\n- - - - - - \n${query}\n- - - - - - `);
 }
 
+/**
+ * Uses setimeout to halt execution for 'millis' milliseconds asynchronously
+ * @param millis number in mullisec
+ * @returns A promise
+ */
 export function delay(millis: number):Promise<void> {
   if (millis === 0) return Promise.resolve();
   return new Promise<void>((res)=>setTimeout(res,millis));
@@ -16,8 +28,13 @@ export type GetOrganisationsInput = {
   prefixes: string,
 }
 
-// See: https://www.w3.org/TR/rdf11-concepts/#xsd-datatypes
-function toObject(term:Term): string | number | boolean {
+/**
+ * Converts an RDFJS term to a javascript value
+ * https://www.w3.org/TR/rdf11-concepts/#xsd-datatypes
+ * @param term RDFJS term objet
+ * @returns A javascript value or object depending on the term datatype
+ */
+function toObject(term:Term): string | number | boolean | dayjs.Dayjs | DateOnly {
   switch(term.termType) {
     case "Literal":
       switch (term.datatype.value) {
@@ -32,13 +49,17 @@ function toObject(term:Term): string | number | boolean {
         case "http://www.w3.org/2001/XMLSchema#float":
         case "http://www.w3.org/2001/XMLSchema#double":
           return parseFloat(term.value);
+        case "http://www.w3.org/2001/XMLSchema#dateTime":
+          return dayjs(term.value);
+        case "http://www.w3.org/2001/XMLSchema#date":
+          return new DateOnly(term.value);
         default:
           throw new Error(`No conversion function for literal of type ${term.datatype.value}`);
       }
     case "NamedNode": // For named nodes we just return the URI
       return term.value;
     case "BlankNode":
-      return `<_>`;
+      return `<_>`; // TODO: Elegant solution? Crash?
     default:
       throw new Error("No conversion function for this type of term yet.")
   }
@@ -77,7 +98,7 @@ function getHeaderTypeSafe(headers: any, key:string): string {
 
 function getCustomFetchFunction(query:string):(input: URL | string | Request,options:RequestInit | undefined)=>Promise<Response> {
   return async function(input: URL | string | Request,options:RequestInit | undefined): Promise<Response> {
-    // if (!(options?.method==='POST')) return await fetch(input,options);
+
     if (!(options?.method==='POST') || !(options?.headers)) throw new Error(
       `This custom fetch function should only be used for INSERT queries with a POST type method. The method is ${options?.method}`
     );
@@ -85,30 +106,6 @@ function getCustomFetchFunction(query:string):(input: URL | string | Request,opt
     if (!(userAgent.includes('Comunica/actor-http-fetch'))) throw new Error(
       `Custom fetch function only for comunica fetches. Wrong user agent.`
     )
-
-    // const acceptHeaderFromComunica = (()=>{
-    //   if (!options) return "application/json";
-    //   if (!options.headers) throw new Error('Comunica did not pass a headers object');
-    //   if (options.headers instanceof Headers) {
-    //     const acceptHeader = options.headers.get('accept');
-    //     if (!acceptHeader) throw new Error('No accept header passed');
-    //     return acceptHeader;
-    //   };
-    //   if (Array.isArray(options.headers)) {
-    //     const acceptHeader = options.headers.find((header)=>header[0]==='accept');
-    //     if (!acceptHeader || acceptHeader[1]) throw new Error('No accept header passed');
-    //     return acceptHeader[1];
-    //   }
-    //   try {
-    //     return options.headers
-    //     throw new Error(`Was not able to extract header`);
-    //   } catch (e) {
-    //     throw new Error('Header extraction from headers object failed.')
-    //   }
-    // })();
-
-    console.log('comunicaheaders',options.headers);
-
 
     const headers = new Headers();
     headers.append("mu-auth-sudo","true");
@@ -150,8 +147,17 @@ class TemplatedQueryBase<T extends {}> {
   }
 }
 
+/**
+ * This class wraps around an INSERT style query constructed from a template.
+ * Run execute asynchronously to perform the query and insert the data.
+ * The type parameter should contain a type that is suitable for passing to the handlebars template
+ */
 export class TemplatedInsert<T extends {}> extends TemplatedQueryBase<T> {
-  async insertData(input:T):Promise<void> {
+  /**
+   * Similar to objects and bindings in TemplatedSelect
+   * @param input The input data structure for the handlebars template rendering
+   */
+  async execute(input:T):Promise<void> {
     const query = this.getQuery(input);
     if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint,query);
     this.queryEngine.queryVoid(query,{
@@ -164,7 +170,19 @@ export class TemplatedInsert<T extends {}> extends TemplatedQueryBase<T> {
   }
 }
 
+/**
+ * This class wraps around an SELECT style query constructed from a template.
+ * Run bindings or objects asynchronously to perform the query and insert the data.
+ * The first type parameter should contain a type that is suitable for passing to the handlebars template.
+ * The second type parameter should contain a type that is suitable for the shape of each object associated with each row of results when the objects method is run.
+ */
 export class TemplatedSelect<T extends {},U extends {}> extends TemplatedQueryBase<T> {
+  /**
+   * Get query results as bindings
+   * Unsuitable for more than 10k rows
+   * @param input Handlebars input
+   * @returns Comunica bindings array
+   */
   async bindings(input: T):Promise<Bindings[]> {
     const query = this.getQuery(input);
     if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint,query);
@@ -174,6 +192,12 @@ export class TemplatedSelect<T extends {},U extends {}> extends TemplatedQueryBa
     return (bindingsStream.toArray());
   }
 
+  /**
+   * Get query result as an array of objects with type U
+   * Unsuitable for more than 10k rows
+   * @param input Handlebars input
+   * @returns An array of objects
+   */
   async objects(input: T): Promise<U[]> {
     const query = this.getQuery(input);
     if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint,query);
@@ -191,5 +215,17 @@ export class TemplatedSelect<T extends {},U extends {}> extends TemplatedQueryBa
       result.push(obj);
     }
     return result as U[];
+  }
+
+  /**
+   * Useful for queries with a single row as a result. Works like objects but only returns the first result
+   * Will throw when more than 1 row was returned
+   * @param input Handlebars input
+   * @returns A single object
+   */
+  async result(input: T): Promise<U>{
+    const objects = await this.objects(input);
+    if (objects.length !== 1) throw new Error(`The templated query was intented to return only one row. Received ${objects.length}`);
+    return objects[0]
   }
 }

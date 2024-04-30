@@ -1,11 +1,13 @@
 
 import { config } from 'configuration';
-import { CountInput, GetGoveringBodiesInput, GetGoveringBodiesOutput, GetOrganisationsOutput, GetOrganisationsInput, WriteReportInput, getCountForOrgQueryTemplate, getGoverningBodiesOfAdminUnitTemplate, getOrganisationsTemplate, writeCountReportQueryTemplate } from './report-generation/queries';
+import { GetGoveringBodiesInput, GetGoveringBodiesOutput, GetOrganisationsOutput, GetOrganisationsInput, WriteReportInput, getGoverningBodiesOfAdminUnitTemplate, getOrganisationsTemplate, writeCountReportQueryTemplate, countSessionsQueryTemplate, CountSessionsQueryInput, CountSessionsQueryOutput, countAgendaItemsQueryTemplate } from './report-generation/queries';
 import { queryEngine } from './report-generation/query-engine';
 import { PREFIXES } from 'local-constants';
 import { v4 as uuidv4 } from 'uuid';
 import { DateOnly } from 'date';
 import { TemplatedInsert, TemplatedSelect, delay } from 'report-generation/util';
+import dayjs from 'dayjs';
+import logger from 'logger';
 
 type OrganisationsAndGovBodies = {
   adminUnits: {
@@ -79,52 +81,78 @@ export async function getOrgResoucesCached(): Promise<OrganisationsAndGovBodies>
 export async function generateReports(day:DateOnly) {
   //For every org query counts for all resource types
   const orgResources = await getOrgResoucesCached();
-  console.log(JSON.stringify(orgResources,undefined,3));
+  logger.info(JSON.stringify(orgResources,undefined,3));
 
+  for (const endpoint of config.file) {
+      // Prepare the machines
+    const countSessionsQuery = new TemplatedSelect<
+      CountSessionsQueryInput,
+      CountSessionsQueryOutput
+    >(
+      queryEngine,
+      endpoint.url,
+      countSessionsQueryTemplate
+    );
+    const countAgendaItemsQuery = new TemplatedSelect<
+      CountSessionsQueryInput,
+      CountSessionsQueryOutput
+    >(
+      queryEngine,
+      endpoint.url,
+      countAgendaItemsQueryTemplate,
+    );
 
-  // for (const endpoint of config.file) {
-  //   const query = new TemplatedQuery<CountInput,Record<string,number>>(
-  //     queryEngine,
-  //     endpoint.url,
-  //     getCountForOrgQueryTemplate,
-  //   );
+    const writeCountReportQuery = new TemplatedInsert<WriteReportInput>(
+      queryEngine,
+      endpoint.url,
+      writeCountReportQueryTemplate,
+    );
 
-  //   const objects = await query.getObjects({
-  //     prefixes: PREFIXES,
-  //     classes: endpoint.classes,
-  //   });
+    for (const adminUnit of orgResources.adminUnits) {
+      const governingBodyReportUriList: string [] = [];
+      // TODO: make a catalog of query machines for each resource type
+      for (const goveringBody of adminUnit.govBodies) {
+        const sessionsResult = await countSessionsQuery.result({
+          prefixes: PREFIXES,
+          governingBodyUri: goveringBody.uri,
+          from: day.localStartOfDay,
+          to:day.localEndOfDay,
+        });
 
+        const agendaItemResult = await countAgendaItemsQuery.result({
+          prefixes: PREFIXES,
+          governingBodyUri: goveringBody.uri,
+          from: day.localStartOfDay,
+          to:day.localEndOfDay,
+        });
 
+        const reportUri = `http://lblod.data.gift/vocabularies/datamonitoring/countReport/${uuidv4()}`;
+        governingBodyReportUriList.push(reportUri);
 
-  // // }
-  // // Write reports
-  // const writeReportQuery = new TemplatedInsert<WriteReportInput>(
-  //   queryEngine,
-  //   config.env.REPORT_ENDPOINT,
-  //   writeCountReportQueryTemplate,
-  // )
-  // const input = {
-  //   prefixes: PREFIXES,
-  //   newUuid: uuidv4(),
-  //   createdAt: new DateOnly("2024-04-26"),
-  //   govBodyUri: "http://codifly.be/namespaces/test/testGovBody",
-  //   reportGraphUri: config.env.REPORT_GRAPH_URI,
-  //   counts: [
-  //     {
-  //       classUri: "http://data.vlaanderen.be/ns/besluit#Besluit",
-  //       count: 100
-  //     },
-  //     {
-  //       classUri: "http://data.vlaanderen.be/ns/besluit#Agendapunt",
-  //       count: 200
-  //     },
-  //   ]
-  // };
-  // console.log(writeReportQuery.getQuery(input));
-  // await writeReportQuery.insertData(input);
-}
+        // Write govering body report
+        await writeCountReportQuery.execute({
+          prefixes: PREFIXES,
+          govBodyUri: goveringBody.uri,
+          createdAt: dayjs(),
+          reportUri,
+          reportGraphUri: config.env.REPORT_GRAPH_URI,
+          counts: [
+            {
+              classUri: `http://data.vlaanderen.be/ns/besluit#Zitting`,
+              count: sessionsResult.count
+            },
+            {
+              classUri: `http://data.vlaanderen.be/ns/besluit#Agendapunt`,
+              count: agendaItemResult.count
+            },
+          ]
+        });
+      }
+      // Write admin unit report
+    }
+  }
 
 // async function getOrganisations() {
 
 
-// }
+}

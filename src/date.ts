@@ -1,5 +1,5 @@
 import type { Dayjs } from 'dayjs';
-import dayjs, { isDayjs } from 'dayjs';
+import dayjs from 'dayjs';
 import timezone from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
 import { DEFAULT_TIMEZONE } from 'local-constants';
@@ -12,6 +12,8 @@ export const VALID_ISO_DATE_REGEX = /^(\d{4})\-(\d{1,2})\-(\d{1,2})$/;
  * This immutable class models a date and a date only. This is NOT a timestamp.
  * A date only can be used to model something like a birthday. But the acutual time where your birthday starts will depend on the time zone.
  * Most days have 24 hours. Some days have 23 and other 25 depending if a daylight savings time change has occurred or not.
+ * This report revices considers 'days' a lot. And using date object to model them is messy. Because of this this class was written
+ * It uses Dayjs under the hood and its instances are immutable
  */
 export class DateOnly {
   private _year:  number;
@@ -39,7 +41,7 @@ export class DateOnly {
           .set('m', 0)
           .set('s', 0)
           .set('ms', 0);
-      } else if (args.length===1 && isDayjs(args[0])) {
+      } else if (args.length===1 && dayjs.isDayjs(args[0])) {
         return dayjs(args[0])
           .tz(DEFAULT_TIMEZONE, true)
           .set('h', 0)

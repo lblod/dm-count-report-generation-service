@@ -1,21 +1,35 @@
+import { LogLevel, config } from "configuration";
 import dayjs from "dayjs";
+import logger from 'logger';
 
+/**
+ * Measures the execution duration of the wrapped function using dayjs diff and prints info
+ * @param now The start time
+ * @param wrapped The wrapped function
+ * @param wrappedArgs The arguments to pass to the wrapped function
+ * @param logLevel Optional specific log level for the duration messages
+ * @returns Promise with a return value of an object with two keys. Key 'result' with the result of the wrapped function and key 'duration' with the duration in seconds
+ */
 export async function durationWrapper<A,R>(
   now: Date | "manual" | "init" | dayjs.Dayjs,
   wrapped:(...args: A[])=>Promise<R>,
   wrappedArgs: A[] = [],
+  logLevel: LogLevel | undefined = undefined,
 ):Promise<{
   result: R,
   durationSeconds: number,
 }> {
-  console.log('Automatic invocation of scheduled job')
+  const defaultedLogLevel = logLevel ?? config.env.LOG_LEVEL;
+  const logm = (message:any)=>{
+    logger.log({level:defaultedLogLevel,message});
+  }
   const defaultedStart = typeof now === 'string' ? dayjs() : dayjs(now);
-  console.log(`Job started at ${defaultedStart}`);
+  logm(`Job started at ${defaultedStart.format()}`);
   try {
     const result = await wrapped(...wrappedArgs);
     const defaultedEnd = dayjs();
     const duration = defaultedEnd.diff(defaultedStart,'second',true);
-    console.log(`Job finished successfully at ${defaultedEnd}. Duration: ${duration} seconds.`)
+    logm(`Job finished successfully at ${defaultedEnd.format()}.\n\tDuration: ${duration} seconds.`)
     return {
       result,
       durationSeconds: duration,
@@ -23,7 +37,7 @@ export async function durationWrapper<A,R>(
   } catch (e: any) {
     const defaultedEnd = dayjs();
     const duration = defaultedEnd.diff(defaultedStart,'second',true);
-    console.log(`Job finished wit herror at ${defaultedEnd}. Duration: ${duration} seconds.`)
+    logm(`Job finished wit error at ${defaultedEnd.format()}.\n\tDuration: ${duration} seconds.`)
     throw e;
   }
 }

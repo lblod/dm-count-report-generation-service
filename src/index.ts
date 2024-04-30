@@ -1,7 +1,7 @@
 import { config } from 'configuration';
 import cors, { CorsOptions } from 'cors';
 import express, { Express, } from "express";
-import { generateReports } from './report-generation';
+import { generateReports } from 'report-generation';
 import { ZodObject, z } from 'zod';
 import { DateOnly, VALID_ISO_DATE_REGEX } from 'date';
 import { fromZodError } from 'zod-validation-error';
@@ -9,6 +9,7 @@ import { schedule } from 'node-cron'
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
 import { durationWrapper } from 'cron';
+import logger from 'logger';
 
 dayjs.extend(duration)
 
@@ -33,8 +34,6 @@ app.get('/status', async ( _, res ) => {
 });
 
 // Debug endpoint for development
-
-
 
 if (!config.env.DISABLE_DEBUG_ENDPOINT) {
   const getZodQueryValidationMiddleware = function(querySchema:ZodObject<any, any>):(req: express.Request, res: express.Response, next: express.NextFunction)=>void {
@@ -92,7 +91,7 @@ schedule(config.env.REPORT_CRON_EXPRESSION,(now)=>{
 
 // Start server
 app.listen(config.env.SERVER_PORT,()=>{
-  console.log(`Report generation microservice started and listening on ${config.env.SERVER_PORT}.`)
+  logger.info(`Report generation microservice started and listening on ${config.env.SERVER_PORT}.`)
 });
 
 
