@@ -19,6 +19,20 @@ Write aggegated reports (overviews)
 
 It will be updated in the future.
 
+## Stack
+
+* Node LTS/Iron (v20.12.2)
+* Typescript v5.4
+* Compile to ESNEXT (ES2022 or better at time of publishing)
+  * Top level await and other fun stuff
+* ECMAScript modules; not CommonJS
+* [Comunica](https://comunica.dev/) for SPARQL stuff
+* [Dayjs](https://day.js.org/) for date and time stuff
+* [Handlebars](https://handlebarsjs.com/guide/) for templating of queries
+* [Zod](https://zod.dev/) for schema validation of any user provided input such as configuration and query parameters
+* [Winston](https://www.npmjs.com/package/winston) for logging. In this way we don't end up dumping everything in `console.log` and we have some control over the output.
+* Good old [Express](https://expressjs.com/)
+
 ## Configuration
 
 ### Environment variables
@@ -104,6 +118,10 @@ To trigger report generation use the browser to request ...
 When passing a day in the query parameters use the format `YYYY-MM-DD` (ISO).
 
 This process can take a long time. You will not be seeing updates so it's best you look at the logs. When the report generation process finishes or errors out the browser will show a simple HTML page with the results.
+
+To check the current configuration use the browser to request:
+
+* `http://localhost:4199/configuration`
 
 More debugging endpoints will be added in the future.
 

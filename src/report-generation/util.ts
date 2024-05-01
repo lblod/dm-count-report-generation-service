@@ -1,7 +1,7 @@
 import { QueryEngine } from "@comunica/query-sparql";
 import { Bindings, Term } from "@rdfjs/types";
 import { config } from "./../configuration.js";
-import { DateOnly } from "../date.js";
+import { DateOnly } from "../date-util.js";
 import dayjs from "dayjs";
 import logger from "./../logger.js";
 

@@ -23,7 +23,7 @@ import {
 } from "./report-generation/queries.js";
 import { queryEngine } from "./report-generation/query-engine.js";
 import { PREFIXES } from "./local-constants.js";
-import { DateOnly } from "./date.js";
+import { DateOnly } from "./date-util.js";
 import {
   TemplatedInsert,
   TemplatedSelect,

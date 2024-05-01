@@ -1,7 +1,7 @@
 import Handlebars from "handlebars";
 import dayjs from "dayjs";
 import "./../helpers/index.js"; // Making sure the modules in the helpers folder are loaded before these templates are compiled
-import { DateOnly } from "date.js";
+import { DateOnly } from "date-util.js";
 
 export type GetOrganisationsInput = {
   prefixes: string;
