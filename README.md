@@ -2,9 +2,9 @@
 
 This is a microservice emulating the functionality of a future microservice to be built. It will be called `dm-report-generation-service`. This service is to be embedded in [Data monitoring](https://github.com/lblod/app-data-monitoring) which is under development.
 
-The point of this microservice is to contain functionality that contacts a specific SPARQL endpoint using SPARQL queries. A function needs to run automatically every night which executes queries to gather information about specific resources. In this particular case the microservice will just count the amount of new records each day for each governing body (bestuursorgaan) of each admin unit (bestuurseenheid). Reports are written to a different SPARQL endpoint
+The point of this microservice is to contain functionality that contacts a specific SPARQL endpoint using SPARQL queries. A function needs to run automatically every night which executes queries to gather information about specific resources. In this particular case the microservice will just count the amount of new records each day for each governing body (bestuursorgaan) of each admin unit (bestuurseenheid). Reports are written to a different SPARQL endpoint. This will not make any sense to you unless you are aware of the specific context within which ABB (Agentschap Binnenlands Bestuur) operates; which is the agency of the Flemish government this service was designed for.
 
-The nightly procedure looks as follows in pseudocode:
+So every night this service will run a procedure which targets the linked data published the day before. This nightly procedure looks as follows in pseudocode (for now).
 
 ```plaintext
 FOR EACH endpoint IN endpoints:
@@ -16,6 +16,8 @@ FOR EACH endpoint IN endpoints:
     Write admin unit report
 Write aggegated reports (overviews)
 ```
+
+It will be updated in the future.
 
 ## Configuration
 
@@ -62,7 +64,7 @@ When using this service you'll need to make a volume that links a directory to t
 }
 ```
 
-It's a list of endpoints specifying a SPARQL endpoint URL and a list of resources to count. There is a JSON schema so you should not make any mistaktes. If you do mess up the schema though the program will crash on startup and you'll get a slap on the wrist.
+It's a list of endpoints specifying a SPARQL endpoint URL and a list of resources to count. There is a JSON schema so you should not make any mistaktes. If you do mess up the schema though the program will crash on startup and you'll get a slap on the wrist. Both short notations of URI's and full ones are supported.
 
 ## Testing
 
@@ -78,7 +80,7 @@ To run locally:
 1. Clone the repo
 2. Run `npm install` in the folder
 3. Change the file `env-dev` to your preferences.
-4. Run `npm run dev` and nodemon will start. It will run the service using TSX
+4. Run `npm run dev` and nodemon will start. It will run the service using [tsx](https://github.com/privatenumber/tsx).
 
 VSCode users can use the debugger. Again make sure `env-dev` is adapted to your circumstance and press play in the debugger sidebar.
 
@@ -86,6 +88,113 @@ VSCode users can use the debugger. Again make sure `env-dev` is adapted to your 
 
 Adapt the environment variables in the `run` file. Then run it `./run`.
 
-It will build the image and then spin up a container. There will be strict type checking.
+It will build the image and then spin up a container. There will be strict type checking during building.
 
-### 
+## Debugging
+
+When running the node process locally or when running the container you can trigger the report generation process manually for testing purposes.
+
+For this example we'll assume the server is running on your local machine using port 4199.
+
+To trigger report generation use the browser to request ...
+
+* `http://localhost:4199/generate-reports-now` to generate reports for 'yesterday'
+* `http://localhost:4199/generate-reports-now?day=2024-05-01` to generate reports for a specific day.
+
+When passing a day in the query parameters use the format `YYYY-MM-DD` (ISO).
+
+This process can take a long time. You will not be seeing updates so it's best you look at the logs. When the report generation process finishes or errors out the browser will show a simple HTML page with the results.
+
+More debugging endpoints will be added in the future.
+
+## Reports format
+
+There are a number of types of reports:
+
+1. Governing body (bestuursorgaan) type: Associated with a specific day and governing body
+2. Admin unit (bestuurseenheid of organisatie) type: Associated with a specific day and admin unit. Linked to all associated governing body reports
+3. Aggregated report (still to be developed)
+4. Monthly report (still to be developed)
+5. Aggregated report of several admin units together
+
+TODO: Overview of reports and their schema.
+
+## Developing this service further
+
+If you wish to change the queries and/or add query invocations you'll need to know how the templated query system works.
+
+In order to write a new query add one in `report-generation/queries.ts` or another file.
+
+Fist write a query using [handlebars](https://handlebarsjs.com/) like this:
+
+```typescript
+export const mySelectQueryTemplate = Handlebars.compile(`\
+{{prefixes}}
+
+SELECT ?resourceUri ?label WHERE {
+  ?resourceUri a <{{classUri}}>;
+    skos:prefLabel ?label.
+}
+`, { noEscape:true });
+```
+
+DON'T forget the 'noEscape: true' part. This is not HTML and we don't want HTML encoding.
+
+It's important to add two typescript types together with this template and export them: one for the input and one for the output.
+
+The input is what will be passed to the handlebars templating system. In this case:
+
+```typescript
+export type MySelectQueryInput = {
+  prefixes: string;
+  classUri: string;
+}
+```
+
+The output is linked to the selected variables after the `SELECT` keyword. In this case.
+
+```typescript
+export type MySelectQueryOutput = {
+  resourceUri: string;
+  label: string;
+}
+```
+
+Then, in another file where you want to execute the query, you'll instantiate the TemplatedSelect class.
+
+```typescript
+const mySelectQuery = new TemplatedSelect<
+  MySelectQueryInput, // Input type parameter
+  MySelectQueryOutput, // Output type parameter
+>(
+  queryEngine, // The comunica query engine (look at source)
+  endpoint, // URL of endpoint; typically ending in '/sparql'
+  mySelectQueryTemplate, // The handlebars template you exported earlier
+);
+```
+
+Now this query machine is ready to go. You can launch it in two ways:
+
+* `await mySelectQuery.bindings(input)`: Get results as an array of comunica bindings.
+* `await mySelectQuery.objects(input)`: Get results as an array of javascript objects in the shape of `MySelectQueryOutput[]` in the example.
+
+This class works well up to tens of thousands of rows but was not really designed to handle really large amounts of rows. There is no optimization for extremely large result sets at this time.
+
+Just one little snippet to complete the example. Here's how you consume the results:
+
+```typescript
+// Perform the templated query using specific input parameters
+const result = await mySelectQuery.objects({
+  prefixes: PREFIXES,
+  classUri: "http://data.vlaanderen.be/ns/besluit#Besluit",
+});
+// Print the results
+for (const row of result) {
+  console.log(`Row. Resource <${row.resourceUri}> with label "${row.label}"`);
+}
+```
+
+Because of the way the templated query system was designed you should get full type checking at compile time. I hope it helps to prevent bugs.
+
+
+
