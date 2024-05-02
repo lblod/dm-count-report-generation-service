@@ -26,7 +26,7 @@ export async function durationWrapper<F extends (...args: any) => any>(
   const defaultedStart = typeof now === "string" ? dayjs() : dayjs(now);
   logm(`Function "${wrapped.name}" invoked at ${defaultedStart.format()}`);
   try {
-    const result = await wrapped(...wrappedArgs);
+    const result = await wrapped(wrappedArgs);
     const defaultedEnd = dayjs();
     const duration = defaultedEnd.diff(defaultedStart, "second", true);
     logm(

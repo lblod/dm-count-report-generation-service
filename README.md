@@ -123,7 +123,11 @@ To check the current configuration use the browser to request:
 
 * `http://localhost:4199/configuration`
 
-More debugging endpoints will be added in the future.
+The get an index of the debug functions use:
+
+* `http://localhost:4199/debug`
+* 
+You'll get an unstyled HTML index page with a list of debug functions
 
 ## Reports format
 

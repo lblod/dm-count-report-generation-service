@@ -97,6 +97,10 @@ if (!config.env.DISABLE_DEBUG_ENDPOINT) {
     Promise.resolve(clearStore)
   );
 
+  addDebugEndpoint(app, "GET", "/force-error", emptySchema, async () => {
+    throw new Error("Forced error by debug action.");
+  });
+
   const staticIndexTemplate = Handlebars.compile(
     fs.readFileSync("./templates/static-index.hbs", { encoding: "utf-8" })
   );

@@ -190,17 +190,20 @@ export class TemplatedInsert<
     const query = this.getQuery(input);
     // Write to report endpoint using custom fetch
     await this._queryVoidToEndpoint(query);
-    // Query to store for buffering
-    this.queryEngine.queryVoid(query, {
-      sources: [
-        {
-          type: "sparql",
-          value: this.endpoint,
-        },
-      ],
-      destination: store,
-    });
+    if (!config.env.DISABLE_DEBUG_ENDPOINT && store) {
+      // Query to store for buffering
+      this.queryEngine.queryVoid(query, {
+        sources: [
+          {
+            type: "sparql",
+            value: this.endpoint,
+          },
+        ],
+        destination: store,
+      });
+    }
   }
+
   async _queryVoidToEndpoint(query: string): Promise<void> {
     if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint, query);
     this.queryEngine.queryVoid(query, {
