@@ -3,11 +3,11 @@ import express, { Express } from "express";
 import { generateReports } from "./report-generation.js";
 import { DateOnly, VALID_ISO_DATE_REGEX } from "./date-util.js";
 import { schedule } from "node-cron";
-import { durationWrapper } from "./cron.js";
 import logger from "./logger.js";
 import { config } from "./configuration.js";
 import { addDebugEndpoint } from "middleware.js";
 import { z } from "zod";
+import { durationWrapper } from "util/util.js";
 
 // Init express server
 
@@ -32,6 +32,7 @@ app.get("/status", async (_, res) => {
 // Debug endpoint for development
 
 if (!config.env.DISABLE_DEBUG_ENDPOINT) {
+  const emptySchema = z.union([z.undefined(), z.object({})]);
   // Function for forcing generation
   const generateReportQuerySchema = z
     .object({
@@ -61,7 +62,7 @@ if (!config.env.DISABLE_DEBUG_ENDPOINT) {
     debugGenerateReports
   );
 
-  addDebugEndpoint(app, "GET", "/configuration", undefined, () =>
+  addDebugEndpoint(app, "GET", "/configuration", emptySchema, () =>
     Promise.resolve(config)
   );
 }
@@ -69,8 +70,10 @@ if (!config.env.DISABLE_DEBUG_ENDPOINT) {
 // Start cron
 
 schedule(config.env.REPORT_CRON_EXPRESSION, (now) => {
-  durationWrapper(now, generateReports, [DateOnly.yesterday()]);
+  durationWrapper(generateReports, [DateOnly.yesterday()], "info", now);
 });
+
+logger.info(`CRON started with "${config.env.REPORT_CRON_EXPRESSION}"`);
 
 // Start server
 app.listen(config.env.SERVER_PORT, () => {

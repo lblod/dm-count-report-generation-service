@@ -1,11 +1,10 @@
-import express from "express";
-import { z, ZodObject } from "zod";
+import express, { query } from "express";
+import { z, ZodObject, ZodSchema } from "zod";
 import { fromError } from "zod-validation-error";
 import fs from "node:fs";
-import { durationWrapper } from "cron.js";
-import dayjs from "dayjs";
 import Handlebars from "handlebars";
 import logger from "logger.js";
+import { durationWrapper } from "util/util.js";
 
 const debugResultTemplate = Handlebars.compile(
   fs.readFileSync("./templates/debug-output.hbs", { encoding: "utf-8" })
@@ -14,8 +13,14 @@ const errorResultTemplate = Handlebars.compile(
   fs.readFileSync("./templates/error-output.hbs", { encoding: "utf-8" })
 );
 
+/**
+ * Function to make express middleware that validates the query parameters according to a zod schema
+ * Invalid query parameters will cause express to continue with error handling middleware
+ * @param querySchema Zod scheme with which to validate the quer parameters
+ * @returns an express middleware
+ */
 export function getZodQueryValidationMiddleware(
-  querySchema: ZodObject<any, any>
+  querySchema: ZodSchema<any, any>
 ): (
   req: express.Request,
   res: express.Response,
@@ -46,6 +51,11 @@ export function getZodQueryValidationMiddleware(
   };
 }
 
+/**
+ * Express middleware that shows a function result in a readable way for debugging
+ * @param req
+ * @param res
+ */
 export function debugHtmlRenderMiddleware(
   req: express.Request,
   res: express.Response
@@ -61,6 +71,11 @@ export function debugHtmlRenderMiddleware(
   res.send(html);
 }
 
+/**
+ * Express middleware that shows a function error in a readable way for debugging
+ * @param req
+ * @param res
+ */
 export function debugErrorHandlingMiddelware(
   err: Error,
   req: express.Request,
@@ -93,18 +108,24 @@ const methods = [
 ] as const;
 
 export type HttpMethod = (typeof methods)[number];
-export type FunctionTakingQueryAndReturnPromise = (
-  q: Record<string, never> | qs.ParsedQs
-) => Promise<any>;
 
-export function addDebugEndpoint<F extends FunctionTakingQueryAndReturnPromise>(
+/**
+ * Function that adds a debug endpoint for testing a specific function
+ * @param app Express app
+ * @param method  HTTP method
+ * @param path URL path
+ * @param querySchema ZOD schema to validate query parameters
+ * @param functionToExecute The function to debug
+ */
+export function addDebugEndpoint(
   app: express.Express,
   method: HttpMethod,
   path: string,
-  querySchema: ZodObject<any, any> | undefined,
-  functionToExecute: F
+  querySchema: ZodSchema<any, any>,
+  functionToExecute: (...args: any) => any
 ) {
   const middlewares = [
+    getZodQueryValidationMiddleware(querySchema),
     async (
       req: express.Request,
       res: express.Response,
@@ -113,9 +134,9 @@ export function addDebugEndpoint<F extends FunctionTakingQueryAndReturnPromise>(
       // If the functin throws the duration wrapper will also throw
       try {
         const { durationSeconds, result } = await durationWrapper(
-          dayjs(), // Now. Used for duration calc
           functionToExecute,
-          [req.query]
+          [req.query], // No type checking. The validation middleware ensure that this works out
+          "info"
         );
         // Send result
         res.locals.result = {

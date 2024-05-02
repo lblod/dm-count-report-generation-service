@@ -154,7 +154,7 @@ function getCustomFetchFunction(
   };
 }
 
-class TemplatedQueryBase<T extends {}> {
+class TemplatedQueryBase<T extends Record<string, any>> {
   queryEngine: QueryEngine;
   endpoint: string;
   template: HandlebarsTemplateDelegate<T>;
@@ -178,7 +178,9 @@ class TemplatedQueryBase<T extends {}> {
  * Run execute asynchronously to perform the query and insert the data.
  * The type parameter should contain a type that is suitable for passing to the handlebars template
  */
-export class TemplatedInsert<T extends {}> extends TemplatedQueryBase<T> {
+export class TemplatedInsert<
+  T extends Record<string, any>
+> extends TemplatedQueryBase<T> {
   /**
    * Similar to objects and bindings in TemplatedSelect
    * @param input The input data structure for the handlebars template rendering
@@ -205,8 +207,8 @@ export class TemplatedInsert<T extends {}> extends TemplatedQueryBase<T> {
  * The second type parameter should contain a type that is suitable for the shape of each object associated with each row of results when the objects method is run.
  */
 export class TemplatedSelect<
-  T extends {},
-  U extends {}
+  T extends Record<string, any>,
+  U extends Record<string, any>
 > extends TemplatedQueryBase<T> {
   /**
    * Get query results as bindings
