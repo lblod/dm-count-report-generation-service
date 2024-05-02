@@ -2,3 +2,5 @@
 node_modules
 dist
 *.sparqlbook
+publish-to-docker-temp
+dumps

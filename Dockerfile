@@ -5,8 +5,9 @@ FROM node:iron-alpine AS build
 WORKDIR /app
 
 COPY package*.json .
+COPY .npmrc .
 
-RUN npm install
+RUN npm install --no-audit
 
 COPY . .
 
@@ -19,7 +20,7 @@ WORKDIR /app
 
 COPY package*.json .
 
-RUN npm ci --only=production
+RUN npm ci --only=production --no-audit
 
 COPY --from=build /app/dist ./dist
 

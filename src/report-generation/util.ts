@@ -4,6 +4,7 @@ import { config } from "./../configuration.js";
 import { DateOnly } from "../date-util.js";
 import dayjs from "dayjs";
 import logger from "./../logger.js";
+import { store } from "./store.js";
 
 const SKIP_PREFIX_REGEX =
   /^PREFIX[.\w\s\:<>\/\-\#]+PREFIX[.\w\s\:<>\/\-\#]+\n/g;
@@ -187,6 +188,20 @@ export class TemplatedInsert<
    */
   async execute(input: T): Promise<void> {
     const query = this.getQuery(input);
+    // Write to report endpoint using custom fetch
+    await this._queryVoidToEndpoint(query);
+    // Query to store for buffering
+    this.queryEngine.queryVoid(query, {
+      sources: [
+        {
+          type: "sparql",
+          value: this.endpoint,
+        },
+      ],
+      destination: store,
+    });
+  }
+  async _queryVoidToEndpoint(query: string): Promise<void> {
     if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint, query);
     this.queryEngine.queryVoid(query, {
       sources: [
@@ -195,6 +210,7 @@ export class TemplatedInsert<
           value: this.endpoint,
         },
       ],
+      destination: config.env.REPORT_ENDPOINT,
       fetch: getCustomFetchFunction(query),
     });
   }

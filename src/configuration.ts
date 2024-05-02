@@ -12,16 +12,22 @@ const EXTRACT_NAMESPACES_FROM_PREFIX_REGEX = /PREFIX\s([a-z]+)\:\s+<(.+)>/g;
 // Stolen from: https://stackoverflow.com/questions/14203122/create-a-regular-expression-for-cron-statement
 const CRON_REGEX =
   /(@(annually|yearly|monthly|weekly|daily|hourly|reboot))|(@every (\d+(ns|us|µs|ms|s|m|h))+)|((((\d+,)+\d+|(\d+(\/|-)\d+)|\d+|\*) ?){5,7})/;
-const prefixMap = [
+export const PREFIXES_MAP = [
   ...PREFIXES.matchAll(EXTRACT_NAMESPACES_FROM_PREFIX_REGEX),
 ].reduce<Map<string, string>>((acc, curr) => {
   acc.set(curr[1]!, curr[2]!);
   return acc;
 }, new Map<string, string>());
+export const PREFIXES_RECORD: Record<string, string> = [
+  ...PREFIXES_MAP.entries(),
+].reduce((acc, curr) => {
+  acc[curr[0]] = curr[1];
+  return acc;
+}, {} as Record<string, string>);
 
 function convertUri(shortOrLong: string): string {
   const match = shortOrLong.match(RESOURCE_CLASS_SHORT_URI_REGEX);
-  return match ? `${prefixMap.get(match[1]!)}${match[2]!}` : shortOrLong;
+  return match ? `${PREFIXES_MAP.get(match[1]!)}${match[2]!}` : shortOrLong;
 }
 
 export const LOG_LEVELS = [
@@ -95,6 +101,7 @@ const dmReportGenerationServiceEnvSchema = z.object({
   REPORT_CRON_EXPRESSION: z.string().regex(CRON_REGEX).optional(),
   LOG_LEVEL: z.enum(LOG_LEVELS).optional(),
   NO_TIME_FILTER: envBooleanSchema.optional(),
+  DUMP_FILES_LOCATION: z.string().optional(),
 });
 
 // Useful types
@@ -131,6 +138,7 @@ const defaultEnv = {
   REPORT_CRON_EXPRESSION: "0 0 * * *", // Default cron invocation is midnight
   LOG_LEVEL: "info" as const,
   NO_TIME_FILTER: false,
+  DUMP_FILES_LOCATION: "/dump",
 };
 
 const envResult = dmReportGenerationServiceEnvSchema.safeParse(process.env);

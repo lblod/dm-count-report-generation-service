@@ -8,6 +8,8 @@ import { config } from "./configuration.js";
 import { addDebugEndpoint } from "middleware.js";
 import { z } from "zod";
 import { durationWrapper } from "util/util.js";
+import { clearStore, dumpStore } from "report-generation/store.js";
+import dayjs from "dayjs";
 
 // Init express server
 
@@ -62,8 +64,31 @@ if (!config.env.DISABLE_DEBUG_ENDPOINT) {
     debugGenerateReports
   );
 
+  const storeDumpQuerySchema = z
+    .object({
+      filename: z
+        .string()
+        .regex(/[\w\d\-]+/)
+        .optional(),
+    })
+    .strict();
+
+  async function storeDump(query: z.infer<typeof storeDumpQuerySchema>) {
+    const defaultedFilename =
+      query.filename ?? "dump-" + dayjs().format("YYYY-MM-DD");
+    await dumpStore(
+      `${config.env.DUMP_FILES_LOCATION}/${defaultedFilename}.ttl`
+    );
+  }
+
+  addDebugEndpoint(app, "GET", "/dump", storeDumpQuerySchema, storeDump);
+
   addDebugEndpoint(app, "GET", "/configuration", emptySchema, () =>
     Promise.resolve(config)
+  );
+
+  addDebugEndpoint(app, "GET", "/clear-store", emptySchema, () =>
+    Promise.resolve(clearStore)
   );
 }
 

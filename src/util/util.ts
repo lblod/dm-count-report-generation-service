@@ -1,4 +1,4 @@
-import { LogLevel, config } from "./../configuration.js";
+import { LogLevel } from "./../configuration.js";
 import dayjs from "dayjs";
 import logger from "./../logger.js";
 
