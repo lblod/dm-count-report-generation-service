@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Static index of dumps</title>
+</head>
+
+<body>
+  <h1>Static index of dumps</h1>
+  <ul>
+    {{#each dirs}}
+    <li><a href="/dump-files/{{this}}">{{this}}</a></li>
+    {{/each}}
+  </ul>
+</body>
+
+</html>

@@ -10,6 +10,8 @@ import { z } from "zod";
 import { durationWrapper } from "util/util.js";
 import { clearStore, dumpStore } from "report-generation/store.js";
 import dayjs from "dayjs";
+import fs from "node:fs";
+import Handlebars from "handlebars";
 
 // Init express server
 
@@ -34,6 +36,10 @@ app.get("/status", async (_, res) => {
 // Debug endpoint for development
 
 if (!config.env.DISABLE_DEBUG_ENDPOINT) {
+  const debugIndexHtml = fs.readFileSync("./templates/debug.html", {
+    encoding: "utf-8",
+  });
+  app.get("/debug", (_, res) => res.send(debugIndexHtml));
   const emptySchema = z.union([z.undefined(), z.object({})]);
   // Function for forcing generation
   const generateReportQuerySchema = z
@@ -90,6 +96,19 @@ if (!config.env.DISABLE_DEBUG_ENDPOINT) {
   addDebugEndpoint(app, "GET", "/clear-store", emptySchema, () =>
     Promise.resolve(clearStore)
   );
+
+  const staticIndexTemplate = Handlebars.compile(
+    fs.readFileSync("./templates/static-index.hbs", { encoding: "utf-8" })
+  );
+
+  // Static hosting of the dump files
+  app.get("/dump-files", (_, res) => {
+    const dirs = fs.readdirSync(config.env.DUMP_FILES_LOCATION, {
+      encoding: "utf-8",
+    });
+    res.send(staticIndexTemplate({ dirs }));
+  });
+  app.use("/dump-files", express.static(config.env.DUMP_FILES_LOCATION));
 }
 
 // Start cron

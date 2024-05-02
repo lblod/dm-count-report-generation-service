@@ -62,7 +62,7 @@ export function debugHtmlRenderMiddleware(
 ) {
   res.appendHeader("content-type", "text/html");
   const html = debugResultTemplate({
-    title: "Result of function invocation",
+    title: "Result of function invocation - Success",
     method: req.method + " " + req.originalUrl,
     query: JSON.stringify(req.query),
     duration: res.locals.result.durationSeconds,
@@ -85,7 +85,7 @@ export function debugErrorHandlingMiddelware(
 ) {
   res.appendHeader("content-type", "text/html");
   const html = errorResultTemplate({
-    title: "Runtime error in Node.js",
+    title: "Result of function invocation - Failure",
     method: req.method + " " + req.originalUrl,
     query: JSON.stringify(req.query),
     message: err.message,
