@@ -6,8 +6,7 @@ import dayjs from "dayjs";
 import logger from "./../logger.js";
 import { store } from "./store.js";
 
-const SKIP_PREFIX_REGEX =
-  /^PREFIX[.\w\s\:<>\/\-\#]+PREFIX[.\w\s\:<>\/\-\#]+\n/g;
+const SKIP_PREFIX_REGEX = /^PREFIX[.\w\s:<>/\-#]+PREFIX[.\w\s:<>/\-#]+\n/g;
 
 /**
  * Wrapper around logger.info

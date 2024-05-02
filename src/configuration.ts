@@ -8,7 +8,7 @@ import { fromError } from "zod-validation-error";
 export function isShortUri(uri: string): boolean {
   return RESOURCE_CLASS_SHORT_URI_REGEX.test(uri);
 }
-const EXTRACT_NAMESPACES_FROM_PREFIX_REGEX = /PREFIX\s([a-z]+)\:\s+<(.+)>/g;
+const EXTRACT_NAMESPACES_FROM_PREFIX_REGEX = /PREFIX\s([a-z]+):\s+<(.+)>/g;
 // Stolen from: https://stackoverflow.com/questions/14203122/create-a-regular-expression-for-cron-statement
 const CRON_REGEX =
   /(@(annually|yearly|monthly|weekly|daily|hourly|reboot))|(@every (\d+(ns|us|µs|ms|s|m|h))+)|((((\d+,)+\d+|(\d+(\/|-)\d+)|\d+|\*) ?){5,7})/;

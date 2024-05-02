@@ -74,16 +74,16 @@ if (!config.env.DISABLE_DEBUG_ENDPOINT) {
     .object({
       filename: z
         .string()
-        .regex(/[\w\d\-]+/)
+        .regex(/[\w\d-]+/)
         .optional(),
     })
     .strict();
 
   async function storeDump(query: z.infer<typeof storeDumpQuerySchema>) {
-    const defaultedFilename =
-      query.filename ?? "dump-" + dayjs().format("YYYY-MM-DD");
+    const defaultedFilenameWithoutExtention =
+      query.filename ?? "dump-" + dayjs().format("YYYYMMDDHHmm");
     await dumpStore(
-      `${config.env.DUMP_FILES_LOCATION}/${defaultedFilename}.ttl`
+      `${config.env.DUMP_FILES_LOCATION}/${defaultedFilenameWithoutExtention}.ttl`
     );
   }
 

@@ -39,19 +39,20 @@ It will be updated in the future.
 
 | Variable name & type | Default value | Explanation |
 | :--- | :--- | :--- |
-| ADMIN_UNIT_ENDPOINT(string, URL) | No default. Required. | URL of the SPARQL endpoint where the reporting service can query for admin units and governing bodies. Typically ending in `/sparql` |
-| REPORT_ENDPOINT(string, URL) | No default. Required | Url of the SPARQL endpoint where the reporting service can write reports to  |
-| DISABLE_DEBUG_ENDPOINT(boolean) | `"true"` | True activates endpoints which can be used for testing. See discussion below. In production these endpoint should be disabled. |
-| REPORT_GRAPH_URI(string, URI) | `"http://mu.semte.ch/graphs/public"` | The URI of the graph where to write report related linked data to. |
-| CONFIG_FILE_LOCATION(string, directory) | `"/config"` | The directory where the config file can be found. Useful for development. Default value is the location in the container. |
-| SLEEP_BETWEEN_QUERIES_MS(integer) | `0` | Value in milliseconds. Setting this higher than 0 means the service will wait the specified number of milliseconds after each query before the next query. This may be needed in order to prevent the service from overloading the database. |
-| SHOW_SPARQL_QUERIES(boolean) | `"false"` | Set to true to print the queries to the console (`info` log level) |
-| LIMIT_NUMBER_ADMIN_UNITS(integer) | `0` | 0 Means query for all admin units. A non zero value imposes a limit. This is useful for testing so you don't flood the database. I'd suggest you set it to 5 for testing. |
-| ORG_RESOURCES_TTL_S(number) | `300` | Value in seconds. Data concerning admin units and governing bodies are kept in a cache with a Time To Live (TTL). This prevents unnecessary load during repeated test invocations of report generation. After this time has elapsed the cache is cleared and new data needs to be queried.
-| SERVER_PORT(number) | `80` | HTTP port the server listens on. |
-| REPORT_CRON_EXPRESSION(string, cron expression) | `"0 0 * * *"` | The cron expression which invokes the report generation script. Default is every day at 00:00. |
-| LOG_LEVEL(string) | `"info"` | Level of the logs. Accepted values are "error","warn","info","http","verbose","debug" and "silly". For production set to "error". For development set to "info" or "debug". |
-| NO_TIME_FILTER(boolean) | `"false"` | Set to true for testing. This disabled the date related filtering when counting. This can be useful when no new data was posted and too many queries yield 0. |
+| ADMIN_UNIT_ENDPOINT<br>(string, URL) | No default. Required. | URL of the SPARQL endpoint where the reporting service can query for admin units and governing bodies. Typically ending in `/sparql` |
+| REPORT_ENDPOINT<br>(string, URL) | No default. Required | Url of the SPARQL endpoint where the reporting service can write reports to  |
+| DISABLE_DEBUG_ENDPOINT<br>(boolean) | `"true"` | True activates endpoints which can be used for testing. See discussion below. In production these endpoint should be disabled. |
+| REPORT_GRAPH_URI<br>(string, URI) | `"http://mu.semte.ch/graphs/public"` | The URI of the graph where to write report related linked data to. |
+| CONFIG_FILE_LOCATION<br>(string, directory) | `"/config"` | The directory where the config file can be found. Useful for development. Default value is the location in the container. |
+| SLEEP_BETWEEN_QUERIES_MS<br>(integer) | `0` | Value in milliseconds. Setting this higher than 0 means the service will wait the specified number of milliseconds after each query before the next query. This may be needed in order to prevent the service from overloading the database. |
+| SHOW_SPARQL_QUERIES<br>(boolean) | `"false"` | Set to true to print the queries to the console (`info` log level) |
+| LIMIT_NUMBER_ADMIN_UNITS<br>(integer) | `0` | 0 Means query for all admin units. A non zero value imposes a limit. This is useful for testing so you don't flood the database. I'd suggest you set it to 5 for testing. |
+| ORG_RESOURCES_TTL_S<br>(number) | `300` | Value in seconds. Data concerning admin units and governing bodies are kept in a cache with a Time To Live (TTL). This prevents unnecessary load during repeated test invocations of report generation. After this time has elapsed the cache is cleared and new data needs to be queried.
+| SERVER_PORT<br>(number) | `80` | HTTP port the server listens on. For debugging locally I suggest port 4199. |
+| REPORT_CRON_EXPRESSION<br>(string, cron expression) | `"0 0 * * *"` | The cron expression which invokes the report generation script. Default is every day at 00:00. |
+| LOG_LEVEL<br>(string) | `"info"` | Level of the logs. Accepted values are "error","warn","info","http","verbose","debug" and "silly". For production set to "error". For development set to "info" or "debug". |
+| NO_TIME_FILTER<br>(boolean) | `"false"` | Set to true for testing. This disabled the date related filtering when counting. This can be useful when no new data was posted and too many queries yield 0. |
+| DUMP_FILES_LOCATION<br>(string, directory) | `"/dump"` | Only relevant if DISABLE_DEBUG_ENDPOINT is `false`. This specifies the directory where the service will save the dump files for debugging. |
 
 * Boolean: "true" for `true`, "false" for `false`.
 
@@ -123,11 +124,17 @@ To check the current configuration use the browser to request:
 
 * `http://localhost:4199/configuration`
 
-The get an index of the debug functions use:
+When `DISABLE_DEBUG_ENDPOINT` is set to `false` all of the triples created with INSERT queries will be stored in memory. You can create a TTL dump file by sending a GET request to `/dump-file`. To create a dump called `my-dump.ttl` use the url below. The query parameter is optional. If omitted it will use the current timestamp.
+
+* `http://localhost:4199/dump?filename=my-dump`
+
+To see an index of the dump files use:
+
+* `http://localhost:4199/dump-files`
+
+The get an index of all debug functions use:
 
 * `http://localhost:4199/debug`
-* 
-You'll get an unstyled HTML index page with a list of debug functions
 
 ## Reports format
 
