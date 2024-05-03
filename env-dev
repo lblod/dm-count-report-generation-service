@@ -11,5 +11,5 @@ export ORG_RESOURCES_TTL_S=300
 export SERVER_PORT=4199
 export LOG_LEVEL="debug"
 export NO_TIME_FILTER="true"
-export SLEEP_BETWEEN_QUERIES_MS=100
+export SLEEP_BETWEEN_QUERIES_MS=10
 export DUMP_FILES_LOCATION="/Users/dv/Documents/abb/dm-count-report-generation-service/dumps"

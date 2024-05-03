@@ -32,6 +32,7 @@ import {
 import { v4 as uuidv4 } from "uuid";
 import dayjs from "dayjs";
 import { QueryEngine } from "@comunica/query-sparql";
+import logger from "logger.js";
 
 type OrganisationsAndGovBodies = {
   adminUnits: {
@@ -104,7 +105,7 @@ export async function getOrgResoucesCached(): Promise<OrganisationsAndGovBodies>
   return orgResourcesCache;
 }
 
-function getQueryMachines(queryEngine: QueryEngine, endpoint: string) {
+function getQueries(queryEngine: QueryEngine, endpoint: string) {
   const countSessionsQuery = new TemplatedSelect<
     CountSessionsQueryInput,
     CountSessionsQueryOutput
@@ -117,12 +118,10 @@ function getQueryMachines(queryEngine: QueryEngine, endpoint: string) {
     CountResolutionsQueryInput,
     CountResolutionsQueryOutput
   >(queryEngine, endpoint, countResolutionsQueryTemplate);
-
   const countVoteQuery = new TemplatedSelect<
     CountVoteQueryInput,
     CountVoteQueryOutput
   >(queryEngine, endpoint, countVoteQueryTemplate);
-
   const writeCountReportQuery = new TemplatedInsert<WriteReportInput>(
     queryEngine,
     endpoint,
@@ -149,9 +148,18 @@ function getQueryMachines(queryEngine: QueryEngine, endpoint: string) {
 export async function generateReports(day: DateOnly) {
   //For every org query counts for all resource types
   const orgResources = await getOrgResoucesCached();
-
+  const governingBodiesCount = orgResources.adminUnits.reduce<number>(
+    (acc, curr) => acc + curr.govBodies.length,
+    0
+  );
+  const queryCount = orgResources.adminUnits.reduce<number>(
+    (acc, curr) => acc + curr.govBodies.length * 5 + 1,
+    0
+  );
+  logger.info(
+    `Got organisations and govering bodies: ${orgResources.adminUnits.length} admin units and ${governingBodiesCount} governing bodies. Total amount of queries to be executed for report generation is ${queryCount}`
+  );
   for (const endpoint of config.file) {
-    // Prepare the death machines
     const {
       countSessionsQuery,
       countAgendaItemsQuery,
@@ -159,12 +167,13 @@ export async function generateReports(day: DateOnly) {
       countVoteQuery,
       writeCountReportQuery,
       writeAdminUnitCountReportQuery,
-    } = getQueryMachines(queryEngine, endpoint.url);
+    } = getQueries(queryEngine, endpoint.url);
 
     for (const adminUnit of orgResources.adminUnits) {
       const governingBodyReportUriList: string[] = [];
-      // TODO: make a catalog of query machines for each resource type
+      // TODO: make a catalog of query machines for each resource type eventually
       for (const goveringBody of adminUnit.govBodies) {
+        // Count the resources
         const sessionsResult = await countSessionsQuery.result({
           prefixes: PREFIXES,
           governingBodyUri: goveringBody.uri,

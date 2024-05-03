@@ -278,7 +278,7 @@ INSERT {
       {{#each counts}}
         [
           datamonitoring:targetClass <{{this.classUri}}>;
-          datamonitoring:count: {{this.count}}
+          datamonitoring:count {{this.count}}
         ]{{#unless @last}},{{/unless}}
      {{/each}}
   }
