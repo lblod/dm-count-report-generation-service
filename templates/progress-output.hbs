@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{title}}</title>
+</head>
+
+<body>
+  <h1>{{title}}</h1>
+  <p>Endpoint:
+  <pre>{{method}}</pre>
+  </p>
+  <p>Query param:
+  <pre>{{query}}</pre>
+  </p>
+  <label for="progress">Procedure progress:</label>
+  <progress id="progress" value="0" max="100"> 32% </progress>
+  <div style="width: 800px;">
+    <canvas id="graph"></canvas>
+  </div>
+  <hr>
+  <div id="log">
+
+  </div>
+</body>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script>
+  const performanceChart = new Chart(
+    document.getElementById('graph'),
+    {
+      type: 'bar',
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: 'Performance',
+            data: [],
+          }
+        ],
+      },
+      options: {
+
+      },
+    }
+  );
+  let counter = 0;
+  const eventSource = new EventSource("/progress");
+  eventSource.onmessage = function (event) {
+    const { progress, total, finished, metric, message, result } = JSON.parse(event.data);
+    if (metric || metric === null) {
+      performanceChart.data.labels.push(counter++);
+      performanceChart.data.datasets[0].data.push(metric);
+      performanceChart.update('none');
+    }
+
+    const progressElement = document.getElementById('progress');
+    progressElement.setAttribute('value', progress);
+    progressElement.setAttribute('max', total);
+    if (message) {
+      const logElement = document.getElementById('log');
+      const par = document.createElement('p');
+      const pre = document.createElement('pre');
+      pre.textContent = message;
+      par.appendChild(pre);
+      logElement.appendChild(par);
+    }
+    if (finished) {
+      eventSource.close();
+    }
+  }
+</script>
+
+</html>

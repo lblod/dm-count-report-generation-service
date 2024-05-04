@@ -5,13 +5,14 @@ import { DateOnly, VALID_ISO_DATE_REGEX } from "./date-util.js";
 import { schedule } from "node-cron";
 import logger from "./logger.js";
 import { config } from "./configuration.js";
-import { addDebugEndpoint } from "middleware.js";
+import { addDebugEndpoint, addExperimentalDebugEndpoint } from "middleware.js";
 import { z } from "zod";
 import { durationWrapper } from "util/util.js";
 import { clearStore, dumpStore } from "report-generation/store.js";
 import dayjs from "dayjs";
 import fs from "node:fs";
 import Handlebars from "handlebars";
+import { addSSE } from "sse.js";
 
 // Init express server
 
@@ -62,12 +63,13 @@ if (!config.env.DISABLE_DEBUG_ENDPOINT) {
     return await generateReports(defaultedDay);
   }
 
-  addDebugEndpoint(
+  addExperimentalDebugEndpoint(
     app,
     "GET",
     "/generate-reports-now",
     generateReportQuerySchema,
-    debugGenerateReports
+    debugGenerateReports,
+    "generate-reports"
   );
 
   const storeDumpQuerySchema = z
@@ -100,6 +102,8 @@ if (!config.env.DISABLE_DEBUG_ENDPOINT) {
   addDebugEndpoint(app, "GET", "/force-error", emptySchema, async () => {
     throw new Error("Forced error by debug action.");
   });
+
+  addSSE(app);
 
   const staticIndexTemplate = Handlebars.compile(
     fs.readFileSync("./templates/static-index.hbs", { encoding: "utf-8" })

@@ -11,13 +11,13 @@ import logger from "./../logger.js";
  * @param now The start time used. This is optional. It will take the current time by default.
  * @returns Promise with a return value of an object with two keys. Key 'result' with the result of the wrapped function and key 'duration' with the duration in seconds
  */
-export async function durationWrapper<F extends (...args: any) => any>(
+export async function durationWrapper<F extends (...args: any) => Promise<any>>(
   wrapped: F,
-  wrappedArgs: Parameters<F>,
-  logLevel: LogLevel | null = null,
-  now: Date | "manual" | "init" | dayjs.Dayjs = dayjs()
+  logLevel: LogLevel,
+  now: Date | "manual" | "init" | dayjs.Dayjs,
+  ...wrappedArgs: Parameters<F>
 ): Promise<{
-  result: ReturnType<F>;
+  result: ReturnType<F> extends Promise<infer R> ? R : ReturnType<F>;
   durationSeconds: number;
 }> {
   const logm = (message: any) => {
@@ -26,7 +26,7 @@ export async function durationWrapper<F extends (...args: any) => any>(
   const defaultedStart = typeof now === "string" ? dayjs() : dayjs(now);
   logm(`Function "${wrapped.name}" invoked at ${defaultedStart.format()}`);
   try {
-    const result = await wrapped(wrappedArgs);
+    const result = await wrapped(...wrappedArgs);
     const defaultedEnd = dayjs();
     const duration = defaultedEnd.diff(defaultedStart, "second", true);
     logm(
@@ -51,4 +51,28 @@ export async function durationWrapper<F extends (...args: any) => any>(
     }
     throw e;
   }
+}
+
+/**
+ * Simple timing function. To time very long running functions use 'durationwrapper'.
+ * This function does not add logs. It simply wraps a function and measures the exeuctuion duration using the system clock.
+ * If the wrapped function throws this will throw. It does not contain error handling
+ * @param wrapped an async Function
+ * @param wrappedArgs the arguments to pass to the wrapped function
+ * @returns An object with two keys 'result' and 'durationMilliseconds'.
+ */
+export async function timingWrapper<F extends (...args: any) => Promise<any>>(
+  wrapped: F,
+  ...wrappedArgs: Parameters<F>
+): Promise<{
+  result: ReturnType<F> extends Promise<infer R> ? R : ReturnType<F>;
+  durationMilliseconds: number;
+}> {
+  const start = dayjs();
+  const result = await wrapped(...wrappedArgs);
+  const end = dayjs();
+  return {
+    result,
+    durationMilliseconds: end.diff(start),
+  };
 }
