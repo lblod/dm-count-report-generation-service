@@ -1,7 +1,27 @@
 import Handlebars from "handlebars";
 import dayjs from "dayjs";
 import "./../helpers/index.js"; // Making sure the modules in the helpers folder are loaded before these templates are compiled
-import { DateOnly } from "date-util.js";
+import { DateOnly, TimeOnly } from "date-util.js";
+import {
+  DataMonitoringFunction,
+  DayOfWeek,
+  JobStatus,
+  JobType,
+  TaskStatus,
+  TaskType,
+} from "types.js";
+
+export type TestQueryInput = {};
+export type TestQueryOutput = {
+  result: number;
+};
+
+export const testQueryTemplate = Handlebars.compile(
+  `\
+SELECT (1+1 as ?result) WHERE {}
+`,
+  { noEscape: true }
+);
 
 export type GetOrganisationsInput = {
   prefixes: string;
@@ -322,6 +342,247 @@ INSERT {
       {{else}}
       .
       {{/if}}
+  }
+} WHERE {
+
+}
+`,
+  { noEscape: true }
+);
+
+export type WriteNewTaskInput = {
+  prefixes: string;
+  jobGraphUri: string;
+  taskUri: string;
+  status: TaskStatus;
+  createdAt: dayjs.Dayjs;
+  index: number;
+  description: string;
+  taskType: TaskType;
+  datamonitoringFunction: DataMonitoringFunction;
+  jobUri: string;
+};
+
+export const insertTaskTemplate = Handlebars.compile(
+  `\
+{{prefixes}}
+INSERT {
+  GRAPH <{{jobGraphUri}}> {
+    <{{taskUri}}> a task:Task, datamonitoring:DatamonitoringTask;
+      mu:uuid "{{uuid}}";
+      dct:creator <https://codifly.be/ns/resources/task-creator/dm-count-report-generation-service>;
+      adms:status {{toTaskStatusLiteral status}};
+      dct:created {{toDateTimeLiteral createdAt}};
+      dct:modified {{toDateTimeLiteral createdAt}};
+      task:operation {{toDatamonitoringFunctionLiteral datamonitoringFunction}};
+      task:index {{index}};
+      dct:isPartOf <{{jobUri}}>;
+      datamonitoring:function {{toDatamonitoringFunctionLiteral datamonitoringFunction}};
+      datamonitoring:description "{{description}}":
+      datamonitoring:taskType {{toTaskTypeLiteral taskType}};
+  }
+} WHERE {
+
+}
+`,
+  { noEscape: true }
+);
+
+export type GetTasksInput = {
+  prefixes: string;
+  jobGraphUri: string;
+};
+
+export type GetTasksOutput = {
+  taskUri: string;
+  uuid: string;
+  status: TaskStatus;
+  datamonitoringFunction: DataMonitoringFunction;
+  taskType: TaskType;
+  jobUri: string;
+};
+
+export const getTasksTemplate = Handlebars.compile(
+  `\
+{{prefixes}}
+SELECT * WHERE {
+  GRAPH <{{jobGraphUri}}> {
+    ?taskUri a task:Task, datamonitoring:DatamonitoringTask;
+      mu:uuid ?uuid;
+      adms:status ?status;
+      datamonitoring:function ?datamonitoringFunction;
+      datamonitoring:taskType ?taskType;
+      dct:isPartOf: ?jobUri.
+  }
+
+}
+`,
+  { noEscape: true }
+);
+
+export type DeleteTaskInput = {
+  prefixes: string;
+  jobGraphUri: string;
+  taskUri: string;
+};
+
+export const deleteTaskTemplate = Handlebars.compile(
+  `\
+{{prefixes}}
+DELETE {
+  GRAPH <{{jobGraphUri}}> {
+    ?taskUri ?p ?o.
+  }
+}
+WHERE {
+  GRAPH <{{jobGraphUri}}> {
+    ?taskUri ?p ?o.
+  }
+}
+`,
+  { noEscape: true }
+);
+
+export type UpdateTaskStatusInput = {
+  prefixes: string;
+  jobGraphUri: string;
+  taskUri: string;
+  status: TaskStatus;
+  modifiedAt: dayjs.Dayjs;
+};
+
+export const updateTaskStatusTemplate = Handlebars.compile(
+  `\
+{{prefixes}}
+DELETE {
+  GRAPH <{{jobGraphUri}}> {
+    <{{taskUri}}
+      adms:status ?status;
+      dct:modified ?modified.
+  }
+} INSERT {
+  GRAPH <{{jobGraphUri}}> {
+    <{{taskUri}}>
+      adms:status {{toTaskStatusLiteral status}};
+      dct:modified {{toDateTimeLiteral modifiedAt}}.
+  }
+} WHERE {
+  GRAPH <{{jobGraphUri}}> {
+    <{{taskUri}}> a task:Task,datamonitoring:DatamonitoringTask;
+      adms:status ?status;
+      dct:modified ?modified.
+  }
+}
+`,
+  { noEscape: true }
+);
+
+export type UpdateJobStatusInput = {
+  prefixes: string;
+  jobGraphUri: string;
+  jobUri: string;
+  status: JobStatus;
+  modifiedAt: dayjs.Dayjs;
+};
+
+export const updateJobStatusTemplate = Handlebars.compile(
+  `\
+{{prefixes}}
+DELETE {
+  GRAPH <{{jobGraphUri}}> {
+    <{{jobUri}}>
+      adms:status ?status;
+      dct:modified ?modified.
+  }
+} INSERT {
+  GRAPH <{{jobGraphUri}}> {
+    <{{jobUri}}>
+      adms:status {{toJobStatusLiteral status}};
+      dct:modified {{toDateTimeLiteral modifiedAt}}.
+  }
+} WHERE {
+  GRAPH <{{jobGraphUri}}> {
+    <{{jobUri}}> a cogs:Job,datamonitoring:DatamonitoringJob;
+      adms:status ?status;
+      dct:modified ?modified.
+  }
+}
+`,
+  { noEscape: true }
+);
+
+export type GetJobsInput = {
+  prefixes: string;
+  jobGraphUri: string;
+};
+
+export type GetJobsOutput = {
+  jobUri: string;
+  uuid: string;
+  status: JobStatus;
+  createdAt: dayjs.Dayjs;
+  modifiedAt: dayjs.Dayjs;
+  description: TaskStatus;
+  jobType: JobType;
+  timeOfInvocation: TimeOnly;
+  datamonitoringFunction: DataMonitoringFunction;
+  daysOfInvocation: DayOfWeek[];
+};
+
+export const getJobsTemplate = Handlebars.compile(
+  `\
+{{prefixes}}
+SELECT * WHERE {
+  GRAPH <{{jobGraphUri}}> {
+    ?jobUri a a cogs:Job, datamonitoring:DatamonitoringJob;
+      mu:uuid ?uuid;
+      adms:status ?status;
+      dct:created ?createdAt;
+      dct:modified ?modifiedAt;
+      datamonitoring:description ?description;
+      datamonitoring:jobType ?jobtype;
+      datamonitoring:jobParameters [
+        datamonitoring:timeOfInvocation: ?timeOfInvocation;
+        datamonitoring:function: ?datamonitoringFunction;
+        datamonitoring:daysOfInvocation: ?dayOfInvocation;
+      ].
+  }
+}
+`,
+  { noEscape: true }
+);
+
+export type WriteNewJobInput = {
+  prefixes: string;
+  jobGraphUri: string;
+  newJobUri: string;
+  status: JobStatus;
+  createdAt: dayjs.Dayjs;
+  description: string;
+  jobType: JobType;
+  timeOfInvocation: TimeOnly;
+  daysOfInvocation: DayOfWeek[];
+  datamonitoringFunction: DataMonitoringFunction;
+};
+
+export const insertJobTemplate = Handlebars.compile(
+  `\
+{{prefixes}}
+INSERT {
+  GRAPH <{{jobGraphUri}}> {
+    <{{newJobUri}}> a cogs:Job, datamonitoring:DatamonitoringJob;
+      mu:uuid "{{uuid}}";
+      dct:creator <https://codifly.be/ns/resources/job-creator/dm-count-report-generation-service>;
+      adms:status {{toJobStatusLiteral status}};
+      dct:created {{toDateTimeLiteral createdAt}};
+      dct:modified {{toDateTimeLiteral createdAt}};
+      datamonitoring:description "{{description}}":
+      datamonitoring:jobType {{toJobTypeLiteral jobType}};
+      datamonitoring:jobParameters [
+        datamonitoring:timeOfInvocation {{toTimeLiteral timeOfInvocation}};
+        datamonitoring:function {{toDatamonitoringFunctionLiteral datamonitoringFunction}};
+        datamonitoring:daysOfInvocation {{#each daysOfInvocation}}{{toDayOfWeekLiteral this}}{{unless @last ","}}{{/each}}
+      ].
   }
 } WHERE {
 

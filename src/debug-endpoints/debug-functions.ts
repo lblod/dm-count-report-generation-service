@@ -113,6 +113,42 @@ const methods = [
 
 export type HttpMethod = (typeof methods)[number];
 
+function callHttpMethod(
+  app: express.Express,
+  path: string,
+  method: string,
+  middlewares: any[]
+) {
+  switch (method) {
+    case "GET":
+      app.get(path, ...middlewares);
+      break;
+    case "POST":
+      app.post(path, ...middlewares);
+      break;
+    case "OPTIONS":
+      app.options(path, ...middlewares);
+      break;
+    case "PUT":
+      app.put(path, ...middlewares);
+      break;
+    case "HEAD":
+      app.head(path, ...middlewares);
+      break;
+    case "DELETE":
+      app.delete(path, ...middlewares);
+      break;
+    case "PATCH":
+      app.patch(path, ...middlewares);
+      break;
+    case "CONNECT":
+      app.connect(path, ...middlewares);
+      break;
+    default:
+      throw new Error(`HTTP method ${method} does not exist`);
+  }
+}
+
 /**
  * Function that adds a debug endpoint for testing a specific function
  * @param app Express app
@@ -160,35 +196,7 @@ export function addDebugEndpoint(
   ] as any[];
   if (querySchema)
     middlewares.unshift(getZodQueryValidationMiddleware(querySchema));
-
-  switch (method) {
-    case "GET":
-      app.get(path, ...middlewares);
-      break;
-    case "POST":
-      app.post(path, ...middlewares);
-      break;
-    case "OPTIONS":
-      app.options(path, ...middlewares);
-      break;
-    case "PUT":
-      app.put(path, ...middlewares);
-      break;
-    case "HEAD":
-      app.head(path, ...middlewares);
-      break;
-    case "DELETE":
-      app.delete(path, ...middlewares);
-      break;
-    case "PATCH":
-      app.patch(path, ...middlewares);
-      break;
-    case "CONNECT":
-      app.connect(path, ...middlewares);
-      break;
-    default:
-      throw new Error(`HTTP method ${method} does not exist`);
-  }
+  callHttpMethod(app, path, method, middlewares);
 }
 
 type ProgressInvocation<R> = {

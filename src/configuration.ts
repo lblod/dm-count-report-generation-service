@@ -1,7 +1,13 @@
 import { z } from "zod";
 import fs from "node:fs";
-import { PREFIXES, RESOURCE_CLASS_SHORT_URI_REGEX } from "./local-constants.js"; // Not named 'constants' because of name conflict with node. Same of the nam of this module.
+import {
+  ALL_DAYS_OF_WEEK,
+  PREFIXES,
+  RESOURCE_CLASS_SHORT_URI_REGEX,
+} from "./local-constants.js"; // Not named 'constants' because of name conflict with node. Same of the nam of this module.
 import { fromError } from "zod-validation-error";
+import { DayOfWeek, LOG_LEVELS, stringToDayOfWeek } from "types.js";
+import { TimeOnly, VALID_SHORT_TIME_REGEX } from "date-util.js";
 
 // Extract namespaces and build a conversion function to convert short URI's to full ones
 
@@ -29,18 +35,6 @@ function convertUri(shortOrLong: string): string {
   const match = shortOrLong.match(RESOURCE_CLASS_SHORT_URI_REGEX);
   return match ? `${PREFIXES_MAP.get(match[1]!)}${match[2]!}` : shortOrLong;
 }
-
-export const LOG_LEVELS = [
-  "error",
-  "warn",
-  "info",
-  "http",
-  "verbose",
-  "debug",
-  "silly",
-] as const;
-
-export type LogLevel = (typeof LOG_LEVELS)[number];
 
 // Zod schemas to parse env and the file.
 const allowedTrueValues = ["true", "on", "1"];
@@ -77,6 +71,26 @@ const uriSchema = z
   .string()
   .url()
   .or(z.string().regex(RESOURCE_CLASS_SHORT_URI_REGEX));
+const invocationTimeSchema = z
+  .string()
+  .regex(VALID_SHORT_TIME_REGEX)
+  .transform((x) => new TimeOnly(x));
+const invocationDaysSchema = z
+  .string()
+  .transform((x, ctx) => {
+    const result = x.split(",").map((str) => stringToDayOfWeek(str));
+    if (result.some((r) => !r)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Invocaton days env var needs to be of format "<day>,<day>" where <day> is one of ${Object.keys(
+          DayOfWeek
+        ).join(",")}`,
+      });
+      return z.never();
+    }
+    return [...new Set(result)]; // Remove duplicate days if present
+  })
+  .pipe(z.array(z.nativeEnum(DayOfWeek)));
 
 const dmReportGenerationServiceConfigFileSchema = z.object({
   endpoints: z.array(
@@ -92,13 +106,15 @@ const dmReportGenerationServiceEnvSchema = z.object({
   REPORT_ENDPOINT: z.string().url(),
   DISABLE_DEBUG_ENDPOINT: envBooleanSchema.optional(),
   REPORT_GRAPH_URI: z.string().optional(),
+  JOB_GRAPH_URI: z.string().optional(),
   CONFIG_FILE_LOCATION: z.string().optional(),
   SLEEP_BETWEEN_QUERIES_MS: envIntegerSchema.optional(),
   SHOW_SPARQL_QUERIES: envBooleanSchema.optional(),
   LIMIT_NUMBER_ADMIN_UNITS: envIntegerSchema.optional(),
   ORG_RESOURCES_TTL_S: envIntegerSchema.optional(),
   SERVER_PORT: envIntegerSchema.optional(),
-  REPORT_CRON_EXPRESSION: z.string().regex(CRON_REGEX).optional(),
+  REPORT_INVOCATION_TIME: invocationTimeSchema.optional(),
+  REPORT_INVOCATION_DAYS: invocationDaysSchema.optional(),
   LOG_LEVEL: z.enum(LOG_LEVELS).optional(),
   NO_TIME_FILTER: envBooleanSchema.optional(),
   DUMP_FILES_LOCATION: z.string().optional(),
@@ -129,13 +145,15 @@ export type DmReportGenerationServiceConfig = {
 const defaultEnv = {
   DISABLE_DEBUG_ENDPOINT: false,
   REPORT_GRAPH_URI: "http://mu.semte.ch/graphs/public",
+  JOB_GRAPH_URI: "http://mu.semte.ch/graphs/job",
   CONFIG_FILE_LOCATION: "/config",
   SLEEP_BETWEEN_QUERIES_MS: 0,
   SHOW_SPARQL_QUERIES: false,
   LIMIT_NUMBER_ADMIN_UNITS: 0, // Default value of 0 means no limit
   ORG_RESOURCES_TTL_S: 300, // Default cache TTL is five minutes
   SERVER_PORT: 80, // HTTP (TODO add HTTPS port)
-  REPORT_CRON_EXPRESSION: "0 0 * * *", // Default cron invocation is midnight
+  REPORT_INVOCATION_TIME: new TimeOnly("00:00"),
+  REPORT_INVOCATION_DAYS: ALL_DAYS_OF_WEEK,
   LOG_LEVEL: "info" as const,
   NO_TIME_FILTER: false,
   DUMP_FILES_LOCATION: "/dump",

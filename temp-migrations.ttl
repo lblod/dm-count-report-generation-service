@@ -1,0 +1,67 @@
+@prefix besluittype: <https://data.vlaanderen.be/id/concept/BesluitType/>.
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>.
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>.
+@prefix mu: <http://mu.semte.ch/vocabularies/core/>.
+@prefix task: <http://redpencil.data.gift/vocabularies/tasks/>.
+@prefix dct: <http://purl.org/dc/terms/>.
+@prefix prov: <http://www.w3.org/ns/prov#>.
+@prefix nie: <http://www.semanticdesktop.org/ontologies/2007/01/19/nie#>.
+@prefix ext: <http://mu.semte.ch/vocabularies/ext/>.
+@prefix oslc: <http://open-services.net/ns/core#>.
+@prefix cogs: <http://vocab.deri.ie/cogs#>.
+@prefix adms: <http://www.w3.org/ns/adms#>.
+@prefix nfo: <http://www.semanticdesktop.org/ontologies/2007/03/22/nfo#>.
+@prefix dbpedia: <http://dbpedia.org/resource/>.
+@prefix besluit: <http://data.vlaanderen.be/ns/besluit#>.
+@prefix besluitvor: <https://data.vlaanderen.be/ns/besluitvorming#>.
+@prefix generiek: <https://data.vlaanderen.be/ns/generiek#>.
+@prefix dossier: <https://data.omgeving.vlaanderen.be/ns/dossier#>.
+@prefix org: <http://www.w3.org/ns/org#>.
+@prefix locn: <http://www.w3.org/ns/locn#>.
+@prefix eli: <http://data.europa.eu/eli/ontology#>.
+@prefix sh: <http://www.w3.org/ns/shacl#>.
+@prefix skos: <http://www.w3.org/2004/02/skos/core#>.
+@prefix mandaat: <http://data.vlaanderen.be/ns/mandaat#>.
+@prefix harvesting: <http://lblod.data.gift/vocabularies/harvesting/>.
+@prefix deltas: <http://redpencil.data.gift/vocabularies/deltas/Error>.
+@prefix leidinggevenden: <http://data.lblod.info/vocabularies/leidinggevenden/>.
+@prefix vlaanderenconcept: <https://data.vlaanderen.be/id/concept/>.
+@prefix lblodbesluit: <http://lblod.data.gift/vocabularies/besluit/>.
+@prefix lblodeditor: <http://lblod.data.gift/vocabularies/editor/>.
+@prefix vlaanderenmobiliteit: <https://data.vlaanderen.be/ns/mobiliteit#>.
+@prefix dcterms: <http://purl.org/dc/terms/>.
+@prefix owl: <http://www.w3.org/2002/07/owl#>.
+@prefix rdfa: <http://www.w3.org/ns/rdfa#>.
+@prefix xhv: <http://www.w3.org/1999/xhtml/vocab#>.
+@prefix datamonitoring: <http://lblod.data.gift/vocabularies/datamonitoring/>.
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#>.
+
+<https://codifly.be/ns/resources/job-creator/dm-count-report-generation-service> a skos:Concept;
+  skos:prefLabel "dm-count-generation-service job creator".
+
+<https://codifly.be/ns/resources/status/busy> a skos:Concept;
+  skos:prefLabel "Busy".
+
+<https://codifly.be/ns/resources/status/not-started> a skos:Concept;
+  skos:prefLabel "Not started".
+
+<https://codifly.be/ns/resources/status/finished> a skos:Concept;
+  skos:prefLabel "Finished".
+
+<https://codifly.be/ns/resources/status/failed> a skos:Concept;
+  skos:prefLabel "Failed".
+
+<https://codifly.be/ns/resources/task-type/serial> a skos:Concept;
+  skos:prefLabel "Serial task".
+
+<https://codifly.be/ns/resources/task-type/parallel> a skos:Concept;
+  skos:prefLabel "Parallel task".
+
+<https://codifly.be/ns/resources/job-type/periodic> a skos:Concept;
+  skos:prefLabel "Job that invokes a task periodically".
+
+<https://codifly.be/ns/resources/job-type/once> a skos:Concept;
+  skos:prefLabel "Job that invokes a task once".
+
+
+

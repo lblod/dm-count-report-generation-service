@@ -1,4 +1,5 @@
-import { LOG_LEVELS, LogLevel, config } from "./configuration.js";
+import { LOG_LEVELS, LogLevel } from "types.js";
+import { config } from "./configuration.js";
 import winston from "winston";
 
 const winstonLogger = winston.createLogger({
@@ -7,7 +8,7 @@ const winstonLogger = winston.createLogger({
   transports: [new winston.transports.Console()],
 });
 
-function extendedLog(...args: any[]): string {
+export function extendedLog(...args: any[]): string {
   const outputstrings = args.map((arg: any) => {
     if (typeof arg === "object") {
       return JSON.stringify(arg, undefined, 3) + "\n";
@@ -29,6 +30,11 @@ const proxyHandler = {
       ] as WinstonLogFunc;
       return function (...args: any): void {
         logfunction(extendedLog(...args));
+      };
+    }
+    if (prop === "log") {
+      return function (logLevel: LogLevel, ...args: any) {
+        winstonLogger.log(logLevel, extendedLog(...args));
       };
     }
     return Reflect.get(winstonLogger, prop, receiver);

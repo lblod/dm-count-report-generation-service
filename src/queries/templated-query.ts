@@ -1,10 +1,11 @@
 import { QueryEngine } from "@comunica/query-sparql";
 import { Bindings, Term } from "@rdfjs/types";
-import { config } from "./../configuration.js";
-import { DateOnly } from "../date-util.js";
+import { config } from "../configuration.js";
+import { DateOnly, TimeOnly } from "../date-util.js";
 import dayjs from "dayjs";
-import logger from "./../logger.js";
+import logger from "../logger.js";
 import { store } from "./store.js";
+import { DmEnum } from "types.js";
 
 const SKIP_PREFIX_REGEX = /^PREFIX[.\w\s:<>/\-#]+PREFIX[.\w\s:<>/\-#]+\n/g;
 
@@ -37,12 +38,12 @@ export type GetOrganisationsInput = {
 /**
  * Converts an RDFJS term to a javascript value
  * https://www.w3.org/TR/rdf11-concepts/#xsd-datatypes
- * @param term RDFJS term objet
+ * @param term RDFJS term object
  * @returns A javascript value or object depending on the term datatype
  */
 function toObject(
   term: Term
-): string | number | boolean | dayjs.Dayjs | DateOnly {
+): string | number | boolean | dayjs.Dayjs | DateOnly | TimeOnly | DmEnum {
   switch (term.termType) {
     case "Literal":
       switch (term.datatype.value) {
@@ -61,15 +62,22 @@ function toObject(
           return dayjs(term.value);
         case "http://www.w3.org/2001/XMLSchema#date":
           return new DateOnly(term.value);
+        case "http://www.w3.org/2001/XMLSchema#time":
+          return new TimeOnly(term.value);
         default:
           throw new Error(
             `No conversion function for literal of type ${term.datatype.value}`
           );
       }
-    case "NamedNode": // For named nodes we just return the URI
+    case "NamedNode": // For named nodes we just return the URI.
+      // try {
+      //   return getEnumFromUri(term.value);
+      // } catch (e) {
+      //   return term.value as string;
+      // }
       return term.value;
     case "BlankNode":
-      return `<_>`; // TODO: Elegant solution? Crash?
+      return `_`; // TODO: Elegant solution? Crash?
     default:
       throw new Error("No conversion function for this type of term yet.");
   }
@@ -246,29 +254,50 @@ export class TemplatedSelect<
   /**
    * Get query result as an array of objects with type U
    * Unsuitable for more than 10k rows
+   * @param uriKey The key in the query pointing to the URI of the object you want to construct
    * @param input Handlebars input
    * @returns An array of objects
    */
-  async objects(input: T): Promise<U[]> {
+  async objects(uriKey: string, input: T): Promise<U[]> {
     const query = this.getQuery(input);
     if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint, query);
     const bindingsStream = await this.queryEngine.queryBindings(query, {
       sources: [this.endpoint],
     });
-    const result: Record<string, any>[] = [];
+    const resultMap = new Map<string, Record<string, any>>();
     for await (const binding of bindingsStream) {
-      const obj: Record<string, any> = {};
+      // First try to get the uri of the object we are trying to build
+      const uriTerm = binding.get(uriKey);
+      if (!uriTerm)
+        throw new Error(
+          `May only transform bindings to object if the uri of the resource is present in each result row. Uri key is "${uriKey}". Keys present are: ${[
+            ...binding.keys(),
+          ].join(",")}`
+        );
+      if (!resultMap.has(uriTerm.value)) {
+        resultMap.set(uriTerm.value, {});
+      }
       for (const key of binding.keys()) {
         const term = binding.get(key);
         if (!term)
           throw new Error(
             "Received incomplete binding. Expected key is not found."
           );
-        obj[key.value] = toObject(term);
+        if (resultMap.get(uriTerm.value)![key.value] === undefined) {
+          resultMap.get(uriTerm.value)![key.value] = toObject(term);
+        } else {
+          if (Array.isArray(resultMap.get(uriTerm.value)![key.value])) {
+            resultMap.get(uriTerm.value)![key.value].push(toObject(term));
+          } else {
+            resultMap.get(uriTerm.value)![key.value] = [
+              resultMap.get(uriTerm.value)![key.value],
+              toObject(term),
+            ];
+          }
+        }
       }
-      result.push(obj);
     }
-    return result as U[];
+    return [...resultMap.values()] as U[];
   }
 
   /**
@@ -278,11 +307,24 @@ export class TemplatedSelect<
    * @returns A single object
    */
   async result(input: T): Promise<U> {
-    const objects = await this.objects(input);
-    if (objects.length !== 1)
-      throw new Error(
-        `The templated query was intented to return only one row. Received ${objects.length}`
-      );
-    return objects[0];
+    const query = this.getQuery(input);
+    if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint, query);
+    const bindingsStream = await this.queryEngine.queryBindings(query, {
+      sources: [this.endpoint],
+    });
+    let first = true;
+    let result = undefined;
+    for await (const binding of bindingsStream) {
+      if (!first)
+        throw new Error(
+          `Result method is only for sparql queries that return only a single row.`
+        );
+      result = [...binding.keys()].reduce<Record<string, any>>((acc, curr) => {
+        acc[curr.value] = toObject(binding.get(curr.value)!);
+        return acc;
+      }, {});
+      first = false;
+    }
+    return result as U;
   }
 }

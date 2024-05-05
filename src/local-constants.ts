@@ -1,3 +1,5 @@
+import { DayOfWeek } from "types.js";
+
 export const PREFIXES = `\
 PREFIX besluittype: <https://data.vlaanderen.be/id/concept/BesluitType/>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -37,9 +39,19 @@ PREFIX rdfa: <http://www.w3.org/ns/rdfa#>
 PREFIX xhv: <http://www.w3.org/1999/xhtml/vocab#>
 PREFIX datamonitoring: <http://lblod.data.gift/vocabularies/datamonitoring/>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
-`
+PREFIX time: <http://www.w3.org/2006/time#>
+`;
 
-export const RESOURCE_CLASS_SHORT_URI_REGEX = /^([\w\d-]+)\:([\w\d-]+)$/;
+export const RESOURCE_CLASS_SHORT_URI_REGEX = /^([\w\d-]+):([\w\d-]+)$/;
 
-export const DEFAULT_TIMEZONE = 'Europe/Brussels';
+export const DEFAULT_TIMEZONE = "Europe/Brussels";
 
+export const ALL_DAYS_OF_WEEK = [
+  DayOfWeek.MONDAY,
+  DayOfWeek.TUESDAY,
+  DayOfWeek.WEDNESDAY,
+  DayOfWeek.THURSDAY,
+  DayOfWeek.FRIDAY,
+  DayOfWeek.SATURDAY,
+  DayOfWeek.SUNDAY,
+];
