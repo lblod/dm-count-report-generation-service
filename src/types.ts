@@ -12,7 +12,8 @@ export type JsonSerializable =
   | boolean
   | null
   | JsonSerializable[]
-  | { [key: string]: JsonSerializable };
+  | { [key: string]: JsonSerializable }
+  | undefined;
 
 export enum TaskStatus {
   BUSY = "https://codifly.be/ns/resources/status/busy",
@@ -73,6 +74,15 @@ export const dmEnums = [
   DataMonitoringFunction,
 ];
 
+const allUris = {
+  ...TaskStatus,
+  ...TaskType,
+  ...JobType,
+  ...JobStatus,
+  ...DayOfWeek,
+  ...DataMonitoringFunction,
+} as const;
+
 export function getEnumFromUri(uri: string): DmEnum {
   for (const enumLike of dmEnums) {
     for (const value of Object.values(enumLike)) {
@@ -81,6 +91,30 @@ export function getEnumFromUri(uri: string): DmEnum {
   }
   throw new Error(`No corresponding enum value found for uri ${uri}.`);
 }
+
+type GetEnumStringFromUriType = (
+  uri: string,
+  safe: boolean
+) => true extends typeof safe ? string | undefined : string;
+// TODO fix
+/**
+ *
+ * @param uri The uri string you want to check
+ * @param safe true means it will not throw and return undefined if the uri does not correspond to an enum value
+ * @returns The enum key.
+ */
+export const getEnumStringFromUri: GetEnumStringFromUriType = (
+  uri: string,
+  safe: boolean
+) => {
+  const result = Object.entries(allUris).find((entry) => entry[1] === uri);
+  if (!safe) {
+    if (!result)
+      throw new Error(`No corresponding enum value found for uri ${uri}.`);
+    return result[0] as string;
+  }
+  return (result ? result[0] : undefined) as string | undefined;
+};
 
 export const LOG_LEVELS = [
   "error",

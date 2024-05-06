@@ -310,40 +310,53 @@ export class TemplatedSelect<
         throw e;
       }
     })();
-    const resultMap = new Map<string, Record<string, any>>();
+
+    const termResult: Map<string, Record<string, Term | Term[]>> = new Map();
+
     for await (const binding of bindingsStream) {
-      // First try to get the uri of the object we are trying to build
       const uriTerm = binding.get(uriKey);
       if (!uriTerm)
         throw new Error(
-          `May only transform bindings to object if the uri of the resource is present in each result row. Uri key is "${uriKey}". Keys present are: ${[
+          `May only transform bindings to object if the uri of the resource is present in each termResult row. Uri key is "${uriKey}". Keys present are: ${[
             ...binding.keys(),
           ].join(",")}`
         );
-      if (!resultMap.has(uriTerm.value)) {
-        resultMap.set(uriTerm.value, {});
-      }
-      for (const key of binding.keys()) {
-        const term = binding.get(key);
-        if (!term)
-          throw new Error(
-            "Received incomplete binding. Expected key is not found."
-          );
-        if (resultMap.get(uriTerm.value)![key.value] === undefined) {
-          resultMap.get(uriTerm.value)![key.value] = toObject(term);
+      const obj: Record<string, Term | Term[]> = (() => {
+        if (termResult.has(uriTerm.value)) {
+          return termResult.get(uriTerm.value)!;
         } else {
-          if (Array.isArray(resultMap.get(uriTerm.value)![key.value])) {
-            resultMap.get(uriTerm.value)![key.value].push(toObject(term));
+          const newObj: Record<string, any> = {};
+          termResult.set(uriTerm.value, newObj);
+          return newObj;
+        }
+      })();
+      // now populate the object
+      for (const [variabele, term] of binding) {
+        if (variabele.value in obj) {
+          const reference = obj[variabele.value] as Term | Term[];
+          if (Array.isArray(reference)) {
+            if (!reference.some((t) => term.equals(t))) reference.push(term);
           } else {
-            resultMap.get(uriTerm.value)![key.value] = [
-              resultMap.get(uriTerm.value)![key.value],
-              toObject(term),
-            ];
+            if (!reference.equals(term))
+              obj[variabele.value] = [reference, term];
           }
+        } else {
+          obj[variabele.value] = term;
         }
       }
     }
-    return [...resultMap.values()] as U[];
+    const result = [...termResult.values()].map<U>((termObject) => {
+      const output: Record<string, any> = {};
+      for (const [key, value] of Object.entries(termObject)) {
+        if (Array.isArray(value)) {
+          output[key] = value.map((i) => toObject(i));
+        } else {
+          output[key] = toObject(value);
+        }
+      }
+      return output as U;
+    });
+    return result;
   }
 
   /**

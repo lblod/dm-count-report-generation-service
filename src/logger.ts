@@ -1,12 +1,8 @@
-import {
-  HasOneElement,
-  IsEmpty,
-  JsonSerializable,
-  LOG_LEVELS,
-  LogLevel,
-} from "types.js";
+import { IsEmpty, JsonSerializable } from "types.js";
 import { config } from "./configuration.js";
 import winston from "winston";
+import { DateOnly, TimeOnly } from "date-util.js";
+import dayjs from "dayjs";
 
 const winstonLogger = winston.createLogger({
   level: config.env.LOG_LEVEL,
@@ -14,14 +10,7 @@ const winstonLogger = winston.createLogger({
   transports: [new winston.transports.Console()],
 });
 
-export function anyToString(input: any): string {
-  if (typeof input === "object") {
-    return JSON.stringify(input, undefined, 3);
-  }
-  // TODO add custom stuff
-  return input.toString();
-}
-function isJsonSerializable(input: any): input is JsonSerializable {
+export function isJsonSerializable(input: any): input is JsonSerializable {
   return (
     typeof input === "string" ||
     typeof input === "number" ||
@@ -32,8 +21,13 @@ function isJsonSerializable(input: any): input is JsonSerializable {
   );
 }
 
-function anyToJsonSerializable(input: any): JsonSerializable {
-  return isJsonSerializable(input) ? input : input.toString();
+function replacer(key: string, value: any): JsonSerializable {
+  if (typeof value === "object") {
+    if (value instanceof DateOnly) return value.toString();
+    if (value instanceof TimeOnly) return value.toString();
+    if (dayjs.isDayjs(value)) return value.format();
+  }
+  return value;
 }
 
 export function extendedLog(
@@ -43,15 +37,9 @@ export function extendedLog(
     return undefined as unknown as IsEmpty<typeof args> extends true
       ? undefined
       : string;
-  const outputstrings = args.map(anyToString);
+  const outputstrings = args.map((val) => JSON.stringify(val, replacer, 3));
   if (args.length === 1) return outputstrings[0] as string;
   return outputstrings.join(",\n") as string;
-}
-
-export function toJsonSerialisable(...args: any[]): JsonSerializable {
-  if (args.length === 0) throw new Error("Needs at least one argument");
-  if (args.length === 1) return anyToJsonSerializable(args[0]);
-  return args.map(anyToJsonSerializable);
 }
 
 type WinstonLogFunc = typeof winstonLogger.info;

@@ -3,6 +3,7 @@ import { config } from "configuration.js";
 import { TimeOnly } from "date-util.js";
 import dayjs from "dayjs";
 import { PREFIXES } from "local-constants.js";
+import { logger } from "logger.js";
 import {
   DeleteAllJobsInput,
   GetJobsInput,
@@ -207,7 +208,7 @@ export async function loadJobs() {
     prefixes: PREFIXES,
     jobGraphUri: config.env.JOB_GRAPH_URI,
   });
-  console.debug(jobRecords);
+  logger.debug(jobRecords);
   for (const record of jobRecords) {
     const newJob = new PeriodicJob(
       defaults.queryEngine,

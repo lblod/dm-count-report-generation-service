@@ -538,7 +538,7 @@ SELECT * WHERE {
       dct:created ?createdAt;
       dct:modified ?modifiedAt;
       datamonitoring:description ?description;
-      datamonitoring:jobType ?jobtype;
+      datamonitoring:jobType ?jobType;
       datamonitoring:jobParameters [
         datamonitoring:timeOfInvocation ?timeOfInvocation;
         datamonitoring:function ?datamonitoringFunction;

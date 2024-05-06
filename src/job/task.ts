@@ -1,6 +1,6 @@
 import { QueryEngine } from "@comunica/query-sparql";
 import { PREFIXES } from "local-constants.js";
-import { logger, toJsonSerialisable } from "logger.js";
+import { logger } from "logger.js";
 import {
   DeleteTaskInput,
   GetTasksInput,
@@ -51,7 +51,7 @@ class TaskProgress {
       throw new Error(`Cannot send update with no arguments`);
     const updateMessage: UpdateMessage = {
       timestamp: dayjs(),
-      message: toJsonSerialisable(...args),
+      message: JSON.stringify(args),
     };
     this._eventEmitter.emit(`update`, updateMessage);
   }
