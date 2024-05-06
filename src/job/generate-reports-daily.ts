@@ -1,6 +1,30 @@
 import { QueryEngine } from "@comunica/query-sparql";
-import { CountResolutionsQueryInput, CountResolutionsQueryOutput, CountSessionsQueryInput, CountSessionsQueryOutput, CountVoteQueryInput, CountVoteQueryOutput, WriteAdminUnitReportInput, WriteReportInput, countAgendaItemsQueryTemplate, countResolutionsQueryTemplate, countSessionsQueryTemplate, countVoteQueryTemplate, writeAdminUnitCountReportTemplate, writeCountReportQueryTemplate } from "queries/queries.js";
+import {
+  CountResolutionsQueryInput,
+  CountResolutionsQueryOutput,
+  CountSessionsQueryInput,
+  CountSessionsQueryOutput,
+  CountVoteQueryInput,
+  CountVoteQueryOutput,
+  WriteAdminUnitReportInput,
+  WriteReportInput,
+  countAgendaItemsQueryTemplate,
+  countResolutionsQueryTemplate,
+  countSessionsQueryTemplate,
+  countVoteQueryTemplate,
+  writeAdminUnitCountReportTemplate,
+  writeCountReportQueryTemplate,
+} from "queries/queries.js";
 import { TemplatedInsert, TemplatedSelect } from "queries/templated-query.js";
+import { TaskFunction } from "./task.js";
+import { getOrgResoucesCached } from "./get-org-data.js";
+import { queryEngine } from "queries/query-engine.js";
+import { config } from "configuration.js";
+import { timingWrapper } from "util/util.js";
+import { PREFIXES } from "local-constants.js";
+import { DateOnly } from "date-util.js";
+import dayjs from "dayjs";
+import { v4 as uuidv4 } from "uuid";
 
 function getQueries(queryEngine: QueryEngine, endpoint: string) {
   const countSessionsQuery = new TemplatedSelect<
@@ -17,19 +41,19 @@ function getQueries(queryEngine: QueryEngine, endpoint: string) {
     writeCountReportQueryTemplate
   );
   const writeAdminUnitCountReportQuery =
-  new TemplatedInsert<WriteAdminUnitReportInput>(
-    queryEngine,
-    endpoint,
-    writeAdminUnitCountReportTemplate
-  );
+    new TemplatedInsert<WriteAdminUnitReportInput>(
+      queryEngine,
+      endpoint,
+      writeAdminUnitCountReportTemplate
+    );
   const countAgendaItemsQuery = new TemplatedSelect<
-  CountSessionsQueryInput,
-  CountSessionsQueryOutput
+    CountSessionsQueryInput,
+    CountSessionsQueryOutput
   >(queryEngine, endpoint, countAgendaItemsQueryTemplate);
   const countVoteQuery = new TemplatedSelect<
-  CountVoteQueryInput,
-  CountVoteQueryOutput
->(queryEngine, endpoint, countVoteQueryTemplate);
+    CountVoteQueryInput,
+    CountVoteQueryOutput
+  >(queryEngine, endpoint, countVoteQueryTemplate);
 
   return {
     countSessionsQuery,
@@ -41,6 +65,159 @@ function getQueries(queryEngine: QueryEngine, endpoint: string) {
   };
 }
 
-export async function generateReportsDaily(
-  logger:
-)
+export const generateReportsDaily: TaskFunction<void> = async (
+  progress,
+  day: DateOnly
+) => {
+  // Init some functions making use of the progress
+  async function performCount<
+    I extends Record<string, any>,
+    O extends Record<string, any>
+  >(resource: string, query: TemplatedSelect<I, O>, input: I): Promise<O> {
+    const timed = await timingWrapper(query.result.bind(query), input);
+    progress.progress(++queries, queryCount, timed.durationMilliseconds);
+    progress.update(
+      `Performed count for resource "${resource}" in ${timed.durationMilliseconds} ms. Result is ${timed.result}`
+    );
+    return timed.result;
+  }
+  async function performInsert<I extends Record<string, any>>(
+    resource: string,
+    query: TemplatedInsert<I>,
+    input: I
+  ): Promise<void> {
+    const timed = await timingWrapper(query.execute.bind(query), input);
+    progress.progress(++queries, queryCount, timed.durationMilliseconds);
+    progress.update(
+      `Written '${resource}' in ${timed.durationMilliseconds} ms`
+    );
+  }
+
+  progress.update(`Getting org resources`);
+  const orgResources = await getOrgResoucesCached(queryEngine);
+  const governingBodiesCount = orgResources.adminUnits.reduce<number>(
+    (acc, curr) => acc + curr.govBodies.length,
+    0
+  );
+  const queryCount =
+    orgResources.adminUnits.reduce<number>(
+      (acc, curr) => acc + curr.govBodies.length * 5 + 1,
+      0
+    ) * config.file.length;
+  progress.update(
+    `Got org resources. ${queryCount} queries to perform for ${governingBodiesCount} governing bodies and ${orgResources.adminUnits.length} admin units for ${config.file.length} endpoints.`
+  );
+  let queries = 0;
+
+  // Now perform the query machine gun
+  for (const endpoint of config.file) {
+    const {
+      countSessionsQuery,
+      countAgendaItemsQuery,
+      countResolutionsQuery,
+      countVoteQuery,
+      writeCountReportQuery,
+      writeAdminUnitCountReportQuery,
+    } = getQueries(queryEngine, endpoint.url);
+
+    for (const adminUnit of orgResources.adminUnits) {
+      const governingBodyReportUriList: string[] = [];
+      // TODO: make a catalog of query machines for each resource type eventually
+      for (const goveringBody of adminUnit.govBodies) {
+        // Count the resources
+        const sessionsResult = await performCount(
+          "Session",
+          countSessionsQuery,
+          {
+            prefixes: PREFIXES,
+            governingBodyUri: goveringBody.uri,
+            from: day.localStartOfDay,
+            to: day.localEndOfDay,
+            noFilterForDebug: config.env.NO_TIME_FILTER,
+          }
+        );
+
+        const agendaItemResult = await performCount(
+          "AgendaPunt",
+          countAgendaItemsQuery,
+          {
+            prefixes: PREFIXES,
+            governingBodyUri: goveringBody.uri,
+            from: day.localStartOfDay,
+            to: day.localEndOfDay,
+            noFilterForDebug: config.env.NO_TIME_FILTER,
+          }
+        );
+
+        const resolutionResult = await performCount(
+          "Besluit",
+          countResolutionsQuery,
+          {
+            prefixes: PREFIXES,
+            governingBodyUri: goveringBody.uri,
+            from: day.localStartOfDay,
+            to: day.localEndOfDay,
+            noFilterForDebug: config.env.NO_TIME_FILTER,
+          }
+        );
+
+        const voteResult = await performCount("Stemming", countVoteQuery, {
+          prefixes: PREFIXES,
+          governingBodyUri: goveringBody.uri,
+          from: day.localStartOfDay,
+          to: day.localEndOfDay,
+          noFilterForDebug: config.env.NO_TIME_FILTER,
+        });
+
+        const reportUri = `http://lblod.data.gift/vocabularies/datamonitoring/countReport/${uuidv4()}`;
+        governingBodyReportUriList.push(reportUri);
+
+        // Write govering body report
+        await performInsert("GoverningBodyCountReport", writeCountReportQuery, {
+          prefixes: PREFIXES,
+          govBodyUri: goveringBody.uri,
+          createdAt: dayjs(),
+          reportUri,
+          reportGraphUri: config.env.REPORT_GRAPH_URI,
+          adminUnitUri: adminUnit.uri,
+          prefLabel: `Count report for governing body '${goveringBody.label}' on ${day}`,
+          day,
+          counts: [
+            {
+              classUri: `http://data.vlaanderen.be/ns/besluit#Zitting`,
+              count: sessionsResult.count,
+            },
+            {
+              classUri: `http://data.vlaanderen.be/ns/besluit#Agendapunt`,
+              count: agendaItemResult.count,
+            },
+            {
+              classUri: `http://data.vlaanderen.be/ns/besluit#Besluit`,
+              count: resolutionResult.count,
+            },
+            {
+              classUri: `http://data.vlaanderen.be/ns/besluit#Stemming`,
+              count: voteResult.count,
+            },
+          ],
+        });
+      }
+      // Write admin unit report
+      await performInsert(
+        "AdminUnitCountReport",
+        writeAdminUnitCountReportQuery,
+        {
+          prefixes: PREFIXES,
+          reportGraphUri: config.env.REPORT_GRAPH_URI,
+          adminUnitUri: adminUnit.uri,
+          prefLabel: `Count report for admin unit '${adminUnit.label}' on ${day}`,
+          reportUri: `http://lblod.data.gift/vocabularies/datamonitoring/countReport/${uuidv4()}`,
+          createdAt: dayjs(),
+          day,
+          reportUris: governingBodyReportUriList,
+        }
+      );
+    }
+    progress.update(`All reports written for endpoint "${endpoint.url}"`);
+  }
+};

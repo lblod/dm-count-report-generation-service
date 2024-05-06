@@ -1,6 +1,6 @@
 import { QueryEngine } from "@comunica/query-sparql";
 import { PREFIXES } from "local-constants.js";
-import logger, { extendedLog } from "logger.js";
+import { logger, toJsonSerialisable } from "logger.js";
 import {
   DeleteTaskInput,
   GetTasksInput,
@@ -24,36 +24,44 @@ import {
 import { EventEmitter } from "node:events";
 import dayjs from "dayjs";
 import { config } from "configuration.js";
+import { durationWrapper } from "util/util.js";
+import { TASK_FUNCTIONS } from "./task-functions-map.js";
 
-class ProgressLogger<
-  F extends (report: () => void, ...args: any) => Promise<any>
-> {
-  _task: Task<F>;
+export type TaskFunction<R> = (
+  progress: TaskProgress,
+  ...args: any[]
+) => Promise<R>;
+
+class TaskProgress {
+  _task: Task;
   _logLevel: LogLevel;
   _eventEmitter: EventEmitter;
-
-  constructor(task: Task<F>, logLevel: LogLevel) {
+  constructor(task: Task, logLevel: LogLevel = "info") {
     this._task = task;
     this._logLevel = logLevel;
     this._eventEmitter = new EventEmitter();
   }
-  // logger.log as any is a dirty trick. We secretly souped up our log function using a proxy
   update(...args: any[]) {
-    (logger.log as any)(this._logLevel, ...args);
+    logger.log(this._logLevel, ...args);
+    if (args.length === 0)
+      throw new Error(`Cannot send update with no arguments`);
     const updateMessage: UpdateMessage = {
       timestamp: dayjs(),
-      message: extendedLog(...args),
+      message: toJsonSerialisable(...args),
     };
     this._eventEmitter.emit(`update`, updateMessage);
   }
   progress(
     done: number,
     total: number,
-    lastDurationMilliseconds: number | null | undefined
+    lastDurationMilliseconds: number | null | undefined,
+    subProcessIdentifier: string | undefined = undefined
   ) {
-    (logger.log as any)(
+    logger.log(
       this._logLevel,
-      `Progress update ${done}/^${total} (${Math.round(
+      `${
+        subProcessIdentifier ? `(${subProcessIdentifier}) ` : ``
+      }Progress update ${done}/^${total} (${Math.round(
         (done / total) * 100.0
       )}%${lastDurationMilliseconds ? ` ${lastDurationMilliseconds} ms` : ``}`
     );
@@ -61,14 +69,12 @@ class ProgressLogger<
       done,
       total,
       lastDurationMilliseconds,
+      subProcessIdentifier,
     };
     this._eventEmitter.emit(`progress`, progressMessage);
   }
-  async statusFinished(
-    result: ReturnType<F> extends Promise<infer R>
-      ? R
-      : ReturnType<F> | undefined
-  ) {
+  // Todo: Type check?
+  async return(result: any) {
     (logger.log as any)(
       this._logLevel,
       `Status change of task ${this._task.uuid} to Finished`
@@ -81,7 +87,7 @@ class ProgressLogger<
     };
     this._eventEmitter.emit(`status`, statusMessage);
   }
-  async statusError(error: object | number | string | boolean | Error) {
+  async error(error: object | number | string | boolean | Error) {
     (logger.log as any)(
       this._logLevel,
       `Status change of task ${this._task.uuid} to Error`
@@ -94,22 +100,22 @@ class ProgressLogger<
     };
     this._eventEmitter.emit(`status`, statusMessage);
   }
-
-  async statusBusy() {
+  async start() {
     (logger.log as any)(
       this._logLevel,
-      `Status change of task ${this._task.uuid} to BUSY`
+      `Status change of task ${this._task.uuid} to Busy`
     );
     await this._task.updateStatus(TaskStatus.BUSY);
     const statusMessage = {
       done: false,
-      failed: true,
+      failed: false,
     };
     this._eventEmitter.emit(`status`, statusMessage);
   }
 }
 
 export class Task {
+  _progress: TaskProgress;
   _insertQuery: TemplatedInsert<WriteNewTaskInput>;
   _updateStatusQuery: TemplatedInsert<UpdateTaskStatusInput>;
   _graphUri: string;
@@ -117,6 +123,7 @@ export class Task {
   _taskType: TaskType;
   _uuid: string;
   _status: TaskStatus;
+  _logLevel: LogLevel;
   get status(): TaskStatus {
     return this._status;
   }
@@ -134,7 +141,8 @@ export class Task {
     graphUri: string,
     uuid: string,
     initialStatus: TaskStatus,
-    datamonitoringFunction: DataMonitoringFunction
+    datamonitoringFunction: DataMonitoringFunction,
+    logLevel: LogLevel = "info"
   ) {
     this._insertQuery = new TemplatedInsert<WriteNewTaskInput>(
       queryEngine,
@@ -151,13 +159,24 @@ export class Task {
     this._datamonitoringFunction = datamonitoringFunction;
     this._uuid = uuid;
     this._status = initialStatus;
+    this._logLevel = logLevel;
+    this._progress = new TaskProgress(this, this._logLevel);
   }
 
   get uri() {
     return `http://codifly.be/namespaces/job/task/${this._uuid}`;
   }
 
-  async execute() {}
+  async execute(...args: any[]) {
+    await this._progress.start();
+    const result = await durationWrapper(
+      TASK_FUNCTIONS[this._datamonitoringFunction],
+      "verbose",
+      this._progress,
+      ...args
+    );
+    if (this.status !== TaskStatus.FINISHED) this._progress.return(result);
+  }
 
   async updateStatus(status: TaskStatus) {
     await this._updateStatusQuery.execute({

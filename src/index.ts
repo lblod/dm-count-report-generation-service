@@ -1,18 +1,6 @@
 import cors, { CorsOptions } from "cors";
 import express, { Express } from "express";
-import { generateReports } from "./report-generation.js";
-import { DateOnly, VALID_ISO_DATE_REGEX } from "./date-util.js";
-import logger from "./logger.js";
 import { config } from "./configuration.js";
-import {
-  addDebugEndpoint,
-  addExperimentalDebugEndpoint,
-} from "debug-endpoints/debug-functions.js";
-import { z } from "zod";
-import dayjs from "dayjs";
-import fs from "node:fs";
-import Handlebars from "handlebars";
-import { addSSE } from "sse.js";
 import { TemplatedSelect } from "queries/templated-query.js";
 import { queryEngine } from "queries/query-engine.js";
 import {
@@ -38,15 +26,8 @@ import {
   JobType,
   TaskStatus,
 } from "types.js";
-import { clearStore, dumpStore } from "queries/store.js";
 import { setupDebugEndpoints } from "debug-endpoints/endpoints.js";
-
-// TODO make this sensible
-const corsOptions: CorsOptions = {
-  origin: ["http://localhost:4199"],
-  methods: ["GET"],
-  optionsSuccessStatus: 200,
-};
+import { logger } from "logger.js";
 
 async function startupProcedure() {
   // Check all endpoints
@@ -80,7 +61,7 @@ async function startupProcedure() {
   setJobCreeationDefaults(queryEngine, config.env.REPORT_ENDPOINT);
   await loadJobs();
   logger.info(`CHECK PASSED: Jobs loaded. ${getJobs().length} found.`);
-  // This microservice is supposed to have one periodic job creating reports. If it does not exist create one
+  // This microservice is supposed to have at least one periodic job creating reports. If it does not exist create one
   if (
     !getJobs().some(
       (job) =>
@@ -88,16 +69,16 @@ async function startupProcedure() {
         job.datamonitoringFunction === DataMonitoringFunction.GENERATE_REPORTS
     )
   ) {
+    logger.info(
+      `Job creating reports does not exist. Creating one using the environment variables\nAt ${
+        config.env.REPORT_INVOCATION_TIME.toString
+      } on ${config.env.REPORT_INVOCATION_DAYS.join(",")}`
+    );
     await createPeriodicJob(
       DataMonitoringFunction.GENERATE_REPORTS,
       config.env.REPORT_INVOCATION_TIME,
       config.env.REPORT_INVOCATION_DAYS,
       JobStatus.ACTIVE // Activate right away
-    );
-    logger.info(
-      `Job creating reports does not exist. Creating one using the environment variables\nAt ${
-        config.env.REPORT_INVOCATION_TIME.toString
-      } on ${config.env.REPORT_INVOCATION_DAYS.join(",")}`
     );
   } else {
     logger.info(
@@ -125,20 +106,30 @@ async function shutDownProcedure() {
 }
 
 function setupExpress(): express.Express {
+  const corsOptions: CorsOptions = {
+    origin: ["http://localhost:4199"],
+    methods: ["GET"],
+    optionsSuccessStatus: 200,
+  };
   const app: Express = express();
   app.use(cors(corsOptions));
+
+  // Health endpoints
   app.get("/ping", async (_, res) => {
     res.send({ pong: "true" });
   });
   app.get("/status", async (_, res) => {
     res.send({ running: "true" });
   });
+
   if (!config.env.DISABLE_DEBUG_ENDPOINT) {
     setupDebugEndpoints(app);
   }
+
   return app;
 }
 
+// Top level await is allowed in this version of javascript
 await startupProcedure();
 logger.info("Startup procedure complete");
 const app = setupExpress();
@@ -151,8 +142,18 @@ app.listen(config.env.SERVER_PORT, () => {
 });
 
 // Catch CTRL+C and docker kill signal
-// TODO shutdown procedure
 process.on("SIGINT", () => {
-  logger.info("SIGIT received. Stopping.");
-  process.exit(0);
+  logger.warn("SIGIT received. Shutting down gracefully.");
+  shutDownProcedure()
+    .then(() => {
+      logger.info("Shutdown gracefully. Stopping");
+      process.exit(0);
+    })
+    .catch((e) => {
+      logger.error("Unable to shutdown gracefully somehow.");
+      if (e instanceof Error) {
+        logger.error(e.message);
+      }
+      process.exit(1);
+    });
 });

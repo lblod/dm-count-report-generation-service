@@ -1,5 +1,19 @@
 import dayjs from "dayjs";
 
+export type IsEmpty<T> = T extends [] ? true : false;
+
+export type HasOneElement<T extends any[]> = T["length"] extends 1
+  ? true
+  : false;
+
+export type JsonSerializable =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonSerializable[]
+  | { [key: string]: JsonSerializable };
+
 export enum TaskStatus {
   BUSY = "https://codifly.be/ns/resources/status/busy",
   NOT_STARTED = "https://codifly.be/ns/resources/status/not-started",
@@ -82,13 +96,14 @@ export type LogLevel = (typeof LOG_LEVELS)[number];
 
 export type UpdateMessage = {
   timestamp: dayjs.Dayjs;
-  message: string;
+  message: JsonSerializable;
 };
 
 export type ProgressMessage = {
   done: number;
   total: number;
   lastDurationMilliseconds: number | undefined | null;
+  subProcessIdentifier: string | undefined;
 };
 
 export type StatusMessage =

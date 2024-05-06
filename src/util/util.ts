@@ -1,5 +1,5 @@
 import dayjs from "dayjs";
-import logger from "./../logger.js";
+import { logger } from "logger.js";
 import { LogLevel } from "types.js";
 
 /**
@@ -14,37 +14,34 @@ import { LogLevel } from "types.js";
 export async function durationWrapper<F extends (...args: any) => Promise<any>>(
   wrapped: F,
   logLevel: LogLevel,
-  now: Date | "manual" | "init" | dayjs.Dayjs,
   ...wrappedArgs: Parameters<F>
 ): Promise<{
   result: ReturnType<F> extends Promise<infer R> ? R : ReturnType<F>;
   durationSeconds: number;
 }> {
-  const logm = (message: any) => {
-    if (logLevel) logger.log({ level: logLevel, message });
-  };
-  const defaultedStart = typeof now === "string" ? dayjs() : dayjs(now);
-  logm(`Function "${wrapped.name}" invoked at ${defaultedStart.format()}`);
+  const logm = (...args: any[]) => logger.log(logLevel, ...args);
+  const start = dayjs();
+  logm(`Function "${wrapped.name}" invoked at ${start.format()}`);
   try {
     const result = await wrapped(...wrappedArgs);
-    const defaultedEnd = dayjs();
-    const duration = defaultedEnd.diff(defaultedStart, "second", true);
+    const end = dayjs();
+    const duration = end.diff(start, "second", true);
     logm(
       `Function "${
         wrapped.name
-      }" returned successfully at ${defaultedEnd.format()}.\n\tDuration: ${duration} seconds.`
+      }" returned successfully at ${end.format()}.\n\tDuration: ${duration} seconds.`
     );
     return {
       result,
       durationSeconds: duration,
     };
   } catch (e: unknown) {
-    const defaultedEnd = dayjs();
-    const duration = defaultedEnd.diff(defaultedStart, "second", true);
+    const end = dayjs();
+    const duration = end.diff(start, "second", true);
     logm(
       `Function "${
         wrapped.name
-      }" returned an error at ${defaultedEnd.format()}.\n\tDuration: ${duration} seconds.`
+      }" returned an error at ${end.format()}.\n\tDuration: ${duration} seconds.`
     );
     if (e instanceof Error) {
       e.message = `Original message: ${e.message}\nDuration: ${duration} seconds.`;
