@@ -7,21 +7,45 @@ import { z } from "zod";
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-export const VALID_ISO_DATE_REGEX = /^(\d{4})-(\d{1,2})-(\d{1,2})$/;
-// ISO time example '18:00:00.000'
-export const VALID_ISO_TIME_REGEX =
+export const DATE_ISO_REGEX = /^(\d{4})-(\d{1,2})-(\d{1,2})$/;
+
+// 00:00
+export const TIME_SHORT_REGEX = /^(\d{1,2}):(\d{1,2})$/;
+
+// 00:00:00.000
+export const TIME_ISO_MILLIS_REGEX =
   /^(\d{1,2}):(\d{1,2}):(\d{1,2})\.(\d{1,3})$/;
-export const VALID_SHORT_TIME_REGEX = /^(\d{1,2}):(\d{1,2})$/;
+
+// 00:00:00+00:00
+export const TIME_ISO_TIMEZONE_REGEX =
+  /^(\d{1,2}):(\d{1,2}):(\d{1,2})[+-](\d{1,2}):(\d{1,2})$/;
+
+// 00:00:00.000+00:00
+export const TIME_ISO_MILLIS_TIMEZONE_REGEX =
+  /^(\d{1,2}):(\d{1,2}):(\d{1,2})\.(\d{1,3})[+-](\d{1,2}):(\d{1,2})$/;
+
+export const ALL_TIME_REGEXES = [
+  TIME_SHORT_REGEX,
+  TIME_ISO_MILLIS_REGEX,
+  TIME_ISO_TIMEZONE_REGEX,
+  TIME_ISO_MILLIS_TIMEZONE_REGEX,
+] as const;
+export const TIME_ANY_NOTATION_REGEX = RegExp(
+  ALL_TIME_REGEXES.map((r) => `(?:${r.source})`).join(`|`)
+);
 
 const zeroPad = (num: number, places: number): string =>
   String(num).padStart(places, "0");
-const utcOffset = dayjs().tz(DEFAULT_TIMEZONE).utcOffset();
-const utcOffsetHours = Math.abs(Math.floor(utcOffset / 60));
-const utcOffsetMinutes = Math.abs(utcOffset) % 60;
-const utcOffsetString =
+export const utcOffset = dayjs().tz(DEFAULT_TIMEZONE).utcOffset();
+export const utcOffsetHours =
   utcOffset < 0
-    ? `-${zeroPad(utcOffsetHours, 2)}:${zeroPad(utcOffsetMinutes, 2)}}`
-    : `+${zeroPad(utcOffsetHours, 2)}:${zeroPad(utcOffsetMinutes, 2)}}`;
+    ? -Math.abs(Math.floor(utcOffset / 60))
+    : Math.abs(Math.floor(utcOffset / 60));
+export const utcOffsetMinutes = Math.abs(utcOffset) % 60;
+export const utcOffsetString =
+  utcOffset < 0
+    ? `-${zeroPad(utcOffsetHours, 2)}:${zeroPad(utcOffsetMinutes, 2)}`
+    : `+${zeroPad(utcOffsetHours, 2)}:${zeroPad(utcOffsetMinutes, 2)}`;
 
 /**
  * This immutable class models a date and a date only. This is NOT a timestamp.
@@ -55,7 +79,7 @@ export class DateOnly {
   constructor(...args: any[]) {
     this._localStartOfDay = (() => {
       if (args.length === 1 && typeof args[0] === "string") {
-        const match = args[0].match(VALID_ISO_DATE_REGEX);
+        const match = args[0].match(DATE_ISO_REGEX);
         if (!match)
           throw new Error(
             `When constructing an DateOnly object using a string the string must be in the ISO date format YYYY-MM-DD. Received "${args[0]}".`
@@ -144,6 +168,8 @@ const timeNumberSchema = z.object({
   m: z.number().int().min(0).max(59),
   s: z.number().int().min(0).max(59),
   ms: z.number().int().min(0).max(999),
+  hourOffset: z.number().int().min(-12).max(14),
+  minuteOffset: z.number().int().min(0).max(30),
 });
 
 /**
@@ -174,31 +200,65 @@ export class TimeOnly {
   get millisecond() {
     return this._millisecond;
   }
+  private _hourOffset: number;
+  get hourOffset() {
+    return this._hourOffset;
+  }
+  private _minuteOffset: number;
+  get minuteOffset() {
+    return this._minuteOffset;
+  }
 
   constructor(...args: any[]) {
-    const { h, m, s, ms } = (() => {
+    const { h, m, s, ms, hourOffset, minuteOffset } = (() => {
       if (args.length === 1 && typeof args[0] === "string") {
         // Try long ISO
-        const match = args[0].match(VALID_ISO_TIME_REGEX);
-        if (!match) {
-          const shortmatch = args[0].match(VALID_SHORT_TIME_REGEX);
-          if (!shortmatch)
-            throw new Error(
-              `Invalid time string for TimeOnly instance: "${args[0]}"`
-            );
+        let match = args[0].match(TIME_ISO_MILLIS_TIMEZONE_REGEX);
+        if (match) {
           return {
-            h: parseInt(shortmatch[1]),
-            m: parseInt(shortmatch[2]),
-            s: 0,
-            ms: 0,
+            h: parseInt(match[1]),
+            m: parseInt(match[2]),
+            s: parseInt(match[3]),
+            ms: Math.floor(parseFloat(`0.${match[4]}`) * 1000.0),
+            hourOffset: parseInt(match[5]),
+            minuteOffset: parseInt(match[6]),
           };
         }
-        return {
-          h: parseInt(match[1]),
-          m: parseInt(match[2]),
-          s: parseInt(match[3]),
-          ms: Math.floor(parseFloat(`0.${match[4]}`) * 1000.0),
-        };
+        // Try shorter ISO
+        match = args[0].match(TIME_ISO_TIMEZONE_REGEX);
+        if (match) {
+          return {
+            h: parseInt(match[1]),
+            m: parseInt(match[2]),
+            s: parseInt(match[3]),
+            ms: 0,
+            hourOffset: parseInt(match[4]),
+            minuteOffset: parseInt(match[5]),
+          };
+        }
+        match = args[0].match(TIME_ISO_MILLIS_REGEX);
+        if (match) {
+          return {
+            h: parseInt(match[1]),
+            m: parseInt(match[2]),
+            s: parseInt(match[3]),
+            ms: Math.floor(parseFloat(`0.${match[4]}`) * 1000),
+            hourOffset: utcOffsetHours,
+            minuteOffset: utcOffsetMinutes,
+          };
+        }
+        match = args[0].match(TIME_SHORT_REGEX);
+        if (match) {
+          return {
+            h: parseInt(match[1]),
+            m: parseInt(match[2]),
+            s: 0,
+            ms: 0,
+            hourOffset: utcOffsetHours,
+            minuteOffset: utcOffsetMinutes,
+          };
+        }
+        throw new Error(`String ${args[0]} could not be parsed.`);
       } else if (
         args.length === 4 &&
         typeof args[0] === "number" &&
@@ -211,6 +271,8 @@ export class TimeOnly {
           m: args[1],
           s: args[2],
           ms: args[3],
+          hourOffset: utcOffsetHours,
+          minuteOffset: utcOffsetMinutes,
         });
       }
       throw new Error(
@@ -221,23 +283,27 @@ export class TimeOnly {
     this._minute = m;
     this._second = s;
     this._millisecond = ms;
+    this._hourOffset = hourOffset;
+    this._minuteOffset = minuteOffset;
   }
 
-  toString(): string {
+  toLocalTimezoneString(): string {
     return `${zeroPad(this.hour, 2)}:${zeroPad(this.minute, 2)}:${zeroPad(
       this.second,
       2
     )}.${zeroPad(this.millisecond, 3)}`;
   }
 
-  toLocalTimezoneString(): string {
-    return `${this.toString()}${utcOffsetString}`;
+  toString(): string {
+    return `${this.toLocalTimezoneString()}${
+      this.hourOffset < 0 ? "-" : "+"
+    }${zeroPad(Math.abs(this.hourOffset), 2)}:${zeroPad(this.minuteOffset, 2)}`;
   }
 
   toTimeRdfLiteral(fullDataTypeUri = false): string {
     return fullDataTypeUri
-      ? `"${this.toLocalTimezoneString()}"^^<http://www.w3.org/2001/XMLSchema#time>`
-      : `"${this.toLocalTimezoneString()}"^^xsd:time`;
+      ? `"${this.toString()}"^^<http://www.w3.org/2001/XMLSchema#time>`
+      : `"${this.toString()}"^^xsd:time`;
   }
 
   toDayJs(day: DateOnly) {

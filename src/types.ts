@@ -35,7 +35,7 @@ export enum TaskType {
 
 export enum JobType {
   PERIODIC = "https://codifly.be/ns/resources/job-type/periodic",
-  ONCE = "https://codifly.be/ns/resources/job-type/once",
+  REST_INVOKED = "https://codifly.be/ns/resources/job-type/rest-invoked",
 }
 
 export enum DayOfWeek {

@@ -7,7 +7,7 @@ import {
 } from "./local-constants.js"; // Not named 'constants' because of name conflict with node. Same of the nam of this module.
 import { fromError } from "zod-validation-error";
 import { DayOfWeek, LOG_LEVELS, stringToDayOfWeek } from "types.js";
-import { TimeOnly, VALID_SHORT_TIME_REGEX } from "date-util.js";
+import { TimeOnly, TIME_ANY_NOTATION_REGEX } from "date-util.js";
 
 // Extract namespaces and build a conversion function to convert short URI's to full ones
 
@@ -15,9 +15,7 @@ export function isShortUri(uri: string): boolean {
   return RESOURCE_CLASS_SHORT_URI_REGEX.test(uri);
 }
 const EXTRACT_NAMESPACES_FROM_PREFIX_REGEX = /PREFIX\s([a-z]+):\s+<(.+)>/g;
-// Stolen from: https://stackoverflow.com/questions/14203122/create-a-regular-expression-for-cron-statement
-const CRON_REGEX =
-  /(@(annually|yearly|monthly|weekly|daily|hourly|reboot))|(@every (\d+(ns|us|µs|ms|s|m|h))+)|((((\d+,)+\d+|(\d+(\/|-)\d+)|\d+|\*) ?){5,7})/;
+
 export const PREFIXES_MAP = [
   ...PREFIXES.matchAll(EXTRACT_NAMESPACES_FROM_PREFIX_REGEX),
 ].reduce<Map<string, string>>((acc, curr) => {
@@ -73,7 +71,7 @@ const uriSchema = z
   .or(z.string().regex(RESOURCE_CLASS_SHORT_URI_REGEX));
 const invocationTimeSchema = z
   .string()
-  .regex(VALID_SHORT_TIME_REGEX)
+  .regex(TIME_ANY_NOTATION_REGEX)
   .transform((x) => new TimeOnly(x));
 const invocationDaysSchema = z
   .string()

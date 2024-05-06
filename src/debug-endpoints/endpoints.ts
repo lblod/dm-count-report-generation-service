@@ -1,5 +1,5 @@
 import { config } from "configuration.js";
-import { DateOnly, VALID_ISO_DATE_REGEX } from "date-util.js";
+import { DateOnly, DATE_ISO_REGEX } from "date-util.js";
 import dayjs from "dayjs";
 import express, { Express } from "express";
 import fs from "node:fs";
@@ -7,6 +7,7 @@ import { clearStore, dumpStore } from "queries/store.js";
 import { z } from "zod";
 import { addDebugEndpoint } from "./debug-functions.js";
 import Handlebars from "handlebars";
+import { deleteAllJobs, getJobs } from "job/job.js";
 
 const debugIndexHtml = fs.readFileSync("./templates/debug.html", {
   encoding: "utf-8",
@@ -21,7 +22,7 @@ const generateReportQuerySchema = z
     day: z
       .string()
       .regex(
-        VALID_ISO_DATE_REGEX,
+        DATE_ISO_REGEX,
         "Day parameter needs to be ISO formatted YYYY-MM-DD."
       )
       .transform((string) => new DateOnly(string))
@@ -61,6 +62,7 @@ export function setupDebugEndpoints(app: Express) {
   addDebugEndpoint(app, "GET", "/force-error", emptySchema, async () => {
     throw new Error("Forced error by debug action.");
   });
+  addDebugEndpoint(app, "GET", "/delete-all-jobs", emptySchema, deleteAllJobs);
 
   // Static hosting of the dump files
   app.get("/dump-files", (_, res) => {

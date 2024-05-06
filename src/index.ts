@@ -9,9 +9,10 @@ import {
   testQueryTemplate,
 } from "queries/queries.js";
 import {
-  createPeriodicJob,
+  createJob,
   getJobs,
   loadJobs,
+  setDebugJob,
   setJobCreeationDefaults,
 } from "job/job.js";
 import {
@@ -75,16 +76,49 @@ async function startupProcedure() {
         (day) => Object.entries(DayOfWeek).find((entry) => entry[1] === day)![0]
       )}`
     );
-    await createPeriodicJob(
+    await createJob(
       DataMonitoringFunction.GENERATE_REPORTS,
       config.env.REPORT_INVOCATION_TIME,
       config.env.REPORT_INVOCATION_DAYS,
-      JobStatus.ACTIVE // Activate right away
+      JobStatus.ACTIVE, // Activate right away
+      JobType.PERIODIC
     );
   } else {
     logger.info(
       `One ore more jobs already exist in the database to generate reports. Using these jobs. Environment variables REPORT_INVOCATION_TIME and REPORT_INVOCATION_DAYS ignored.`
     );
+  }
+  if (!config.env.DISABLE_DEBUG_ENDPOINT) {
+    // If debug mode is activated this microservicie is supposed to have a job for debugging
+    const restInvokedJobs = getJobs().filter(
+      (job) =>
+        job.jobType === JobType.REST_INVOKED &&
+        job.datamonitoringFunction === DataMonitoringFunction.GENERATE_REPORTS
+    );
+    if (restInvokedJobs.length === 0) {
+      logger.info(`Debug job does not exist. Creating one.`);
+      setDebugJob(
+        await createJob(
+          DataMonitoringFunction.GENERATE_REPORTS,
+          config.env.REPORT_INVOCATION_TIME,
+          config.env.REPORT_INVOCATION_DAYS,
+          JobStatus.ACTIVE,
+          JobType.REST_INVOKED
+        )
+      );
+    } else {
+      if (restInvokedJobs.length === 1) {
+        setDebugJob(restInvokedJobs[0]);
+        logger.info(`REST invoked job found. Setting it as the debug job`);
+      } else {
+        setDebugJob(restInvokedJobs[0]);
+        logger.warn(
+          `More then one rest invoked job found. Setting the first one as the debug job. URI's of the jobs found are: \n${restInvokedJobs.map(
+            (job) => "\n\t" + job.uri + ","
+          )}`
+        );
+      }
+    }
   }
   // Tasks
   setTaskCreationDefaults(queryEngine, config.env.REPORT_ENDPOINT);

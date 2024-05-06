@@ -4,15 +4,21 @@ import { TimeOnly } from "date-util.js";
 import dayjs from "dayjs";
 import { PREFIXES } from "local-constants.js";
 import {
+  DeleteAllJobsInput,
   GetJobsInput,
   GetJobsOutput,
   UpdateJobStatusInput,
   WriteNewJobInput,
+  deleteAllJobsTemplate,
   getJobsTemplate,
   insertJobTemplate,
   updateJobStatusTemplate,
 } from "queries/queries.js";
-import { TemplatedInsert, TemplatedSelect } from "queries/templated-query.js";
+import {
+  TemplatedInsert,
+  TemplatedSelect,
+  TemplatedUpdate,
+} from "queries/templated-query.js";
 import {
   DataMonitoringFunction,
   DayOfWeek,
@@ -111,6 +117,7 @@ class PeriodicJob extends Job {
   async _createNewResource() {
     await this._insertQuery.execute({
       prefixes: PREFIXES,
+      uuid: this._uuid,
       jobGraphUri: this._graphUri,
       newJobUri: this.uri,
       status: this._status,
@@ -159,11 +166,12 @@ export function setJobCreeationDefaults(
   };
 }
 
-export async function createPeriodicJob(
+export async function createJob(
   datamonitoringFunction: DataMonitoringFunction,
   timeOfInvocation: TimeOnly,
   daysOfInvocation: DayOfWeek[],
-  initialStatus = JobStatus.NOT_STARTED
+  initialStatus = JobStatus.NOT_STARTED,
+  jobType: JobType
 ): Promise<PeriodicJob> {
   if (!defaults)
     throw new Error(
@@ -172,7 +180,7 @@ export async function createPeriodicJob(
   const newJob = new PeriodicJob(
     defaults.queryEngine,
     defaults.endpoint,
-    JobType.PERIODIC,
+    jobType,
     config.env.JOB_GRAPH_URI,
     uuidv4(),
     initialStatus,
@@ -199,25 +207,51 @@ export async function loadJobs() {
     prefixes: PREFIXES,
     jobGraphUri: config.env.JOB_GRAPH_URI,
   });
+  console.debug(jobRecords);
   for (const record of jobRecords) {
-    const newJob = (() => {
-      switch (record.jobType) {
-        case JobType.PERIODIC:
-          return new PeriodicJob(
-            defaults.queryEngine,
-            defaults.endpoint,
-            JobType.PERIODIC,
-            config.env.JOB_GRAPH_URI,
-            record.uuid,
-            record.status,
-            record.datamonitoringFunction,
-            record.timeOfInvocation,
-            record.daysOfInvocation
-          );
-        case JobType.ONCE:
-          throw new Error("Not implemented yet");
-      }
-    })();
+    const newJob = new PeriodicJob(
+      defaults.queryEngine,
+      defaults.endpoint,
+      record.jobType,
+      config.env.JOB_GRAPH_URI,
+      record.uuid,
+      record.status,
+      record.datamonitoringFunction,
+      record.timeOfInvocation,
+      record.daysOfInvocation
+    );
     jobs.set(newJob.uri, newJob);
   }
+}
+
+export async function deleteAllJobs() {
+  if (!defaults)
+    throw new Error(
+      `Defaults have not been set. Call 'setJobCreeationDefaults' first from the job module.`
+    );
+  const deleteAllJobsQuery = new TemplatedUpdate<DeleteAllJobsInput>(
+    defaults.queryEngine,
+    defaults.endpoint,
+    deleteAllJobsTemplate
+  );
+  await deleteAllJobsQuery.execute({
+    prefixes: PREFIXES,
+    jobGraphUri: config.env.JOB_GRAPH_URI,
+  });
+  jobs.clear(); // Release references
+}
+
+let debugJob: Job | null = null;
+
+export function setDebugJob(job: Job) {
+  debugJob = job;
+}
+
+export function getDebugJob(): Job {
+  if (config.env.DISABLE_DEBUG_ENDPOINT)
+    throw new Error(
+      `Cannot get debug job if debug endpoints have been disabled`
+    );
+  if (!debugJob) throw new Error(`Application was not initialised correctly`);
+  return debugJob;
 }

@@ -540,9 +540,9 @@ SELECT * WHERE {
       datamonitoring:description ?description;
       datamonitoring:jobType ?jobtype;
       datamonitoring:jobParameters [
-        datamonitoring:timeOfInvocation: ?timeOfInvocation;
-        datamonitoring:function: ?datamonitoringFunction;
-        datamonitoring:daysOfInvocation: ?dayOfInvocation;
+        datamonitoring:timeOfInvocation ?timeOfInvocation;
+        datamonitoring:function ?datamonitoringFunction;
+        datamonitoring:daysOfInvocation ?dayOfInvocation;
       ].
   }
 }
@@ -553,6 +553,7 @@ SELECT * WHERE {
 export type WriteNewJobInput = {
   prefixes: string;
   jobGraphUri: string;
+  uuid: string;
   newJobUri: string;
   status: JobStatus;
   createdAt: dayjs.Dayjs;
@@ -588,3 +589,25 @@ INSERT {
 `,
   { noEscape: true }
 );
+
+export type DeleteAllJobsInput = {
+  prefixes: string;
+  jobGraphUri: string;
+};
+
+export const deleteAllJobsTemplate = Handlebars.compile(`\
+{{prefixes}}
+DELETE {
+  GRAPH <{{jobGraphUri}}> {
+    ?blind ?pb ?ob.
+    ?job ?p ?o.
+  }
+} WHERE {
+  GRAPH <{{jobGraphUri}}> {
+    ?job a cogs:Job, datamonitoring:DatamonitoringJob;
+      datamonitoring:jobParameters ?blind.
+    ?blind ?pb ?ob.
+    ?job ?p ?o.
+  }
+}
+`);

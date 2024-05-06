@@ -60,8 +60,8 @@
 <https://codifly.be/ns/resources/job-type/periodic> a skos:Concept;
   skos:prefLabel "Job that invokes a task periodically".
 
-<https://codifly.be/ns/resources/job-type/once> a skos:Concept;
-  skos:prefLabel "Job that invokes a task once".
+<https://codifly.be/ns/resources/job-type/rest-invoked> a skos:Concept;
+  skos:prefLabel "Job that encapsulates tasks invoked on request".
 
 
 
