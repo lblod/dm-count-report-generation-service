@@ -22,6 +22,7 @@ import {
 } from "job/task.js";
 import {
   DataMonitoringFunction,
+  DayOfWeek,
   JobStatus,
   JobType,
   TaskStatus,
@@ -70,9 +71,9 @@ async function startupProcedure() {
     )
   ) {
     logger.info(
-      `Job creating reports does not exist. Creating one using the environment variables\nAt ${
-        config.env.REPORT_INVOCATION_TIME.toString
-      } on ${config.env.REPORT_INVOCATION_DAYS.join(",")}`
+      `Job creating reports does not exist. Creating one using the environment variables\nAt ${config.env.REPORT_INVOCATION_TIME.toString()} on ${config.env.REPORT_INVOCATION_DAYS.map(
+        (day) => Object.entries(DayOfWeek).find((entry) => entry[1] === day)![0]
+      )}`
     );
     await createPeriodicJob(
       DataMonitoringFunction.GENERATE_REPORTS,
@@ -88,6 +89,7 @@ async function startupProcedure() {
   // Tasks
   setTaskCreationDefaults(queryEngine, config.env.REPORT_ENDPOINT);
   await loadTasks();
+  logger.info(`CHECK PASSED: Tasks loaded. ${getTasks().length} found.`);
   // If any of the tasks loaded is still busy this means that the service was not properly closed last time.
   // Any tasks with status active will be deleted and a warning will be printed
   for (const task of getTasks()) {
@@ -101,8 +103,8 @@ async function startupProcedure() {
 }
 
 async function shutDownProcedure() {
-  // Stop all tasks
-  // Destroy specific tasks
+  // Stop all tasks who are busy and warn
+  // Change job status
 }
 
 function setupExpress(): express.Express {

@@ -343,9 +343,7 @@ INSERT {
       .
       {{/if}}
   }
-} WHERE {
-
-}
+} WHERE { }
 `,
   { noEscape: true }
 );
@@ -534,7 +532,7 @@ export const getJobsTemplate = Handlebars.compile(
 {{prefixes}}
 SELECT * WHERE {
   GRAPH <{{jobGraphUri}}> {
-    ?jobUri a a cogs:Job, datamonitoring:DatamonitoringJob;
+    ?jobUri a cogs:Job, datamonitoring:DatamonitoringJob;
       mu:uuid ?uuid;
       adms:status ?status;
       dct:created ?createdAt;
@@ -576,12 +574,12 @@ INSERT {
       adms:status {{toJobStatusLiteral status}};
       dct:created {{toDateTimeLiteral createdAt}};
       dct:modified {{toDateTimeLiteral createdAt}};
-      datamonitoring:description "{{description}}":
+      datamonitoring:description "{{description}}";
       datamonitoring:jobType {{toJobTypeLiteral jobType}};
       datamonitoring:jobParameters [
         datamonitoring:timeOfInvocation {{toTimeLiteral timeOfInvocation}};
         datamonitoring:function {{toDatamonitoringFunctionLiteral datamonitoringFunction}};
-        datamonitoring:daysOfInvocation {{#each daysOfInvocation}}{{toDayOfWeekLiteral this}}{{unless @last ","}}{{/each}}
+        datamonitoring:daysOfInvocation {{#each daysOfInvocation}}{{toDayOfWeekLiteral this}}{{#unless @last}},{{/unless}}{{/each}};
       ].
   }
 } WHERE {

@@ -3,9 +3,9 @@ import { Bindings, Term } from "@rdfjs/types";
 import { config } from "../configuration.js";
 import { DateOnly, TimeOnly } from "../date-util.js";
 import dayjs from "dayjs";
-import logger from "../logger.js";
 import { store } from "./store.js";
 import { DmEnum } from "types.js";
+import { logger } from "logger.js";
 
 const SKIP_PREFIX_REGEX = /^PREFIX[.\w\s:<>/\-#]+PREFIX[.\w\s:<>/\-#]+\n/g;
 
@@ -14,9 +14,11 @@ const SKIP_PREFIX_REGEX = /^PREFIX[.\w\s:<>/\-#]+PREFIX[.\w\s:<>/\-#]+\n/g;
  * @param endpoint The url
  * @param query The query
  */
-export function logQuery(endpoint: string, query: string) {
-  const toPrint = query.replace(SKIP_PREFIX_REGEX, "# Prefixes omitted\n");
-  logger.info(
+export function logQuery(endpoint: string, query: string, noPrefixes = true) {
+  const toPrint = noPrefixes
+    ? query.replace(SKIP_PREFIX_REGEX, "# Prefixes omitted\n")
+    : query;
+  logger.verbose(
     `SPARQL query to endpoint: ${endpoint}\n- - - - - - \n${toPrint}\n- - - - - - `
   );
 }
@@ -181,14 +183,37 @@ class TemplatedQueryBase<T extends Record<string, any>> {
   }
 }
 
+class VoidBase<T extends Record<string, any>> extends TemplatedQueryBase<T> {
+  async _queryVoidToEndpoint(query: string): Promise<void> {
+    try {
+      await this.queryEngine.queryVoid(query, {
+        sources: [
+          {
+            type: "sparql",
+            value: this.endpoint,
+          },
+        ],
+        destination: config.env.REPORT_ENDPOINT,
+        fetch: getCustomFetchFunction(query),
+      });
+      if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint, query);
+    } catch (e) {
+      logQuery(this.endpoint, query, false);
+      logger.error(`Last query logged failed`);
+      throw e;
+    }
+  }
+}
+
 /**
  * This class wraps around an INSERT style query constructed from a template.
  * Run execute asynchronously to perform the query and insert the data.
  * The type parameter should contain a type that is suitable for passing to the handlebars template
+ * If debug endpoints are active it will record all created triples in memory.
  */
 export class TemplatedInsert<
   T extends Record<string, any>
-> extends TemplatedQueryBase<T> {
+> extends VoidBase<T> {
   /**
    * Similar to objects and bindings in TemplatedSelect
    * @param input The input data structure for the handlebars template rendering
@@ -210,19 +235,25 @@ export class TemplatedInsert<
       });
     }
   }
+}
 
-  async _queryVoidToEndpoint(query: string): Promise<void> {
-    if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint, query);
-    this.queryEngine.queryVoid(query, {
-      sources: [
-        {
-          type: "sparql",
-          value: this.endpoint,
-        },
-      ],
-      destination: config.env.REPORT_ENDPOINT,
-      fetch: getCustomFetchFunction(query),
-    });
+/**
+ * This class wraps around an DELETE/INSERT style query constructed from a template.
+ * Run execute asynchronously to perform the query and insert the data.
+ * The type parameter should contain a type that is suitable for passing to the handlebars template
+ * Unlike the insert type query any triples created will never be recorded in memory.
+ */
+export class TemplatedUpdate<
+  T extends Record<string, any>
+> extends VoidBase<T> {
+  /**
+   * Similar to objects and bindings in TemplatedSelect
+   * @param input The input data structure for the handlebars template rendering
+   */
+  async execute(input: T): Promise<void> {
+    const query = this.getQuery(input);
+    // Write to report endpoint using custom fetch
+    await this._queryVoidToEndpoint(query);
   }
 }
 
@@ -244,11 +275,17 @@ export class TemplatedSelect<
    */
   async bindings(input: T): Promise<Bindings[]> {
     const query = this.getQuery(input);
-    if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint, query);
-    const bindingsStream = await this.queryEngine.queryBindings(query, {
-      sources: [this.endpoint],
-    });
-    return bindingsStream.toArray();
+    try {
+      const bindingsStream = await this.queryEngine.queryBindings(query, {
+        sources: [this.endpoint],
+      });
+      if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint, query);
+      return bindingsStream.toArray();
+    } catch (e) {
+      logQuery(this.endpoint, query, false);
+      logger.error(`Last query logged failed`);
+      throw e;
+    }
   }
 
   /**
@@ -260,10 +297,19 @@ export class TemplatedSelect<
    */
   async objects(uriKey: string, input: T): Promise<U[]> {
     const query = this.getQuery(input);
-    if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint, query);
-    const bindingsStream = await this.queryEngine.queryBindings(query, {
-      sources: [this.endpoint],
-    });
+    const bindingsStream = await (async () => {
+      try {
+        const bindings = await this.queryEngine.queryBindings(query, {
+          sources: [this.endpoint],
+        });
+        if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint, query);
+        return bindings;
+      } catch (e) {
+        logQuery(this.endpoint, query, false);
+        logger.error(`Last query logged failed`);
+        throw e;
+      }
+    })();
     const resultMap = new Map<string, Record<string, any>>();
     for await (const binding of bindingsStream) {
       // First try to get the uri of the object we are trying to build
@@ -308,10 +354,19 @@ export class TemplatedSelect<
    */
   async result(input: T): Promise<U> {
     const query = this.getQuery(input);
-    if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint, query);
-    const bindingsStream = await this.queryEngine.queryBindings(query, {
-      sources: [this.endpoint],
-    });
+    const bindingsStream = await (async () => {
+      try {
+        const bindings = await this.queryEngine.queryBindings(query, {
+          sources: [this.endpoint],
+        });
+        if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint, query);
+        return bindings;
+      } catch (e) {
+        logQuery(this.endpoint, query, false);
+        logger.error(`Last query logged failed`);
+        throw e;
+      }
+    })();
     let first = true;
     let result = undefined;
     for await (const binding of bindingsStream) {

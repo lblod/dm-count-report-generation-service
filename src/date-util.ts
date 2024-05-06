@@ -11,7 +11,7 @@ export const VALID_ISO_DATE_REGEX = /^(\d{4})-(\d{1,2})-(\d{1,2})$/;
 // ISO time example '18:00:00.000'
 export const VALID_ISO_TIME_REGEX =
   /^(\d{1,2}):(\d{1,2}):(\d{1,2})\.(\d{1,3})$/;
-export const VALID_SHORT_TIME_REGEX = /^(\d{1,2}):(\d{1,2}):$/;
+export const VALID_SHORT_TIME_REGEX = /^(\d{1,2}):(\d{1,2})$/;
 
 const zeroPad = (num: number, places: number): string =>
   String(num).padStart(places, "0");
@@ -183,7 +183,9 @@ export class TimeOnly {
         if (!match) {
           const shortmatch = args[0].match(VALID_SHORT_TIME_REGEX);
           if (!shortmatch)
-            throw new Error(`Invalid time string for TimeOnly instance.`);
+            throw new Error(
+              `Invalid time string for TimeOnly instance: "${args[0]}"`
+            );
           return {
             h: parseInt(shortmatch[1]),
             m: parseInt(shortmatch[2]),

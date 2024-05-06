@@ -19,7 +19,9 @@ function createEnumTranslationHelper(
         Object.values(enumObject).includes(enumValue)
       )
     )
-      throw new Error(`${funcName} only takes a TaskStatus enum value`);
+      throw new Error(
+        `${funcName} only takes one of: ${Object.values(enumObject).join(",")}`
+      );
     return `<${enumValue}>`;
   });
 }

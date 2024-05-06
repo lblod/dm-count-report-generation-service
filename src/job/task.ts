@@ -12,7 +12,11 @@ import {
   insertTaskTemplate,
   updateTaskStatusTemplate,
 } from "queries/queries.js";
-import { TemplatedInsert, TemplatedSelect } from "queries/templated-query.js";
+import {
+  TemplatedInsert,
+  TemplatedSelect,
+  TemplatedUpdate,
+} from "queries/templated-query.js";
 import {
   DataMonitoringFunction,
   LogLevel,
@@ -268,7 +272,7 @@ export async function deleteTask(task: string | Task) {
     }
     throw new TypeError("Type of first parameter should be string or Task");
   })();
-  const deleteTaskQuery = new TemplatedInsert<DeleteTaskInput>(
+  const deleteTaskQuery = new TemplatedUpdate<DeleteTaskInput>(
     defaults.queryEngine,
     defaults.endpoint,
     deleteTaskTemplate

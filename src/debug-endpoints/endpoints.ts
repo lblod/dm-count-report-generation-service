@@ -6,6 +6,7 @@ import fs from "node:fs";
 import { clearStore, dumpStore } from "queries/store.js";
 import { z } from "zod";
 import { addDebugEndpoint } from "./debug-functions.js";
+import Handlebars from "handlebars";
 
 const debugIndexHtml = fs.readFileSync("./templates/debug.html", {
   encoding: "utf-8",

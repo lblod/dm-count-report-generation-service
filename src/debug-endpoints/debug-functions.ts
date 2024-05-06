@@ -3,9 +3,9 @@ import { z, ZodSchema } from "zod";
 import { fromError } from "zod-validation-error";
 import fs from "node:fs";
 import Handlebars from "handlebars";
-import logger from "logger.js";
 import { durationWrapper } from "util/util.js";
 import dayjs from "dayjs";
+import { logger } from "logger.js";
 
 const debugResultTemplate = Handlebars.compile(
   fs.readFileSync("./templates/debug-output.hbs", { encoding: "utf-8" })
@@ -176,7 +176,6 @@ export function addDebugEndpoint(
         const { durationSeconds, result } = await durationWrapper(
           functionToExecute,
           "info",
-          dayjs(),
           [req.query]
         );
         // Send result
@@ -239,7 +238,6 @@ export function addExperimentalDebugEndpoint(
       const promise = durationWrapper(
         functionToExecute,
         "info",
-        dayjs(),
         req.query // No type checking. The validation middleware ensure that this works out
       );
       progressInvocations.set(slotName, {
