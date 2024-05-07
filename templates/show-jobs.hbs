@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{title}}</title>
+  <style>
+    li>pre {
+      display: inline-block;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>{{title}}</h1>
+  <p>Current jobs:</p>
+  <ul>
+    {{#each jobs}}
+    <li>
+      <h3>URI: &lt;{{this.uri}}&gt;</h3>
+      <ul>
+        <li>uuid:
+          <pre>{{this.uuid}}</pre>
+        </li>
+        <li>status:
+          <pre>{{printUriEnum this.status}} </pre>
+        </li>
+        <li>jobType:
+          <pre>{{printUriEnum this.jobType}}</pre>
+        </li>
+        <li>function:
+          <pre>{{printUriEnum this.datamonitoringFunction}}</pre>
+        </li>
+        {{#if (eq this.jobType @root.periodicValue)}}
+        <li>Invocation time:
+          <pre>{{this.information.timeOfInvocationInformation}}</pre>
+        </li>
+        {{/if}}
+        {{#if (eq this.jobType @root.restValue)}}
+        <li>REST path: <a href="{{this.information.restPath}}">/{{this.information.restPath}}</a></li>
+        {{/if}}
+      </ul>
+    </li>
+    {{/each}}
+  </ul>
+</body>
+
+</html>

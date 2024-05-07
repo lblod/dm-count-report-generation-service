@@ -3,6 +3,8 @@ import { config } from "./configuration.js";
 import winston from "winston";
 import { DateOnly, TimeOnly } from "date-util.js";
 import dayjs from "dayjs";
+import { Job } from "job/job.js";
+import { Task } from "job/task.js";
 
 const winstonLogger = winston.createLogger({
   level: config.env.LOG_LEVEL,
@@ -26,6 +28,8 @@ function replacer(key: string, value: any): JsonSerializable {
     if (value instanceof DateOnly) return value.toString();
     if (value instanceof TimeOnly) return value.toString();
     if (dayjs.isDayjs(value)) return value.format();
+    if (value instanceof Job) return value.toString();
+    if (value instanceof Task) return "Task instance";
   }
   return value;
 }
@@ -37,7 +41,16 @@ export function extendedLog(
     return undefined as unknown as IsEmpty<typeof args> extends true
       ? undefined
       : string;
-  const outputstrings = args.map((val) => JSON.stringify(val, replacer, 3));
+  const outputstrings = args.map((val) => {
+    if (
+      typeof val === "string" ||
+      typeof val === "number" ||
+      typeof val === "boolean"
+    ) {
+      return val;
+    }
+    return JSON.stringify(val, replacer, 3);
+  });
   if (args.length === 1) return outputstrings[0] as string;
   return outputstrings.join(",\n") as string;
 }

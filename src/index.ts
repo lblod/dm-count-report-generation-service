@@ -9,7 +9,8 @@ import {
   testQueryTemplate,
 } from "queries/queries.js";
 import {
-  createJob,
+  createPeriodicJob,
+  createRestJob,
   getJobs,
   loadJobs,
   setDebugJob,
@@ -76,12 +77,11 @@ async function startupProcedure() {
         (day) => Object.entries(DayOfWeek).find((entry) => entry[1] === day)![0]
       )}`
     );
-    await createJob(
+    await createPeriodicJob(
       DataMonitoringFunction.GENERATE_REPORTS,
       config.env.REPORT_INVOCATION_TIME,
       config.env.REPORT_INVOCATION_DAYS,
-      JobStatus.ACTIVE, // Activate right away
-      JobType.PERIODIC
+      JobStatus.ACTIVE // Activate right away
     );
   } else {
     logger.info(
@@ -98,12 +98,10 @@ async function startupProcedure() {
     if (restInvokedJobs.length === 0) {
       logger.info(`Debug job does not exist. Creating one.`);
       setDebugJob(
-        await createJob(
+        await createRestJob(
           DataMonitoringFunction.GENERATE_REPORTS,
-          config.env.REPORT_INVOCATION_TIME,
-          config.env.REPORT_INVOCATION_DAYS,
-          JobStatus.ACTIVE,
-          JobType.REST_INVOKED
+          "start-report-generation",
+          JobStatus.ACTIVE
         )
       );
     } else {

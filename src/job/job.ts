@@ -7,12 +7,16 @@ import { logger } from "logger.js";
 import {
   DeleteAllJobsInput,
   GetJobsInput,
-  GetJobsOutput,
+  GetPeriodicJobsOutput,
+  GetRestJobsOutput,
   UpdateJobStatusInput,
-  WriteNewJobInput,
+  WriteNewPeriodicJobInput,
+  WriteNewRestJobInput,
   deleteAllJobsTemplate,
-  getJobsTemplate,
-  insertJobTemplate,
+  getPeriodicJobsTemplate,
+  getRestJobsTemplate,
+  insertPeriodicJobTemplate,
+  insertRestJobTemplate,
   updateJobStatusTemplate,
 } from "queries/queries.js";
 import {
@@ -25,15 +29,19 @@ import {
   DayOfWeek,
   JobStatus,
   JobType,
+  getEnumStringFromUri,
 } from "types.js";
 import { v4 as uuidv4 } from "uuid";
 
-class Job {
+export class Job {
   _updateStatusQuery: TemplatedInsert<UpdateJobStatusInput>;
   _graphUri: string;
   _jobType: JobType;
   _uuid: string;
   _status: JobStatus;
+  get status() {
+    return this._status;
+  }
   _datamonitoringFunction: DataMonitoringFunction;
   get datamonitoringFunction() {
     return this._datamonitoringFunction;
@@ -80,16 +88,28 @@ class Job {
     });
     this._status = status;
   }
+
+  toString() {
+    return `JOB(${this.uri}) with status: ${getEnumStringFromUri(
+      this.status,
+      false
+    )} and type ${getEnumStringFromUri(this.jobType, false)}`;
+  }
 }
 
-class PeriodicJob extends Job {
-  _insertQuery: TemplatedInsert<WriteNewJobInput>;
+export class PeriodicJob extends Job {
+  _insertQuery: TemplatedInsert<WriteNewPeriodicJobInput>;
   _timeOfInvocation: TimeOnly;
+  get timeOfInvocation() {
+    return this._timeOfInvocation;
+  }
   _daysOfInvocation: DayOfWeek[];
+  get daysOfInvocation() {
+    return this._daysOfInvocation;
+  }
   constructor(
     queryEngine: QueryEngine,
     endpoint: string,
-    jobType: JobType,
     graphUri: string,
     uuid: string,
     initialStatus: JobStatus,
@@ -100,7 +120,7 @@ class PeriodicJob extends Job {
     super(
       queryEngine,
       endpoint,
-      jobType,
+      JobType.PERIODIC,
       graphUri,
       uuid,
       initialStatus,
@@ -108,10 +128,10 @@ class PeriodicJob extends Job {
     );
     this._timeOfInvocation = timeOfInvocation;
     this._daysOfInvocation = daysOfInvocation;
-    this._insertQuery = new TemplatedInsert<WriteNewJobInput>(
+    this._insertQuery = new TemplatedInsert<WriteNewPeriodicJobInput>(
       queryEngine,
       endpoint,
-      insertJobTemplate
+      insertPeriodicJobTemplate
     );
   }
 
@@ -124,11 +144,70 @@ class PeriodicJob extends Job {
       status: this._status,
       createdAt: dayjs(),
       description: `Job created by dm-count-report-generation-service`,
-      jobType: this._jobType,
+      jobType: JobType.PERIODIC,
       timeOfInvocation: this._timeOfInvocation,
       daysOfInvocation: this._daysOfInvocation,
       datamonitoringFunction: this._datamonitoringFunction,
     });
+  }
+  override toString(): string {
+    return `${super.toString()}\n\tPeriodic job with invocation on: ${this.timeOfInvocation.toString()} on ${this.daysOfInvocation
+      .map((day) => getEnumStringFromUri(day, true))
+      .join(", ")}`;
+  }
+}
+
+export class RestJob extends Job {
+  _insertQuery: TemplatedInsert<WriteNewRestJobInput>;
+  _restPath: string;
+  get restPath() {
+    return this._restPath;
+  }
+  constructor(
+    queryEngine: QueryEngine,
+    endpoint: string,
+    graphUri: string,
+    uuid: string,
+    initialStatus: JobStatus,
+    datamonitoringFunction: DataMonitoringFunction,
+    restPath: string
+  ) {
+    super(
+      queryEngine,
+      endpoint,
+      JobType.REST_INVOKED,
+      graphUri,
+      uuid,
+      initialStatus,
+      datamonitoringFunction
+    );
+    (this._restPath = restPath),
+      (this._insertQuery = new TemplatedInsert<WriteNewRestJobInput>(
+        queryEngine,
+        endpoint,
+        insertRestJobTemplate
+      ));
+  }
+
+  async _createNewResource() {
+    await this._insertQuery.execute({
+      prefixes: PREFIXES,
+      uuid: this._uuid,
+      jobGraphUri: this._graphUri,
+      newJobUri: this.uri,
+      status: this._status,
+      createdAt: dayjs(),
+      description: `Job created by dm-count-report-generation-service`,
+      jobType: JobType.REST_INVOKED,
+      restPath: this._restPath,
+      datamonitoringFunction: this._datamonitoringFunction,
+    });
+  }
+
+  override toString(): string {
+    return `${super.toString()}\n\tRest job with activated by HTTP using path "/${
+      this.restPath
+    }"`;
   }
 }
 
@@ -167,12 +246,11 @@ export function setJobCreeationDefaults(
   };
 }
 
-export async function createJob(
+export async function createPeriodicJob(
   datamonitoringFunction: DataMonitoringFunction,
   timeOfInvocation: TimeOnly,
   daysOfInvocation: DayOfWeek[],
-  initialStatus = JobStatus.NOT_STARTED,
-  jobType: JobType
+  initialStatus = JobStatus.NOT_STARTED
 ): Promise<PeriodicJob> {
   if (!defaults)
     throw new Error(
@@ -181,7 +259,6 @@ export async function createJob(
   const newJob = new PeriodicJob(
     defaults.queryEngine,
     defaults.endpoint,
-    jobType,
     config.env.JOB_GRAPH_URI,
     uuidv4(),
     initialStatus,
@@ -193,27 +270,51 @@ export async function createJob(
   jobs.set(newJob.uri, newJob);
   return newJob;
 }
+export async function createRestJob(
+  datamonitoringFunction: DataMonitoringFunction,
+  restPath: string,
+  initialStatus = JobStatus.NOT_STARTED
+): Promise<RestJob> {
+  if (!defaults)
+    throw new Error(
+      `Defaults have not been set. Call 'setJobCreeationDefaults' first from the job module.`
+    );
+  const newJob = new RestJob(
+    defaults.queryEngine,
+    defaults.endpoint,
+    config.env.JOB_GRAPH_URI,
+    uuidv4(),
+    initialStatus,
+    datamonitoringFunction,
+    restPath
+  );
+  await newJob._createNewResource();
+  jobs.set(newJob.uri, newJob);
+  return newJob;
+}
 
 export async function loadJobs() {
   if (!defaults)
     throw new Error(
       `Defaults have not been set. Call 'setJobCreeationDefaults' first from the job module.`
     );
-  const getJobsQuery = new TemplatedSelect<GetJobsInput, GetJobsOutput>(
+  const getPeriodicJobsQuery = new TemplatedSelect<
+    GetJobsInput,
+    GetPeriodicJobsOutput
+  >(defaults.queryEngine, defaults.endpoint, getPeriodicJobsTemplate);
+  const getRestJobsQuery = new TemplatedSelect<GetJobsInput, GetRestJobsOutput>(
     defaults.queryEngine,
     defaults.endpoint,
-    getJobsTemplate
+    getRestJobsTemplate
   );
-  const jobRecords = await getJobsQuery.objects("jobUri", {
+  const periodicJobRecords = await getPeriodicJobsQuery.objects("jobUri", {
     prefixes: PREFIXES,
     jobGraphUri: config.env.JOB_GRAPH_URI,
   });
-  logger.debug(jobRecords);
-  for (const record of jobRecords) {
+  for (const record of periodicJobRecords) {
     const newJob = new PeriodicJob(
       defaults.queryEngine,
       defaults.endpoint,
-      record.jobType,
       config.env.JOB_GRAPH_URI,
       record.uuid,
       record.status,
@@ -221,6 +322,25 @@ export async function loadJobs() {
       record.timeOfInvocation,
       record.daysOfInvocation
     );
+    logger.debug("periodic", newJob);
+    jobs.set(newJob.uri, newJob);
+  }
+  const restJobRecords = await getRestJobsQuery.objects("jobUri", {
+    prefixes: PREFIXES,
+    jobGraphUri: config.env.JOB_GRAPH_URI,
+  });
+  logger.debug("restJobRecords", restJobRecords);
+  for (const record of restJobRecords) {
+    const newJob = new RestJob(
+      defaults.queryEngine,
+      defaults.endpoint,
+      config.env.JOB_GRAPH_URI,
+      record.uuid,
+      record.status,
+      record.datamonitoringFunction,
+      record.restPath
+    );
+    logger.debug("rest", newJob);
     jobs.set(newJob.uri, newJob);
   }
 }

@@ -1,4 +1,4 @@
-import express from "express";
+import express, { RequestHandler } from "express";
 import { z, ZodSchema } from "zod";
 import { fromError } from "zod-validation-error";
 import fs from "node:fs";
@@ -149,6 +149,21 @@ function callHttpMethod(
   }
 }
 
+export function addDebugEndpoint(
+  app: express.Express,
+  method: HttpMethod,
+  path: string,
+  querySchema: ZodSchema<any, any>,
+  sendingFunction: RequestHandler
+) {
+  const middlewares = [
+    getZodQueryValidationMiddleware(querySchema),
+    sendingFunction,
+    debugErrorHandlingMiddelware,
+  ] as any[];
+  callHttpMethod(app, path, method, middlewares);
+}
+
 /**
  * Function that adds a debug endpoint for testing a specific function
  * @param app Express app
@@ -157,7 +172,7 @@ function callHttpMethod(
  * @param querySchema ZOD schema to validate query parameters
  * @param functionToExecute The function to debug
  */
-export function addDebugEndpoint(
+export function addSimpleDebugEndpoint(
   app: express.Express,
   method: HttpMethod,
   path: string,
@@ -193,17 +208,15 @@ export function addDebugEndpoint(
     debugErrorHandlingMiddelware,
     debugHtmlRenderMiddleware,
   ] as any[];
-  if (querySchema)
-    middlewares.unshift(getZodQueryValidationMiddleware(querySchema));
   callHttpMethod(app, path, method, middlewares);
 }
 
-type ProgressInvocation<R> = {
-  promise: Promise<R>;
-  name: string;
-};
+// type ProgressInvocation<R> = {
+//   promise: Promise<R>;
+//   name: string;
+// };
 
-const progressInvocations = new Map<string, ProgressInvocation<any>>();
+// const progressInvocations = new Map<string, ProgressInvocation<any>>();
 
 /**
  * Function that adds a debug endpoint for testing a specific function
@@ -213,75 +226,73 @@ const progressInvocations = new Map<string, ProgressInvocation<any>>();
  * @param querySchema ZOD schema to validate query parameters
  * @param functionToExecute The function to debug
  */
-export function addExperimentalDebugEndpoint(
-  app: express.Express,
-  method: HttpMethod,
-  path: string,
-  querySchema: ZodSchema<any, any>,
-  functionToExecute: (query: z.infer<typeof querySchema>) => any,
-  slotName: string
-) {
-  const middlewares = [
-    getZodQueryValidationMiddleware(querySchema),
-    (
-      req: express.Request,
-      res: express.Response,
-      _next: express.NextFunction
-    ) => {
-      if (progressInvocations.has(slotName)) {
-        res
-          .status(400)
-          .send("Function slot already taken. Function already executing.");
-        return;
-      }
-      // If the function throws the duration wrapper will also throw
-      const promise = durationWrapper(
-        functionToExecute,
-        "info",
-        req.query // No type checking. The validation middleware ensure that this works out
-      );
-      progressInvocations.set(slotName, {
-        name: slotName,
-        promise,
-      });
-      res.send(
-        progressTemplate({
-          title: "Function invocation - Progress",
-          method: req.method + " " + req.originalUrl,
-          query: JSON.stringify(req.query),
-        })
-      );
-    },
-  ] as any[];
-  if (querySchema)
-    middlewares.unshift(getZodQueryValidationMiddleware(querySchema));
+// export function addExperimentalDebugEndpoint(
+//   app: express.Express,
+//   method: HttpMethod,
+//   path: string,
+//   querySchema: ZodSchema<any, any>,
+//   functionToExecute: (query: z.infer<typeof querySchema>) => any,
+//   slotName: string
+// ) {
+//   const middlewares = [
+//     getZodQueryValidationMiddleware(querySchema),
+//     (
+//       req: express.Request,
+//       res: express.Response,
+//       _next: express.NextFunction
+//     ) => {
+//       if (progressInvocations.has(slotName)) {
+//         res
+//           .status(400)
+//           .send("Function slot already taken. Function already executing.");
+//         return;
+//       }
+//       // If the function throws the duration wrapper will also throw
+//       const promise = durationWrapper(
+//         functionToExecute,
+//         "info",
+//         req.query // No type checking. The validation middleware ensure that this works out
+//       );
+//       progressInvocations.set(slotName, {
+//         name: slotName,
+//         promise,
+//       });
+//       res.send(
+//         progressTemplate({
+//           title: "Function invocation - Progress",
+//           method: req.method + " " + req.originalUrl,
+//           query: JSON.stringify(req.query),
+//         })
+//       );
+//     },
+//   ] as any[];
 
-  switch (method) {
-    case "GET":
-      app.get(path, ...middlewares);
-      break;
-    case "POST":
-      app.post(path, ...middlewares);
-      break;
-    case "OPTIONS":
-      app.options(path, ...middlewares);
-      break;
-    case "PUT":
-      app.put(path, ...middlewares);
-      break;
-    case "HEAD":
-      app.head(path, ...middlewares);
-      break;
-    case "DELETE":
-      app.delete(path, ...middlewares);
-      break;
-    case "PATCH":
-      app.patch(path, ...middlewares);
-      break;
-    case "CONNECT":
-      app.connect(path, ...middlewares);
-      break;
-    default:
-      throw new Error(`HTTP method ${method} does not exist`);
-  }
-}
+//   switch (method) {
+//     case "GET":
+//       app.get(path, ...middlewares);
+//       break;
+//     case "POST":
+//       app.post(path, ...middlewares);
+//       break;
+//     case "OPTIONS":
+//       app.options(path, ...middlewares);
+//       break;
+//     case "PUT":
+//       app.put(path, ...middlewares);
+//       break;
+//     case "HEAD":
+//       app.head(path, ...middlewares);
+//       break;
+//     case "DELETE":
+//       app.delete(path, ...middlewares);
+//       break;
+//     case "PATCH":
+//       app.patch(path, ...middlewares);
+//       break;
+//     case "CONNECT":
+//       app.connect(path, ...middlewares);
+//       break;
+//     default:
+//       throw new Error(`HTTP method ${method} does not exist`);
+//   }
+// }

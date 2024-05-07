@@ -44,8 +44,17 @@ export type GetOrganisationsInput = {
  * @returns A javascript value or object depending on the term datatype
  */
 function toObject(
-  term: Term
-): string | number | boolean | dayjs.Dayjs | DateOnly | TimeOnly | DmEnum {
+  term: Term | undefined
+):
+  | string
+  | number
+  | boolean
+  | dayjs.Dayjs
+  | DateOnly
+  | TimeOnly
+  | DmEnum
+  | undefined {
+  if (!term) return undefined;
   switch (term.termType) {
     case "Literal":
       switch (term.datatype.value) {
@@ -301,6 +310,7 @@ export class TemplatedSelect<
       try {
         const bindings = await this.queryEngine.queryBindings(query, {
           sources: [this.endpoint],
+          lenient: true,
         });
         if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint, query);
         return bindings;
@@ -313,12 +323,12 @@ export class TemplatedSelect<
 
     const termResult: Map<string, Record<string, Term | Term[]>> = new Map();
 
-    for await (const binding of bindingsStream) {
-      const uriTerm = binding.get(uriKey);
+    for await (const bindings of bindingsStream) {
+      const uriTerm = bindings.get(uriKey);
       if (!uriTerm)
         throw new Error(
           `May only transform bindings to object if the uri of the resource is present in each termResult row. Uri key is "${uriKey}". Keys present are: ${[
-            ...binding.keys(),
+            ...bindings.keys(),
           ].join(",")}`
         );
       const obj: Record<string, Term | Term[]> = (() => {
@@ -331,7 +341,7 @@ export class TemplatedSelect<
         }
       })();
       // now populate the object
-      for (const [variabele, term] of binding) {
+      for (const [variabele, term] of bindings) {
         if (variabele.value in obj) {
           const reference = obj[variabele.value] as Term | Term[];
           if (Array.isArray(reference)) {
@@ -388,7 +398,7 @@ export class TemplatedSelect<
           `Result method is only for sparql queries that return only a single row.`
         );
       result = [...binding.keys()].reduce<Record<string, any>>((acc, curr) => {
-        acc[curr.value] = toObject(binding.get(curr.value)!);
+        acc[curr.value] = toObject(binding.get(curr.value));
         return acc;
       }, {});
       first = false;

@@ -5,9 +5,10 @@ import express, { Express } from "express";
 import fs from "node:fs";
 import { clearStore, dumpStore } from "queries/store.js";
 import { z } from "zod";
-import { addDebugEndpoint } from "./debug-functions.js";
+import { addDebugEndpoint, addSimpleDebugEndpoint } from "./middleware.js";
 import Handlebars from "handlebars";
 import { deleteAllJobs, getJobs } from "job/job.js";
+import { showJobs, startTask } from "./functions.js";
 
 const debugIndexHtml = fs.readFileSync("./templates/debug.html", {
   encoding: "utf-8",
@@ -52,17 +53,25 @@ async function storeDump(query: z.infer<typeof storeDumpQuerySchema>) {
 export function setupDebugEndpoints(app: Express) {
   app.get("/debug", (_, res) => res.send(debugIndexHtml));
 
-  addDebugEndpoint(app, "GET", "/dump", storeDumpQuerySchema, storeDump);
-  addDebugEndpoint(app, "GET", "/configuration", emptySchema, () =>
+  addSimpleDebugEndpoint(app, "GET", "/dump", storeDumpQuerySchema, storeDump);
+  addSimpleDebugEndpoint(app, "GET", "/configuration", emptySchema, () =>
     Promise.resolve(config)
   );
-  addDebugEndpoint(app, "GET", "/clear-store", emptySchema, () =>
+  addSimpleDebugEndpoint(app, "GET", "/clear-store", emptySchema, () =>
     Promise.resolve(clearStore)
   );
-  addDebugEndpoint(app, "GET", "/force-error", emptySchema, async () => {
+  addSimpleDebugEndpoint(app, "GET", "/force-error", emptySchema, async () => {
     throw new Error("Forced error by debug action.");
   });
-  addDebugEndpoint(app, "GET", "/delete-all-jobs", emptySchema, deleteAllJobs);
+  addSimpleDebugEndpoint(
+    app,
+    "GET",
+    "/delete-all-jobs",
+    emptySchema,
+    deleteAllJobs
+  );
+
+  addDebugEndpoint(app, "GET", "/jobs", emptySchema, showJobs);
 
   // Static hosting of the dump files
   app.get("/dump-files", (_, res) => {
@@ -72,4 +81,7 @@ export function setupDebugEndpoints(app: Express) {
     res.send(staticIndexTemplate({ dirs }));
   });
   app.use("/dump-files", express.static(config.env.DUMP_FILES_LOCATION));
+
+  // task activations
+  addDebugEndpoint(app, "GET", "start/:restPath", emptySchema, startTask);
 }

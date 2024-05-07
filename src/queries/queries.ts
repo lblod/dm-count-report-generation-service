@@ -522,12 +522,19 @@ export type GetJobsOutput = {
   modifiedAt: dayjs.Dayjs;
   description: TaskStatus;
   jobType: JobType;
-  timeOfInvocation: TimeOnly;
   datamonitoringFunction: DataMonitoringFunction;
+};
+
+export type GetPeriodicJobsOutput = GetJobsOutput & {
+  timeOfInvocation: TimeOnly;
   daysOfInvocation: DayOfWeek[];
 };
 
-export const getJobsTemplate = Handlebars.compile(
+export type GetRestJobsOutput = GetJobsOutput & {
+  restPath: string;
+};
+
+export const getPeriodicJobsTemplate = Handlebars.compile(
   `\
 {{prefixes}}
 SELECT * WHERE {
@@ -540,9 +547,9 @@ SELECT * WHERE {
       datamonitoring:description ?description;
       datamonitoring:jobType ?jobType;
       datamonitoring:jobParameters [
-        datamonitoring:timeOfInvocation ?timeOfInvocation;
         datamonitoring:function ?datamonitoringFunction;
-        datamonitoring:daysOfInvocation ?dayOfInvocation;
+        datamonitoring:timeOfInvocation ?timeOfInvocation;
+        datamonitoring:daysOfInvocation ?daysOfInvocation;
       ].
   }
 }
@@ -550,7 +557,30 @@ SELECT * WHERE {
   { noEscape: true }
 );
 
-export type WriteNewJobInput = {
+export const getRestJobsTemplate = Handlebars.compile(
+  `\
+{{prefixes}}
+SELECT * WHERE {
+  GRAPH <{{jobGraphUri}}> {
+    ?jobUri a cogs:Job, datamonitoring:DatamonitoringJob;
+      mu:uuid ?uuid;
+      adms:status ?status;
+      dct:created ?createdAt;
+      dct:modified ?modifiedAt;
+      datamonitoring:description ?description;
+      datamonitoring:jobType ?jobType;
+      datamonitoring:jobParameters [
+        datamonitoring:function ?datamonitoringFunction;
+        datamonitoring:restPath ?restPath;
+      ].
+
+  }
+}
+`,
+  { noEscape: true }
+);
+
+export type WriteNewPeriodicJobInput = {
   prefixes: string;
   jobGraphUri: string;
   uuid: string;
@@ -558,13 +588,13 @@ export type WriteNewJobInput = {
   status: JobStatus;
   createdAt: dayjs.Dayjs;
   description: string;
-  jobType: JobType;
+  jobType: JobType.PERIODIC;
   timeOfInvocation: TimeOnly;
   daysOfInvocation: DayOfWeek[];
   datamonitoringFunction: DataMonitoringFunction;
 };
 
-export const insertJobTemplate = Handlebars.compile(
+export const insertPeriodicJobTemplate = Handlebars.compile(
   `\
 {{prefixes}}
 INSERT {
@@ -590,12 +620,51 @@ INSERT {
   { noEscape: true }
 );
 
+export type WriteNewRestJobInput = {
+  prefixes: string;
+  jobGraphUri: string;
+  uuid: string;
+  newJobUri: string;
+  status: JobStatus;
+  createdAt: dayjs.Dayjs;
+  description: string;
+  jobType: JobType.REST_INVOKED;
+  restPath: string;
+  datamonitoringFunction: DataMonitoringFunction;
+};
+
+export const insertRestJobTemplate = Handlebars.compile(
+  `\
+{{prefixes}}
+INSERT {
+  GRAPH <{{jobGraphUri}}> {
+    <{{newJobUri}}> a cogs:Job, datamonitoring:DatamonitoringJob;
+      mu:uuid "{{uuid}}";
+      dct:creator <https://codifly.be/ns/resources/job-creator/dm-count-report-generation-service>;
+      adms:status {{toJobStatusLiteral status}};
+      dct:created {{toDateTimeLiteral createdAt}};
+      dct:modified {{toDateTimeLiteral createdAt}};
+      datamonitoring:description "{{description}}";
+      datamonitoring:jobType {{toJobTypeLiteral jobType}};
+      datamonitoring:jobParameters [
+        datamonitoring:function {{toDatamonitoringFunctionLiteral datamonitoringFunction}};
+        datamonitoring:restPath "{{restPath}}";
+      ].
+  }
+} WHERE {
+
+}
+`,
+  { noEscape: true }
+);
+
 export type DeleteAllJobsInput = {
   prefixes: string;
   jobGraphUri: string;
 };
 
-export const deleteAllJobsTemplate = Handlebars.compile(`\
+export const deleteAllJobsTemplate = Handlebars.compile(
+  `\
 {{prefixes}}
 DELETE {
   GRAPH <{{jobGraphUri}}> {
@@ -610,4 +679,6 @@ DELETE {
     ?job ?p ?o.
   }
 }
-`);
+`,
+  { noEscape: true }
+);
