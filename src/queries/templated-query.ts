@@ -169,6 +169,7 @@ function getCustomFetchFunction(
       body,
     };
     const response = await fetch(input, totalOptions);
+    // TODO hack virtuoso response to count amount of affected queries
     return response;
   };
 }

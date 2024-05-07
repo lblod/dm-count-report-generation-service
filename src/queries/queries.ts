@@ -74,15 +74,15 @@ export type GetGoveringBodiesInput = {
 };
 
 export type GetGoveringBodiesOutput = {
-  goveringBody: string;
+  goveringBodyUri: string;
   label: string;
 };
 
 export const getGoverningBodiesOfAdminUnitTemplate = Handlebars.compile(
   `\
 {{prefixes}}
-SELECT ?goveringBody ?label WHERE {
-  ?goveringBody a besluit:Bestuursorgaan;
+SELECT ?goveringBodyUri ?label WHERE {
+  ?goveringBodyUri a besluit:Bestuursorgaan;
     besluit:bestuurt <{{adminitrativeUnitUri}}>;
     skos:prefLabel ?label.
 }
@@ -352,6 +352,7 @@ export type WriteNewTaskInput = {
   prefixes: string;
   jobGraphUri: string;
   taskUri: string;
+  uuid: string;
   status: TaskStatus;
   createdAt: dayjs.Dayjs;
   index: number;
@@ -376,8 +377,8 @@ INSERT {
       task:index {{index}};
       dct:isPartOf <{{jobUri}}>;
       datamonitoring:function {{toDatamonitoringFunctionLiteral datamonitoringFunction}};
-      datamonitoring:description "{{description}}":
-      datamonitoring:taskType {{toTaskTypeLiteral taskType}};
+      datamonitoring:description "{{description}}";
+      datamonitoring:taskType {{toTaskTypeLiteral taskType}}.
   }
 } WHERE {
 
@@ -389,6 +390,7 @@ INSERT {
 export type GetTasksInput = {
   prefixes: string;
   jobGraphUri: string;
+  taskStatuses: TaskStatus[];
 };
 
 export type GetTasksOutput = {
@@ -407,24 +409,27 @@ SELECT * WHERE {
   GRAPH <{{jobGraphUri}}> {
     ?taskUri a task:Task, datamonitoring:DatamonitoringTask;
       mu:uuid ?uuid;
-      adms:status ?status;
       datamonitoring:function ?datamonitoringFunction;
       datamonitoring:taskType ?taskType;
       dct:isPartOf: ?jobUri.
+    {{#each taskStatuses}}
+    {
+      ?taskUri adms:status {{toTaskStatusLiteral this}}.
+    }
+    {{#unless @last}}UNION{{/unless}}
+    {{/each}}
   }
-
 }
 `,
   { noEscape: true }
 );
 
-export type DeleteTaskInput = {
+export type DeleteBusyTasksInput = {
   prefixes: string;
   jobGraphUri: string;
-  taskUri: string;
 };
 
-export const deleteTaskTemplate = Handlebars.compile(
+export const deleteBusyTasksTemplate = Handlebars.compile(
   `\
 {{prefixes}}
 DELETE {
@@ -434,7 +439,9 @@ DELETE {
 }
 WHERE {
   GRAPH <{{jobGraphUri}}> {
-    ?taskUri ?p ?o.
+    ?taskUri a task:Task;
+      adms:status <https://codifly.be/ns/resources/status/busy>;
+      ?p ?o.
   }
 }
 `,

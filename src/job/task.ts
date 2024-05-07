@@ -2,13 +2,10 @@ import { QueryEngine } from "@comunica/query-sparql";
 import { PREFIXES } from "local-constants.js";
 import { logger } from "logger.js";
 import {
-  DeleteTaskInput,
-  GetTasksInput,
-  GetTasksOutput,
+  DeleteBusyTasksInput,
   UpdateTaskStatusInput,
   WriteNewTaskInput,
-  deleteTaskTemplate,
-  getTasksTemplate,
+  deleteBusyTasksTemplate,
   insertTaskTemplate,
   updateTaskStatusTemplate,
 } from "queries/queries.js";
@@ -30,11 +27,32 @@ import dayjs from "dayjs";
 import { config } from "configuration.js";
 import { durationWrapper } from "util/util.js";
 import { TASK_FUNCTIONS } from "./task-functions-map.js";
+import { Job } from "./job.js";
+import { v4 as uuidv4 } from "uuid";
 
-export type TaskFunction<R> = (
+// TODO type checking for return value
+export type TaskFunction = (
   progress: TaskProgress,
   ...args: any[]
-) => Promise<R>;
+) => Promise<any>;
+
+export async function taskWrapper(
+  wrapped: TaskFunction,
+  progress: TaskProgress,
+  ...args: any[]
+): Promise<any> {
+  progress.start();
+  try {
+    const result = await wrapped(progress, ...args);
+    progress.return(result);
+  } catch (e) {
+    if (e instanceof Error) {
+      progress.error(e);
+    } else {
+      throw new Error("Task function may only throw errors. Bad.");
+    }
+  }
+}
 
 class TaskProgress {
   _task: Task;
@@ -50,7 +68,7 @@ class TaskProgress {
     if (args.length === 0)
       throw new Error(`Cannot send update with no arguments`);
     const updateMessage: UpdateMessage = {
-      timestamp: dayjs(),
+      timestamp: dayjs().format(),
       message: JSON.stringify(args),
     };
     this._eventEmitter.emit(`update`, updateMessage);
@@ -65,9 +83,9 @@ class TaskProgress {
       this._logLevel,
       `${
         subProcessIdentifier ? `(${subProcessIdentifier}) ` : ``
-      }Progress update ${done}/^${total} (${Math.round(
+      }Progress update ${done}/${total} (${Math.round(
         (done / total) * 100.0
-      )}%${lastDurationMilliseconds ? ` ${lastDurationMilliseconds} ms` : ``}`
+      )}%) ${lastDurationMilliseconds ? ` ${lastDurationMilliseconds} ms` : ``}`
     );
     const progressMessage: ProgressMessage = {
       done,
@@ -104,12 +122,11 @@ class TaskProgress {
     };
     this._eventEmitter.emit(`status`, statusMessage);
   }
-  async start() {
-    (logger.log as any)(
+  start() {
+    logger.log(
       this._logLevel,
       `Status change of task ${this._task.uuid} to Busy`
     );
-    await this._task.updateStatus(TaskStatus.BUSY);
     const statusMessage = {
       done: false,
       failed: false,
@@ -123,11 +140,19 @@ export class Task {
   _insertQuery: TemplatedInsert<WriteNewTaskInput>;
   _updateStatusQuery: TemplatedInsert<UpdateTaskStatusInput>;
   _graphUri: string;
-  _datamonitoringFunction: DataMonitoringFunction;
+  _job: Job;
   _taskType: TaskType;
   _uuid: string;
   _status: TaskStatus;
-  _logLevel: LogLevel;
+  _promises: Promise<any>[] = [];
+  _createdAt: dayjs.Dayjs;
+  _modifiedAt: dayjs.Dayjs;
+  get createdAt() {
+    return this._createdAt;
+  }
+  get modifiedAt() {
+    return this._createdAt;
+  }
   get status(): TaskStatus {
     return this._status;
   }
@@ -138,16 +163,30 @@ export class Task {
     return this._taskType;
   }
 
+  get datamonitoringFunction() {
+    return this._job.datamonitoringFunction;
+  }
+
+  get jobUri() {
+    return this._job.uri;
+  }
+
+  get eventEmitter() {
+    return this._progress._eventEmitter;
+  }
+
   constructor(
-    taskType: TaskType,
     queryEngine: QueryEngine,
     endpoint: string,
+    taskType: TaskType,
     graphUri: string,
     uuid: string,
     initialStatus: TaskStatus,
-    datamonitoringFunction: DataMonitoringFunction,
-    logLevel: LogLevel = "info"
+    job: Job
   ) {
+    if (taskType === TaskType.PARALLEL) {
+      throw new Error("Parallel type tasks not supported yet");
+    }
     this._insertQuery = new TemplatedInsert<WriteNewTaskInput>(
       queryEngine,
       endpoint,
@@ -160,11 +199,13 @@ export class Task {
     );
     this._taskType = taskType;
     this._graphUri = graphUri;
-    this._datamonitoringFunction = datamonitoringFunction;
+    this._job = job;
     this._uuid = uuid;
     this._status = initialStatus;
-    this._logLevel = logLevel;
-    this._progress = new TaskProgress(this, this._logLevel);
+    this._progress = new TaskProgress(this, "verbose");
+    const now = dayjs();
+    this._createdAt = now;
+    this._modifiedAt = now;
   }
 
   get uri() {
@@ -172,25 +213,51 @@ export class Task {
   }
 
   async execute(...args: any[]) {
+    // TODO. Support parallel tasks later
+    if (this._promises.length) {
+      throw new Error("Already executing. Parallel tasks not supported yet.");
+    }
+    // Make sure status is busy first
+    if (this.status !== TaskStatus.BUSY) {
+      await this.updateStatus(TaskStatus.BUSY);
+    }
     await this._progress.start();
-    const result = await durationWrapper(
-      TASK_FUNCTIONS[this._datamonitoringFunction],
+    const promise = durationWrapper(
+      TASK_FUNCTIONS[this.datamonitoringFunction],
       "verbose",
       this._progress,
       ...args
     );
-    if (this.status !== TaskStatus.FINISHED) this._progress.return(result);
+    this._promises.push(promise);
   }
 
   async updateStatus(status: TaskStatus) {
+    const now = dayjs();
     await this._updateStatusQuery.execute({
       prefixes: PREFIXES,
-      modifiedAt: dayjs(),
+      modifiedAt: now,
       status,
       jobGraphUri: config.env.JOB_GRAPH_URI,
       taskUri: this.uri,
     });
     this._status = status;
+    this._modifiedAt = now;
+  }
+
+  async _createNewResource() {
+    await this._insertQuery.execute({
+      prefixes: PREFIXES,
+      uuid: this._uuid,
+      jobGraphUri: this._graphUri,
+      taskUri: this.uri,
+      status: this._status,
+      createdAt: this._createdAt,
+      description: `Task created by dm-count-report-generation-service`,
+      taskType: this._taskType,
+      jobUri: this.jobUri,
+      datamonitoringFunction: this.datamonitoringFunction,
+      index: 0,
+    });
   }
 }
 
@@ -225,62 +292,71 @@ export function setTaskCreationDefaults(
   };
 }
 
-export async function loadTasks() {
+// export async function loadTasks() {
+//   if (!defaults)
+//     throw new Error(
+//       `Defaults have not been set. Call 'setTaskCreeationDefaults' first from the task module.`
+//     );
+//   const getTasksQuery = new TemplatedSelect<GetTasksInput, GetTasksOutput>(
+//     defaults.queryEngine,
+//     defaults.endpoint,
+//     getTasksTemplate
+//   );
+//   const taskRecords = await getTasksQuery.objects("taskUri", {
+//     jobGraphUri: config.env.JOB_GRAPH_URI,
+//     prefixes: PREFIXES,
+//   });
+//   // Create all of the tasks and put them in the map
+//   for (const record of taskRecords) {
+//     const newTask = new Task(
+//       defaults.queryEngine,
+//       defaults.endpoint,
+//       record.taskType,
+//       config.env.JOB_GRAPH_URI,
+//       record.uuid,
+//       record.status,
+//       record.datamonitoringFunction
+//     );
+//     tasks.set(newTask.uri, newTask);
+//   }
+// }
+
+export async function createTask(
+  job: Job,
+  taskType: TaskType.SERIAL,
+  initialStatus = TaskStatus.NOT_STARTED
+): Promise<Task> {
   if (!defaults)
     throw new Error(
       `Defaults have not been set. Call 'setTaskCreeationDefaults' first from the task module.`
     );
-  const getTasksQuery = new TemplatedSelect<GetTasksInput, GetTasksOutput>(
+  const newTask = new Task(
     defaults.queryEngine,
     defaults.endpoint,
-    getTasksTemplate
+    taskType,
+    config.env.JOB_GRAPH_URI,
+    uuidv4(),
+    initialStatus,
+    job
   );
-  const taskRecords = await getTasksQuery.objects("taskUri", {
-    jobGraphUri: config.env.JOB_GRAPH_URI,
-    prefixes: PREFIXES,
-  });
-  // Create all of the tasks and put them in the map
-  for (const record of taskRecords) {
-    const newTask = new Task(
-      record.taskType,
-      defaults.queryEngine,
-      defaults.endpoint,
-      config.env.JOB_GRAPH_URI,
-      record.uuid,
-      record.status,
-      record.datamonitoringFunction
-    );
-    tasks.set(newTask.uri, newTask);
-  }
+  await newTask._createNewResource();
+  tasks.set(newTask.uri, newTask);
+  return newTask;
 }
 
 // TODO: Make sure we don't delete a task with an async function running
-export async function deleteTask(task: string | Task) {
+export async function deleteBusyTasks() {
   if (!defaults)
     throw new Error(
       `Defaults have not been set. Call 'setTaskCreeationDefaults' first from the task module.`
     );
-  const defaultedTask = (() => {
-    if (task instanceof Task) return task;
-    if (typeof task === "string") {
-      const fromMap = tasks.get(task);
-      if (!fromMap)
-        throw new Error(
-          `Task with URI ${task} was set up for deletion but it was never loaded.`
-        );
-      return fromMap;
-    }
-    throw new TypeError("Type of first parameter should be string or Task");
-  })();
-  const deleteTaskQuery = new TemplatedUpdate<DeleteTaskInput>(
+  const deleteBusyTasksQuery = new TemplatedUpdate<DeleteBusyTasksInput>(
     defaults.queryEngine,
     defaults.endpoint,
-    deleteTaskTemplate
+    deleteBusyTasksTemplate
   );
-  await deleteTaskQuery.execute({
+  await deleteBusyTasksQuery.execute({
     prefixes: PREFIXES,
     jobGraphUri: config.env.JOB_GRAPH_URI,
-    taskUri: defaultedTask.uri,
   });
-  tasks.delete(defaultedTask.uri);
 }

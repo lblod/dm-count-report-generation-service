@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{title}}</title>
+</head>
+
+<body>
+  <h1>{{title}}</h1>
+  <p>Task created:
+  <pre>{{toDateTimeString createdAt}}</pre>
+  </p>
+  <p>Task modified:
+  <pre>{{toDateTimeString modifiedAt}}</pre>
+  </p>
+  <p>Task status:
+  <pre>{{printUriEnum status}}</pre>
+  </p>
+  <p>Task function:
+  <pre>{{printUriEnum function}}</pre>
+  </p>
+  <label for="progress">Procedure progress:</label>
+  <progress id="progress" value="0" max="100"> 32% </progress>
+  <div style="width: 800px;">
+    <canvas id="graph"></canvas>
+  </div>
+  <hr>
+  <div id="log">
+
+  </div>
+</body>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script>
+  const performanceChart = new Chart(
+    document.getElementById('graph'),
+    {
+      type: 'bar',
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: 'Performance',
+            data: [],
+          }
+        ],
+      },
+      options: {
+
+      },
+    }
+  );
+  const progressElement = document.getElementById('progress');
+  const logElement = document.getElementById('log');
+
+  let counter = 0;
+  const eventSource = new EventSource("/progress/{{uuid}}");
+  eventSource.onmessage = function (event) {
+    console.log('event received', event);
+    const eventObject = JSON.parse(event.data);
+    if ('update' in eventObject) {
+      const { timestamp, message } = eventObject.update;
+      const par = document.createElement('p');
+      const pre = document.createElement('pre');
+      pre.textContent = timestamp + ": " + JSON.stringify(message);
+      par.appendChild(pre);
+      logElement.appendChild(par);
+      return;
+    }
+    if ('progress' in eventObject) {
+      const { done, total, lastDurationMilliseconds, subProcessIdentifier } = eventObject.progress;
+      const progressElement = document.getElementById('progress');
+      progressElement.setAttribute('value', done);
+      progressElement.setAttribute('max', total);
+
+      performanceChart.data.labels.push(counter++);
+      performanceChart.data.datasets[0].data.push(lastDurationMilliseconds);
+      performanceChart.update('none');
+      return;
+    }
+    if ('status' in eventObject) {
+      const par = document.createElement('p');
+      const pre = document.createElement('pre');
+      pre.textContent = "STATUS CHANGE:" + JSON.stringify({ done: eventObject.status.done, failed: eventObject.status.failed });
+      par.appendChild(pre);
+      logElement.appendChild(par);
+      return;
+    }
+    console.warn(`Received werid server side event:${JSON.stringify(event)}`);
+  }
+</script>
+
+</html>

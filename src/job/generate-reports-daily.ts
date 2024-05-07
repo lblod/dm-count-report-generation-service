@@ -65,10 +65,14 @@ function getQueries(queryEngine: QueryEngine, endpoint: string) {
   };
 }
 
-export const generateReportsDaily: TaskFunction<void> = async (
+export const generateReportsDaily: TaskFunction = async (
   progress,
-  day: DateOnly
+  day: DateOnly | undefined
 ) => {
+  const defaultedDay = day ?? DateOnly.yesterday();
+  progress.update(
+    `Report function invoked with day ${defaultedDay.toString()}`
+  );
   // Init some functions making use of the progress
   async function performCount<
     I extends Record<string, any>,
@@ -131,8 +135,8 @@ export const generateReportsDaily: TaskFunction<void> = async (
           {
             prefixes: PREFIXES,
             governingBodyUri: goveringBody.uri,
-            from: day.localStartOfDay,
-            to: day.localEndOfDay,
+            from: defaultedDay.localStartOfDay,
+            to: defaultedDay.localEndOfDay,
             noFilterForDebug: config.env.NO_TIME_FILTER,
           }
         );
@@ -143,8 +147,8 @@ export const generateReportsDaily: TaskFunction<void> = async (
           {
             prefixes: PREFIXES,
             governingBodyUri: goveringBody.uri,
-            from: day.localStartOfDay,
-            to: day.localEndOfDay,
+            from: defaultedDay.localStartOfDay,
+            to: defaultedDay.localEndOfDay,
             noFilterForDebug: config.env.NO_TIME_FILTER,
           }
         );
@@ -155,8 +159,8 @@ export const generateReportsDaily: TaskFunction<void> = async (
           {
             prefixes: PREFIXES,
             governingBodyUri: goveringBody.uri,
-            from: day.localStartOfDay,
-            to: day.localEndOfDay,
+            from: defaultedDay.localStartOfDay,
+            to: defaultedDay.localEndOfDay,
             noFilterForDebug: config.env.NO_TIME_FILTER,
           }
         );
@@ -164,8 +168,8 @@ export const generateReportsDaily: TaskFunction<void> = async (
         const voteResult = await performCount("Stemming", countVoteQuery, {
           prefixes: PREFIXES,
           governingBodyUri: goveringBody.uri,
-          from: day.localStartOfDay,
-          to: day.localEndOfDay,
+          from: defaultedDay.localStartOfDay,
+          to: defaultedDay.localEndOfDay,
           noFilterForDebug: config.env.NO_TIME_FILTER,
         });
 
@@ -181,7 +185,7 @@ export const generateReportsDaily: TaskFunction<void> = async (
           reportGraphUri: config.env.REPORT_GRAPH_URI,
           adminUnitUri: adminUnit.uri,
           prefLabel: `Count report for governing body '${goveringBody.label}' on ${day}`,
-          day,
+          day: defaultedDay,
           counts: [
             {
               classUri: `http://data.vlaanderen.be/ns/besluit#Zitting`,
@@ -213,7 +217,7 @@ export const generateReportsDaily: TaskFunction<void> = async (
           prefLabel: `Count report for admin unit '${adminUnit.label}' on ${day}`,
           reportUri: `http://lblod.data.gift/vocabularies/datamonitoring/countReport/${uuidv4()}`,
           createdAt: dayjs(),
-          day,
+          day: defaultedDay,
           reportUris: governingBodyReportUriList,
         }
       );

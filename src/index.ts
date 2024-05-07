@@ -16,18 +16,12 @@ import {
   setDebugJob,
   setJobCreeationDefaults,
 } from "job/job.js";
-import {
-  deleteTask,
-  getTasks,
-  loadTasks,
-  setTaskCreationDefaults,
-} from "job/task.js";
+import { deleteBusyTasks, setTaskCreationDefaults } from "job/task.js";
 import {
   DataMonitoringFunction,
   DayOfWeek,
   JobStatus,
   JobType,
-  TaskStatus,
 } from "types.js";
 import { setupDebugEndpoints } from "debug-endpoints/endpoints.js";
 import { logger } from "logger.js";
@@ -120,18 +114,20 @@ async function startupProcedure() {
   }
   // Tasks
   setTaskCreationDefaults(queryEngine, config.env.REPORT_ENDPOINT);
-  await loadTasks();
-  logger.info(`CHECK PASSED: Tasks loaded. ${getTasks().length} found.`);
+  await deleteBusyTasks();
+  logger.info("Made sure there are no busy tasks");
+  // await loadTasks();
+  // logger.info(`CHECK PASSED: Tasks loaded. ${getTasks().length} found.`);
   // If any of the tasks loaded is still busy this means that the service was not properly closed last time.
   // Any tasks with status active will be deleted and a warning will be printed
-  for (const task of getTasks()) {
-    if (task.status === TaskStatus.BUSY) {
-      logger.warn(
-        `Ecountered task with URI "${task.uri}" with status BUSY when the service is starting. Because tasks can only be BUSY when the service is running this indicates that the service did not shut down properly before. It will be deleted.`
-      );
-      await deleteTask(task);
-    }
-  }
+  // for (const task of getTasks()) {
+  //   if (task.status === TaskStatus.BUSY) {
+  //     logger.warn(
+  //       `Ecountered task with URI "${task.uri}" with status BUSY when the service is starting. Because tasks can only be BUSY when the service is running this indicates that the service did not shut down properly before. It will be deleted.`
+  //     );
+  //     await deleteTask(task);
+  //   }
+  // }
 }
 
 async function shutDownProcedure() {

@@ -43,24 +43,27 @@ async function getOrgResouces(
     getGoverningBodiesOfAdminUnitTemplate
   );
 
-  const orgs = await getOrganisationsQuery.objects({
+  const orgs = await getOrganisationsQuery.objects("organisationUri", {
     prefixes: PREFIXES,
     limit: config.env.LIMIT_NUMBER_ADMIN_UNITS, // 0 means infinite
   });
   await delay(config.env.SLEEP_BETWEEN_QUERIES_MS);
 
   for (const org of orgs) {
-    const govBodies = await getGoveringBodiesOfAdminUnitQuery.objects({
-      prefixes: PREFIXES,
-      adminitrativeUnitUri: org.organisationUri, // uri
-    });
+    const govBodies = await getGoveringBodiesOfAdminUnitQuery.objects(
+      "goveringBodyUri",
+      {
+        prefixes: PREFIXES,
+        adminitrativeUnitUri: org.organisationUri, // uri
+      }
+    );
     result.adminUnits.push({
       uri: org.organisationUri,
       label: org.label,
       id: org.id,
       govBodies: govBodies.map((record) => {
         return {
-          uri: record.goveringBody,
+          uri: record.goveringBodyUri,
           label: record.label,
         };
       }),

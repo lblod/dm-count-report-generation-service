@@ -129,7 +129,7 @@ export const LOG_LEVELS = [
 export type LogLevel = (typeof LOG_LEVELS)[number];
 
 export type UpdateMessage = {
-  timestamp: dayjs.Dayjs;
+  timestamp: string;
   message: JsonSerializable;
 };
 

@@ -17,6 +17,10 @@ const showJobsTemplate = Handlebars.compile(
   fs.readFileSync("./templates/show-jobs.hbs", { encoding: "utf-8" })
 );
 
+const showTaskTemplate = Handlebars.compile(
+  fs.readFileSync("./templates/task.hbs", { encoding: "utf-8" })
+);
+
 type PeriodicJobInfo = {
   timeOfInvocationInformation: string;
 };
@@ -109,4 +113,23 @@ export async function startTask(req: Request, res: Response): Promise<void> {
         .map((j) => `"${j.restPath}"`)
         .join(",")}`
     );
+  // Check if a task is already running for this job
+  const task = await (async () => {
+    const testTask = getTasks().find((t) => t.jobUri === job.uri);
+    if (!testTask) {
+      // If no task is found then start it
+      // Invoking should never take long
+      return await job.invoke();
+    }
+    return testTask;
+  })();
+  const html = showTaskTemplate({
+    title: `Task with uri ${task.uri}`,
+    createdAt: task.createdAt,
+    modifiedAt: task.modifiedAt,
+    status: task.status,
+    function: task.datamonitoringFunction,
+    uuid: task.uuid,
+  });
+  res.send(html);
 }

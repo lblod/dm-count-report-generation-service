@@ -29,9 +29,12 @@ import {
   DayOfWeek,
   JobStatus,
   JobType,
+  TaskStatus,
+  TaskType,
   getEnumStringFromUri,
 } from "types.js";
 import { v4 as uuidv4 } from "uuid";
+import { createTask } from "./task.js";
 
 export class Job {
   _updateStatusQuery: TemplatedInsert<UpdateJobStatusInput>;
@@ -202,6 +205,12 @@ export class RestJob extends Job {
       restPath: this._restPath,
       datamonitoringFunction: this._datamonitoringFunction,
     });
+  }
+
+  async invoke(...args: any[]) {
+    const task = await createTask(this, TaskType.SERIAL, TaskStatus.BUSY);
+    await task.execute(...args);
+    return task;
   }
 
   override toString(): string {
