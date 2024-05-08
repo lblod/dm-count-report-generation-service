@@ -1,5 +1,3 @@
-import dayjs from "dayjs";
-
 export type IsEmpty<T> = T extends [] ? true : false;
 
 export type HasOneElement<T extends any[]> = T["length"] extends 1
