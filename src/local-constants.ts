@@ -1,4 +1,4 @@
-import { DayOfWeek } from "types.js";
+import { DayOfWeek } from "./types.js";
 
 export const PREFIXES = `\
 PREFIX besluittype: <https://data.vlaanderen.be/id/concept/BesluitType/>

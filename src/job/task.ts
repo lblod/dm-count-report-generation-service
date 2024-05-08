@@ -8,15 +8,18 @@ import {
   deleteBusyTasksTemplate,
   insertTaskTemplate,
   updateTaskStatusTemplate,
-} from "queries/queries.js";
-import { TemplatedInsert, TemplatedUpdate } from "queries/templated-query.js";
+} from "../queries/queries.js";
+import {
+  TemplatedInsert,
+  TemplatedUpdate,
+} from "../queries/templated-query.js";
 import {
   LogLevel,
   ProgressMessage,
   TaskStatus,
   TaskType,
   UpdateMessage,
-} from "types.js";
+} from "../types.js";
 import { EventEmitter } from "node:events";
 import dayjs from "dayjs";
 import { config } from "configuration.js";

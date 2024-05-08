@@ -1,13 +1,13 @@
 import cors, { CorsOptions } from "cors";
 import express, { Express } from "express";
 import { config } from "./configuration.js";
-import { TemplatedSelect } from "queries/templated-query.js";
-import { queryEngine } from "queries/query-engine.js";
+import { TemplatedSelect } from "./queries/templated-query.js";
+import { queryEngine } from "./queries/query-engine.js";
 import {
   TestQueryInput,
   TestQueryOutput,
   testQueryTemplate,
-} from "queries/queries.js";
+} from "./queries/queries.js";
 import {
   createPeriodicJob,
   createRestJob,
@@ -15,16 +15,16 @@ import {
   loadJobs,
   setDebugJob,
   setJobCreeationDefaults,
-} from "job/job.js";
-import { deleteBusyTasks, setTaskCreationDefaults } from "job/task.js";
+} from "./job/job.js";
+import { deleteBusyTasks, setTaskCreationDefaults } from "./job/task.js";
 import {
   DataMonitoringFunction,
   DayOfWeek,
   JobStatus,
   JobType,
-} from "types.js";
-import { setupDebugEndpoints } from "debug-endpoints/endpoints.js";
-import { logger } from "logger.js";
+} from "./types.js";
+import { setupDebugEndpoints } from "./debug-endpoints/endpoints.js";
+import { logger } from "./logger.js";
 
 async function startupProcedure() {
   // Check all endpoints

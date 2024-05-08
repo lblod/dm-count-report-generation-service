@@ -1,9 +1,9 @@
 import { QueryEngine } from "@comunica/query-sparql";
-import { config } from "configuration.js";
-import { TimeOnly } from "date-util.js";
+import { config } from "../configuration.js";
+import { TimeOnly } from "../date-util.js";
 import dayjs from "dayjs";
-import { PREFIXES } from "local-constants.js";
-import { logger } from "logger.js";
+import { PREFIXES } from "../local-constants.js";
+import { logger } from "../logger.js";
 import {
   DeleteAllJobsInput,
   GetJobsInput,
@@ -18,12 +18,12 @@ import {
   insertPeriodicJobTemplate,
   insertRestJobTemplate,
   updateJobStatusTemplate,
-} from "queries/queries.js";
+} from "../queries/queries.js";
 import {
   TemplatedInsert,
   TemplatedSelect,
   TemplatedUpdate,
-} from "queries/templated-query.js";
+} from "../queries/templated-query.js";
 import {
   DataMonitoringFunction,
   DayOfWeek,
@@ -32,7 +32,7 @@ import {
   TaskStatus,
   TaskType,
   getEnumStringFromUri,
-} from "types.js";
+} from "../types.js";
 import { v4 as uuidv4 } from "uuid";
 import { createTask } from "./task.js";
 

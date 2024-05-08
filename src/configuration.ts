@@ -6,8 +6,8 @@ import {
   RESOURCE_CLASS_SHORT_URI_REGEX,
 } from "./local-constants.js"; // Not named 'constants' because of name conflict with node. Same of the nam of this module.
 import { fromError } from "zod-validation-error";
-import { DayOfWeek, LOG_LEVELS, stringToDayOfWeek } from "types.js";
-import { TimeOnly, TIME_ANY_NOTATION_REGEX } from "date-util.js";
+import { DayOfWeek, LOG_LEVELS, stringToDayOfWeek } from "./types.js";
+import { TimeOnly, TIME_ANY_NOTATION_REGEX } from "./date-util.js";
 
 // Extract namespaces and build a conversion function to convert short URI's to full ones
 

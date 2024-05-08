@@ -1,6 +1,6 @@
 import dayjs from "dayjs";
-import { logger } from "logger.js";
-import { LogLevel } from "types.js";
+import { logger } from "../logger.js";
+import { LogLevel } from "../types.js";
 
 /**
  * Measures the execution duration of the wrapped async function using dayjs diff and prints info

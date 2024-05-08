@@ -1,15 +1,15 @@
 import { Request, RequestHandler, Response } from "express";
 import fs from "node:fs";
 import Handlebars from "handlebars";
-import { PeriodicJob, RestJob, getJobs } from "job/job.js";
-import { getTasks } from "job/task.js";
+import { PeriodicJob, RestJob, getJobs } from "../job/job.js";
+import { getTasks } from "../job/task.js";
 import {
   DataMonitoringFunction,
   DayOfWeek,
   JobStatus,
   JobType,
   getEnumStringFromUri,
-} from "types.js";
+} from "../types.js";
 import { TimeOnly } from "date-util.js";
 
 const showJobsTemplate = Handlebars.compile(

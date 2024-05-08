@@ -1,4 +1,4 @@
-import { DataMonitoringFunction } from "types.js";
+import { DataMonitoringFunction } from "../types.js";
 import { TaskFunction } from "./task.js";
 import { generateReportsDaily } from "./generate-reports-daily.js";
 

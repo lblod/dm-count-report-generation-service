@@ -1,6 +1,6 @@
 import { QueryEngine } from "@comunica/query-sparql";
-import { config } from "configuration.js";
-import { PREFIXES } from "local-constants.js";
+import { config } from "../configuration.js";
+import { PREFIXES } from "../local-constants.js";
 import {
   GetGoveringBodiesInput,
   GetGoveringBodiesOutput,
@@ -8,8 +8,8 @@ import {
   GetOrganisationsOutput,
   getGoverningBodiesOfAdminUnitTemplate,
   getOrganisationsTemplate,
-} from "queries/queries.js";
-import { TemplatedSelect, delay } from "queries/templated-query.js";
+} from "../queries/queries.js";
+import { TemplatedSelect, delay } from "../queries/templated-query.js";
 
 type OrganisationsAndGovBodies = {
   adminUnits: {

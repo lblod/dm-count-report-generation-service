@@ -1,8 +1,8 @@
-import { config } from "configuration.js";
+import { config } from "../configuration.js";
 import dayjs from "dayjs";
 import express, { Express, Request, Response } from "express";
 import fs from "node:fs";
-import { clearStore, dumpStore } from "queries/store.js";
+import { clearStore, dumpStore } from "../queries/store.js";
 import { z } from "zod";
 import {
   addDebugEndpoint,
@@ -11,10 +11,10 @@ import {
   debugHtmlRenderMiddleware,
 } from "./middleware.js";
 import Handlebars from "handlebars";
-import { deleteAllJobs } from "job/job.js";
+import { deleteAllJobs } from "../job/job.js";
 import { showJobs, startTask } from "./functions.js";
-import { getTasks } from "job/task.js";
-import { logger } from "logger.js";
+import { getTasks } from "../job/task.js";
+import { logger } from "../logger.js";
 
 const debugIndexHtml = fs.readFileSync("./templates/debug.html", {
   encoding: "utf-8",

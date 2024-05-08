@@ -1,4 +1,4 @@
-import { config, PREFIXES_RECORD } from "configuration.js";
+import { config, PREFIXES_RECORD } from "../configuration.js";
 import N3 from "n3";
 import fs from "node:fs";
 

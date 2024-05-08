@@ -14,11 +14,14 @@ import {
   countVoteQueryTemplate,
   writeAdminUnitCountReportTemplate,
   writeCountReportQueryTemplate,
-} from "queries/queries.js";
-import { TemplatedInsert, TemplatedSelect } from "queries/templated-query.js";
+} from "../queries/queries.js";
+import {
+  TemplatedInsert,
+  TemplatedSelect,
+} from "../queries/templated-query.js";
 import { TaskFunction } from "./task.js";
 import { getOrgResoucesCached } from "./get-org-data.js";
-import { queryEngine } from "queries/query-engine.js";
+import { queryEngine } from "../queries/query-engine.js";
 import { config } from "configuration.js";
 import { timingWrapper } from "util/util.js";
 import { PREFIXES } from "local-constants.js";

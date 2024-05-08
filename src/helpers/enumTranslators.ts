@@ -6,7 +6,7 @@ import {
   TaskStatus,
   TaskType,
   getEnumStringFromUri,
-} from "types.js";
+} from "../types.js";
 import Handlebars from "handlebars";
 
 function createToSparqlLiteralHelper(

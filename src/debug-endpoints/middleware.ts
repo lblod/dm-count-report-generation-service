@@ -3,8 +3,8 @@ import { z, ZodSchema } from "zod";
 import { fromError } from "zod-validation-error";
 import fs from "node:fs";
 import Handlebars from "handlebars";
-import { durationWrapper } from "util/util.js";
-import { logger } from "logger.js";
+import { durationWrapper } from "../util/util.js";
+import { logger } from "../logger.js";
 
 const debugResultTemplate = Handlebars.compile(
   fs.readFileSync("./templates/debug-output.hbs", { encoding: "utf-8" })

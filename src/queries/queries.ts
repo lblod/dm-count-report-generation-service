@@ -1,7 +1,7 @@
 import Handlebars from "handlebars";
 import dayjs from "dayjs";
 import "./../helpers/index.js"; // Making sure the modules in the helpers folder are loaded before these templates are compiled
-import { DateOnly, TimeOnly } from "date-util.js";
+import { DateOnly, TimeOnly } from "../date-util.js";
 import {
   DataMonitoringFunction,
   DayOfWeek,
@@ -9,7 +9,7 @@ import {
   JobType,
   TaskStatus,
   TaskType,
-} from "types.js";
+} from "../types.js";
 
 export type TestQueryInput = {};
 export type TestQueryOutput = {

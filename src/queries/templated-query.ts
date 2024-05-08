@@ -4,8 +4,8 @@ import { config } from "../configuration.js";
 import { DateOnly, TimeOnly } from "../date-util.js";
 import dayjs from "dayjs";
 import { store } from "./store.js";
-import { DmEnum } from "types.js";
-import { logger } from "logger.js";
+import { DmEnum } from "../types.js";
+import { logger } from "../logger.js";
 
 const SKIP_PREFIX_REGEX = /^PREFIX[.\w\s:<>/\-#]+PREFIX[.\w\s:<>/\-#]+\n/g;
 
