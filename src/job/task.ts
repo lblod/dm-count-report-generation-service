@@ -1,6 +1,6 @@
 import { QueryEngine } from "@comunica/query-sparql";
-import { PREFIXES } from "local-constants.js";
-import { logger } from "logger.js";
+import { PREFIXES } from "../local-constants.js";
+import { logger } from "../logger.js";
 import {
   DeleteBusyTasksInput,
   UpdateTaskStatusInput,
@@ -22,8 +22,8 @@ import {
 } from "../types.js";
 import { EventEmitter } from "node:events";
 import dayjs from "dayjs";
-import { config } from "configuration.js";
-import { durationWrapper } from "util/util.js";
+import { config } from "../configuration.js";
+import { durationWrapper } from "../util/util.js";
 import { TASK_FUNCTIONS } from "./task-functions-map.js";
 import { Job } from "./job.js";
 import { v4 as uuidv4 } from "uuid";

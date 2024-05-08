@@ -1,13 +1,20 @@
 #!/bin/bash
 
+docker container
+
+docker container rm count-report-test
+docker image rm dm-count-report-generation-service:experimental
+
+set -e
+
 docker build \
   --no-cache \
   -t dm-count-report-generation-service:experimental \
   .
 
 docker run \
-  --volume /Users/dv/Documents/abb/dm-count-report-generation-service:/app/ \
   --volume /Users/dv/Documents/abb/dm-count-report-generation-service/test-config:/config/ \
+  --volume /Users/dv/Documents/abb/dm-count-report-generation-service/dumps:/dump/ \
   --env NODE_ENV="development" \
   --env DISABLE_DEBUG_ENDPOINT="false" \
   --env ADMIN_UNIT_ENDPOINT="http://localhost:8890/sparql" \
@@ -17,6 +24,7 @@ docker run \
   --env SERVER_PORT=4199 \
   --hostname "dm-count-report-generation-service" \
   --network="host" \
+  --name="count-report-test" \
   -it \
   dm-count-report-generation-service:experimental \
 

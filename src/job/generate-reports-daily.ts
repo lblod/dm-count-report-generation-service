@@ -22,10 +22,10 @@ import {
 import { TaskFunction } from "./task.js";
 import { getOrgResoucesCached } from "./get-org-data.js";
 import { queryEngine } from "../queries/query-engine.js";
-import { config } from "configuration.js";
-import { timingWrapper } from "util/util.js";
-import { PREFIXES } from "local-constants.js";
-import { DateOnly } from "date-util.js";
+import { config } from "../configuration.js";
+import { timingWrapper } from "../util/util.js";
+import { PREFIXES } from "../local-constants.js";
+import { DateOnly } from "../date-util.js";
 import dayjs from "dayjs";
 import { v4 as uuidv4 } from "uuid";
 

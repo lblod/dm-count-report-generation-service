@@ -22,6 +22,7 @@ COPY package*.json .
 
 RUN npm ci --only=production --no-audit
 
-COPY --from=build /app/dist ./dist
+COPY --from=build /app/dist/ /app/
+COPY --from=build /app/templates/ /app/templates/
 
-CMD ["node", "dist/index.js"]
+CMD ["node", "index.js"]
