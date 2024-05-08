@@ -9,13 +9,8 @@ import {
   insertTaskTemplate,
   updateTaskStatusTemplate,
 } from "queries/queries.js";
+import { TemplatedInsert, TemplatedUpdate } from "queries/templated-query.js";
 import {
-  TemplatedInsert,
-  TemplatedSelect,
-  TemplatedUpdate,
-} from "queries/templated-query.js";
-import {
-  DataMonitoringFunction,
   LogLevel,
   ProgressMessage,
   TaskStatus,

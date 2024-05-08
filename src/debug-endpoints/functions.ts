@@ -8,7 +8,6 @@ import {
   DayOfWeek,
   JobStatus,
   JobType,
-  TaskType,
   getEnumStringFromUri,
 } from "types.js";
 import { TimeOnly } from "date-util.js";
@@ -41,8 +40,6 @@ type JobRecord<T extends JobType> = {
     ? RestJobInfo
     : undefined;
 };
-
-type JobsOutput = [];
 
 function printInvocationInformation(
   timeOfInvocation: TimeOnly,

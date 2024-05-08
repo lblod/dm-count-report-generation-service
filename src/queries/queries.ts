@@ -279,6 +279,7 @@ export type WriteReportInput = {
   counts: {
     classUri: string;
     count: number;
+    prefLabel: string;
   }[];
 };
 
@@ -289,7 +290,7 @@ INSERT {
   GRAPH <{{reportGraphUri}}> {
     <{{reportUri}}> a datamonitoring:GoverningBodyCountReport;
       datamonitoring:createdAt {{toDateTimeLiteral createdAt}};
-      datamonitoring:day: {{toDateLiteral day}};
+      datamonitoring:day {{toDateLiteral day}};
       datamonitoring:targetAdminitrativeUnit <{{adminUnitUri}}>;
       datamonitoring:targetGoverningBody <{{govBodyUri}}>;
       skos:prefLabel "{{prefLabel}}";
@@ -297,8 +298,10 @@ INSERT {
       datamonitoring:counts
       {{#each counts}}
         [
+          a datamonitoring:Count;
           datamonitoring:targetClass <{{this.classUri}}>;
-          datamonitoring:count {{this.count}}
+          datamonitoring:count {{this.count}};
+          skos:prefLabel "{{prefLabel}}";
         ]{{#unless @last}},{{/unless}}
      {{/each}}
   }

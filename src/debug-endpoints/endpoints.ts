@@ -1,5 +1,4 @@
 import { config } from "configuration.js";
-import { DateOnly, DATE_ISO_REGEX } from "date-util.js";
 import dayjs from "dayjs";
 import express, { Express, Request, Response } from "express";
 import fs from "node:fs";
@@ -12,7 +11,7 @@ import {
   debugHtmlRenderMiddleware,
 } from "./middleware.js";
 import Handlebars from "handlebars";
-import { deleteAllJobs, getJobs } from "job/job.js";
+import { deleteAllJobs } from "job/job.js";
 import { showJobs, startTask } from "./functions.js";
 import { getTasks } from "job/task.js";
 import { logger } from "logger.js";
@@ -24,19 +23,6 @@ const debugIndexHtml = fs.readFileSync("./templates/debug.html", {
 const staticIndexTemplate = Handlebars.compile(
   fs.readFileSync("./templates/static-index.hbs", { encoding: "utf-8" })
 );
-
-const generateReportQuerySchema = z
-  .object({
-    day: z
-      .string()
-      .regex(
-        DATE_ISO_REGEX,
-        "Day parameter needs to be ISO formatted YYYY-MM-DD."
-      )
-      .transform((string) => new DateOnly(string))
-      .optional(),
-  })
-  .strict();
 
 const storeDumpQuerySchema = z
   .object({

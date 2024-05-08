@@ -11,7 +11,9 @@ import { LogLevel } from "types.js";
  * @param now The start time used. This is optional. It will take the current time by default.
  * @returns Promise with a return value of an object with two keys. Key 'result' with the result of the wrapped function and key 'duration' with the duration in seconds
  */
-export async function durationWrapper<F extends (...args: any) => Promise<any>>(
+export async function durationWrapper<
+  F extends (...args: any[]) => Promise<any>
+>(
   wrapped: F,
   logLevel: LogLevel,
   ...wrappedArgs: Parameters<F>
@@ -58,7 +60,7 @@ export async function durationWrapper<F extends (...args: any) => Promise<any>>(
  * @param wrappedArgs the arguments to pass to the wrapped function
  * @returns An object with two keys 'result' and 'durationMilliseconds'.
  */
-export async function timingWrapper<F extends (...args: any) => Promise<any>>(
+export async function timingWrapper<F extends (...args: any[]) => Promise<any>>(
   wrapped: F,
   ...wrappedArgs: Parameters<F>
 ): Promise<{

@@ -23,7 +23,7 @@ export function isJsonSerializable(input: any): input is JsonSerializable {
   );
 }
 
-function replacer(key: string, value: any): JsonSerializable {
+function replacer(_key: string, value: any): JsonSerializable {
   if (typeof value === "object") {
     if (value instanceof DateOnly) return value.toString();
     if (value instanceof TimeOnly) return value.toString();

@@ -1,7 +1,6 @@
 import {
   DataMonitoringFunction,
   DayOfWeek,
-  DmEnum,
   JobStatus,
   JobType,
   TaskStatus,

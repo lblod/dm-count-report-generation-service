@@ -190,18 +190,22 @@ export const generateReportsDaily: TaskFunction = async (
             {
               classUri: `http://data.vlaanderen.be/ns/besluit#Zitting`,
               count: sessionsResult.count,
+              prefLabel: `Count of 'Zitting'`,
             },
             {
               classUri: `http://data.vlaanderen.be/ns/besluit#Agendapunt`,
               count: agendaItemResult.count,
+              prefLabel: `Count of 'Agendapunt'`,
             },
             {
               classUri: `http://data.vlaanderen.be/ns/besluit#Besluit`,
               count: resolutionResult.count,
+              prefLabel: `Count of 'Besluit'`,
             },
             {
               classUri: `http://data.vlaanderen.be/ns/besluit#Stemming`,
               count: voteResult.count,
+              prefLabel: `Count of 'Stemming'`,
             },
           ],
         });

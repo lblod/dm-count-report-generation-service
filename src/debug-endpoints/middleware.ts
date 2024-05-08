@@ -4,7 +4,6 @@ import { fromError } from "zod-validation-error";
 import fs from "node:fs";
 import Handlebars from "handlebars";
 import { durationWrapper } from "util/util.js";
-import dayjs from "dayjs";
 import { logger } from "logger.js";
 
 const debugResultTemplate = Handlebars.compile(
@@ -13,9 +12,9 @@ const debugResultTemplate = Handlebars.compile(
 const errorResultTemplate = Handlebars.compile(
   fs.readFileSync("./templates/error-output.hbs", { encoding: "utf-8" })
 );
-const progressTemplate = Handlebars.compile(
-  fs.readFileSync("./templates/progress-output.hbs", { encoding: "utf-8" })
-);
+// const progressTemplate = Handlebars.compile(
+//   fs.readFileSync("./templates/progress-output.hbs", { encoding: "utf-8" })
+// );
 
 /**
  * Function to make express middleware that validates the query parameters according to a zod schema
