@@ -156,7 +156,7 @@ If you wish to change the queries and/or add query invocations you'll need to kn
 
 In order to write a new query add one in `report-generation/queries.ts` or another file.
 
-Fist write a query using [handlebars](https://handlebarsjs.com/) like this:
+First write a query using [handlebars](https://handlebarsjs.com/) like this:
 
 ```typescript
 export const mySelectQueryTemplate = Handlebars.compile(`\
@@ -185,16 +185,16 @@ export type MySelectQueryInput = {
 }
 ```
 
-To ANY variable in the template needs a corresponding key in the type. Feel free to use types like 'DateOnly' of 'TimeOnly' or some enums. In this case you will need the literal helper which converts the type to an RDF literal (`"Serial"^^"xsd:Type"`).
+Include ANY variable referenced in the template with its type. Feel free to use types like 'DateOnly' of 'TimeOnly' or some enums. In this case you will need the literal helper which converts the type to an RDF literal (shaped like `"serialnotation"^^"xsd:Type"`).
 
 | Variabele type | Helper | Type Notation | Handlebars notation |
 | :--- | :--- | :--- | :--- |
-| `DateOnly` | `toDateLiteral` | `exampleDate:DateOnly` | `{{toDateLiteral exampleDate}}` |
-| `TimeOnly` | `toTimeLiteral` | `exampleTime:TimeOnly` | `{{toDateLiteral exampleTime}}` |
-| `Dayjs` | `toDateTimeLiteral` | `exampleDateTime:DayJs` | `{{toDateTimeLiteral exampleDateTime}}` |
-| `TaskStatus` | `toTaskStatusLiteral` | `exampleStatus:TaskStatus` | `{{toTaskStatusLiteral exampleStatus}}` |
+| `DateOnly` | `toDateLiteral` | `exampleDate:DateOnly;` | `{{toDateLiteral exampleDate}}` |
+| `TimeOnly` | `toTimeLiteral` | `exampleTime:TimeOnly;` | `{{toDateLiteral exampleTime}}` |
+| `Dayjs` | `toDateTimeLiteral` | `exampleDateTime:DayJs;` | `{{toDateTimeLiteral exampleDateTime}}` |
+| `TaskStatus` | `toTaskStatusLiteral` | `exampleStatus:TaskStatus;` | `{{toTaskStatusLiteral exampleStatus}}` |
 
-The last row in the table in an enum value. Other enums such as `TaskType`, `JobStatus`, `JobType`, `DayOfWeek` and `DatamonitoringFunction` are also supported in a similar way.
+The last row in the table is an enum value. Other enums such as `TaskType`, `JobStatus`, `JobType`, `DayOfWeek` and `DatamonitoringFunction` are also supported in a similar way.
 
 The output is linked to the selected variables after the `SELECT` keyword. In this case.
 
@@ -206,16 +206,16 @@ export type MySelectQueryOutput = {
 }
 ```
 
-In this type structure you can also use TimeOnly, DateOnly, Dayjs(modeling a timestamp) and enums. When parsing the bindings after querying the objects function will automatically convert the function to the correct type because the linked data has type information. Of course you can just use strings and number without helpers. Remember that Handlebars is 'dumb'. Whatever template you write will need to be correct SPARQL. So putting URI's in your query will require you not to forget the `<` and `>` characters.
+In this type structure you can also use TimeOnly, DateOnly, Dayjs(modeling a timestamp) and enums. When parsing the bindings after invoking the `objects` method of the `TemplatedSelect` instance will automatically convert the variables to the correct type because the linked data has type information. Of course you can just use strings and number without helpers. Remember that Handlebars is 'dumb'. Whatever template you write will need to be correct SPARQL. So putting URI's in your query will require you not to forget the `<` and `>` characters.
 
-Then, in another file where you want to execute the query, you'll instantiate the TemplatedSelect class.
+Then, in another file where you want to execute the query, you'll instantiate the `TemplatedSelect` class.
 
 ```typescript
 const mySelectQuery = new TemplatedSelect<
   MySelectQueryInput, // Input type parameter
   MySelectQueryOutput, // Output type parameter
 >(
-  queryEngine, // The comunica query engine. Get it from query-engine.ts module
+  queryEngine, // The comunica query engine. Get it from query-engine.ts module in most cases. Unless you know what your're doing
   endpoint, // URL of endpoint; typically ending in '/sparql'
   mySelectQueryTemplate, // The handlebars template you exported earlier
 );
@@ -227,10 +227,10 @@ Now this query machine is ready to go. You can launch it in two ways:
 * `await mySelectQuery.bindings(input)`: Get results as an array of comunica bindings.
 * `await mySelectQuery.objects('resourceUri', input)`: Get results as an array of javascript objects in the shape of `MySelectQueryOutput[]` in the example.
 
-The objects function needs to map the bindings onto a list of objects modeling resources. In order to do that it needs a key that is the URI of the resource being returned. Now we can perform the query using the objects function and get results.
+The `objects` method needs to map the bindings onto a list of objects modeling resources. In order to do that it needs a key that is the URI of the resource being returned. Now we can perform the query using the objects function and get results.
 
 ```typescript
-// Perform the query and get the results as objects.
+// Perform the query and get the results as objects. Pass the input
 const result = await mySelectQuery.objects('resourceUri', {
   prefixes: PREFIXES,
   classUri: 'http://whatever.com/ns/examples/classes/Example',
@@ -243,7 +243,7 @@ for (const row of result) {
 }
 ```
 
-`result` is an array of objects of the type `MySelectQueryOutput`.
+`result` is an array of objects of the type `MySelectQueryOutput`. Again: Some complex objects are created automatically for you.
 
 ![](./docs/image.png)
 
@@ -261,7 +261,7 @@ const result = await mySelectQuery.objects({
 
 Because of the way the templated query system was designed you should get full type checking at compile time. I hope it helps to prevent bugs.
 
-If you have a query which returns only one row (many count queries) you can use the result function which does not try to map to a list of objects but just gives you one `MySelectQueryOutput` record. Be mindful that this function will throw if more then one row is returned. If you want to do your own thing just use the `bindings` function to get the result as Comunica bindings.
+If you have a query which returns only one row (most count queries) you can use the `result` method which does not try to map to a list of objects but just gives you one `MySelectQueryOutput` record. Be mindful that this function will throw if more then one row is returned. If you want to do your own thing just use the `bindings` function to get the result as Comunica bindings.
 
 ```typescript
 // If you only want the first row do this:
@@ -269,18 +269,100 @@ const first = await mySelectQuery.result(input)
 ```
 `INSERT` queries are similar to `SELECT` ones but give no output. They only have an input type and to invoke them you need to call the `execute` function.
 
-For queries that ONLY insert data you should use the `TemplatedInsert` class. For queries that modify or update data you'll have to use the `TemplatedUpdate` class. The only difference between the two is that the `TemplatedInsert` class writes the triples to a memory store as well for debugging. `TemplatedUpdate` just executes queries that do whatever and return no output.
+For queries that ONLY insert data you should use the `TemplatedInsert` class. For queries that modify or update data you'll have to use the `TemplatedUpdate` class. The only difference between the two is that the `TemplatedInsert` class writes the triples to a memory store as well for debugging. `TemplatedUpdate` just executes queries exactly like `TemplatedInsert` but without the logging.
+
+Example of INSERT query:
+
+```typescript
+const myInsertQuery = new TemplatedInsert<{prefixes:string}>(
+  queryEngine,
+  endpoint,
+  myInsertQueryTemplate, // Handlebars template with only prefixes as a variabele
+)
+await myInsertQuery.execute({
+  prefixes: PREFIXES,
+});
+// No output. If execute does not throw you can assume it worked.
+```
 
 ### Async wrappers
 
-The util package contains some handy dandy wrapper functions that all work the same way. Because of the nature of this service there are to functionalities that are often needed:
+The util package contains some handy dandy wrapper functions that all work the same way. Because of the nature of this service there are two functionalities that are often needed:
 
 * Retrying: You'll want some database queries to be able to be retried a couple of times because SPARQL endpoints can be be glitchy sometimes.
 * Timing: You'll want to know how long some queries take (milliseconds) and how long some long running functions take (seconds)
 
 These are the wrapper functions in the util package.
 
-* `
+* `longDuration`: For wrapping very long running async functions. Measures time in seconds using the javascript Date system
+* `duration`: For wrapping shorter running async functions. Measures time accurately in milliseconds using the nodejs `perf_hooks` system.
+* `retry`: For wrapping async functions that need to be retried a couple of times on error. When the max number of retries is exceeded the original error will be thrown with a modified message.
+
+The util package also exports a simple `delay` function.
+
+Imagine this is your async function:
+
+```typescript
+async function example(input:string): Promise<string> {
+  await delay(10_000); // Wait 10 seconds
+  return `Modified ${input}`;
+}
+```
+
+If you want to time measure it:
+
+```typescript
+const measured = await duration(example)("Input string");
+const durationMilliseconds = measured.durationMilliseconds; // Around 10k millis
+const result = measured.result; // "Modified Input string" 
+```
+
+If the function is very long running:
+
+```typescript
+const measured = await longDuration(example)("Input string");
+const durationSeconds = measured.durationSeconds; // Around 10
+const result = measured.result; // "Modified Input string" 
+```
+
+If you want to retry the function 5 times and wait for a second after each failed try:
+
+```typescript
+const retried = await retry(example,5,1_000)("Input string");
+const triesNeeded = retried.retries; // 0 in this case
+const result = retried.result; // "Modified Input string" 
+```
+
+For the retry function you can skip the last two parameters to use the defaults from the env vars.
+
+```typescript
+const retried = await retry(example)("Input string");
+```
+
+As you can see the functions return another function which takes the same arguments as the wrapped function and return a data structure like this:
 
 
+```
+{
+  result: <The wrapped function's output>
+  information: <Extra information; such as the duration of execution or the number of retries it took to succeed>
+}
+```
 
+When the wrapped function throws the returned function will throw the same error but with a little more information in the error message such as the duration of execution before erroring out of the amount of tries that were attempted. The wrappers do not support function that throw anything other than `Error` instances.
+
+You can also nest them:
+
+```typescript
+const functionWithRetriesAndTimemesurement = duration(retry(wrappedFunction));
+const output = functionWithRetriesAndTimemesurement(arg1OfWrappedFunction, Arg2OfWrappedFunction);
+const result = output.result.result;
+```
+
+You can nest retries. Imagine you want to try 3 times and wait for a second after each failure. When that fails you want to wait a minute and try the whole thing again two times.
+
+```typescript
+const functionWithAlotOfRetrying = retry(retry(wrappedfunction,3,1_000),2,60_000);
+```
+
+Easy.
