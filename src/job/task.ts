@@ -19,11 +19,12 @@ import {
   TaskStatus,
   TaskType,
   UpdateMessage,
+  getEnumStringFromUri,
 } from "../types.js";
 import { EventEmitter } from "node:events";
 import dayjs from "dayjs";
 import { config } from "../configuration.js";
-import { durationWrapper } from "../util/util.js";
+import { longDuration } from "../util/util.js";
 import { TASK_FUNCTIONS } from "./task-functions-map.js";
 import { Job } from "./job.js";
 import { v4 as uuidv4 } from "uuid";
@@ -61,13 +62,17 @@ class TaskProgress {
     this._logLevel = logLevel;
     this._eventEmitter = new EventEmitter();
   }
-  update(...args: any[]) {
-    logger.log(this._logLevel, ...args);
-    if (args.length === 0)
-      throw new Error(`Cannot send update with no arguments`);
+  update(message: string) {
+    logger.log(
+      this._logLevel,
+      `TASK UPDATE ${getEnumStringFromUri(
+        this._task.datamonitoringFunction,
+        false
+      )}: ${message}`
+    );
     const updateMessage: UpdateMessage = {
       timestamp: dayjs().format(),
-      message: JSON.stringify(args),
+      message,
     };
     this._eventEmitter.emit(`update`, updateMessage);
   }
@@ -95,7 +100,7 @@ class TaskProgress {
   }
   // Todo: Type check?
   async return(result: any) {
-    (logger.log as any)(
+    logger.log(
       this._logLevel,
       `Status change of task ${this._task.uuid} to Finished`
     );
@@ -108,7 +113,7 @@ class TaskProgress {
     this._eventEmitter.emit(`status`, statusMessage);
   }
   async error(error: object | number | string | boolean | Error) {
-    (logger.log as any)(
+    logger.log(
       this._logLevel,
       `Status change of task ${this._task.uuid} to Error`
     );
@@ -220,12 +225,11 @@ export class Task {
       await this.updateStatus(TaskStatus.BUSY);
     }
     await this._progress.start();
-    const promise = durationWrapper(
+    // We do not await. We keep the promise because this is a very, very long running task.
+    const promise = longDuration(
       TASK_FUNCTIONS[this.datamonitoringFunction],
-      "verbose",
-      this._progress,
-      ...args
-    );
+      "verbose"
+    )(this._progress, ...args);
     this._promises.push(promise);
   }
 

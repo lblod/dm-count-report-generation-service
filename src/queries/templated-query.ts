@@ -1,7 +1,7 @@
 import { QueryEngine } from "@comunica/query-sparql";
 import { Bindings, Term } from "@rdfjs/types";
 import { config } from "../configuration.js";
-import { DateOnly, TimeOnly } from "../date-util.js";
+import { DateOnly, TimeOnly } from "../util/date-time.js";
 import dayjs from "dayjs";
 import { store } from "./store.js";
 import { DmEnum } from "../types.js";
@@ -21,16 +21,6 @@ export function logQuery(endpoint: string, query: string, noPrefixes = true) {
   logger.verbose(
     `SPARQL query to endpoint: ${endpoint}\n- - - - - - \n${toPrint}\n- - - - - - `
   );
-}
-
-/**
- * Uses setimeout to halt execution for 'millis' milliseconds asynchronously
- * @param millis number in mullisec
- * @returns A promise
- */
-export function delay(millis: number): Promise<void> {
-  if (millis === 0) return Promise.resolve();
-  return new Promise<void>((res) => setTimeout(res, millis));
 }
 
 export type GetOrganisationsInput = {

@@ -7,7 +7,8 @@ import {
 } from "./local-constants.js"; // Not named 'constants' because of name conflict with node. Same of the nam of this module.
 import { fromError } from "zod-validation-error";
 import { DayOfWeek, LOG_LEVELS, stringToDayOfWeek } from "./types.js";
-import { TimeOnly, TIME_ANY_NOTATION_REGEX } from "./date-util.js";
+import { TimeOnly, TIME_ANY_NOTATION_REGEX } from "./util/date-time.js";
+import { setDefaultRetriesAndWaitTime } from "util/util.js";
 
 // Extract namespaces and build a conversion function to convert short URI's to full ones
 
@@ -116,6 +117,8 @@ const dmReportGenerationServiceEnvSchema = z.object({
   LOG_LEVEL: z.enum(LOG_LEVELS).optional(),
   NO_TIME_FILTER: envBooleanSchema.optional(),
   DUMP_FILES_LOCATION: z.string().optional(),
+  QUERY_MAX_RETRIES: z.number().int().min(0).max(10),
+  QUERY_WAIT_TIME_ON_FAIL: z.number().int().min(0).max(60_000),
 });
 
 // Useful types
@@ -155,6 +158,8 @@ const defaultEnv = {
   LOG_LEVEL: "info" as const,
   NO_TIME_FILTER: false,
   DUMP_FILES_LOCATION: "/dump",
+  QUERY_MAX_RETRIES: 3,
+  QUERY_WAIT_TIME_ON_FAIL: 1000,
 };
 
 const envResult = dmReportGenerationServiceEnvSchema.safeParse(process.env);
@@ -190,6 +195,12 @@ const endpointConfig: EndpointConfig[] = fileResult.data.endpoints.map(
       classes: fileEndpoint.classes.map(convertUri),
     };
   }
+);
+
+//Set defaults for retry function
+setDefaultRetriesAndWaitTime(
+  defaultEnv.QUERY_MAX_RETRIES,
+  defaultEnv.QUERY_WAIT_TIME_ON_FAIL
 );
 
 export const config: DmReportGenerationServiceConfig = {

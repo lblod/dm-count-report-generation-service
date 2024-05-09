@@ -9,7 +9,8 @@ import {
   getGoverningBodiesOfAdminUnitTemplate,
   getOrganisationsTemplate,
 } from "../queries/queries.js";
-import { TemplatedSelect, delay } from "../queries/templated-query.js";
+import { TemplatedSelect } from "../queries/templated-query.js";
+import { delay } from "../util/util.js";
 
 type OrganisationsAndGovBodies = {
   adminUnits: {

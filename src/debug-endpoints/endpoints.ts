@@ -93,12 +93,6 @@ export function setupDebugEndpoints(app: Express) {
       // Add them
       for (const [kind, listener] of Object.entries(listenerFunctions))
         task.eventEmitter.addListener(kind, listener);
-      logger.debug(
-        "Added listeners. Count is: ",
-        task.eventEmitter.listenerCount("update"),
-        task.eventEmitter.listenerCount("progress"),
-        task.eventEmitter.listenerCount("status")
-      );
 
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Content-Type", "text/event-stream");

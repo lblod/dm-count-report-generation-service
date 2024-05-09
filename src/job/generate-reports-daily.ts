@@ -23,9 +23,9 @@ import { TaskFunction } from "./task.js";
 import { getOrgResoucesCached } from "./get-org-data.js";
 import { queryEngine } from "../queries/query-engine.js";
 import { config } from "../configuration.js";
-import { timingWrapper } from "../util/util.js";
+import { duration } from "../util/util.js";
 import { PREFIXES } from "../local-constants.js";
-import { DateOnly } from "../date-util.js";
+import { DateOnly } from "../util/date-time.js";
 import dayjs from "dayjs";
 import { v4 as uuidv4 } from "uuid";
 
@@ -81,22 +81,22 @@ export const generateReportsDaily: TaskFunction = async (
     I extends Record<string, any>,
     O extends Record<string, any>
   >(resource: string, query: TemplatedSelect<I, O>, input: I): Promise<O> {
-    const timed = await timingWrapper(query.result.bind(query), input);
-    progress.progress(++queries, queryCount, timed.durationMilliseconds);
+    const result = await duration(query.result.bind(query))(input);
+    progress.progress(++queries, queryCount, result.durationMilliseconds);
     progress.update(
-      `Performed count for resource "${resource}" in ${timed.durationMilliseconds} ms. Result is ${timed.result}`
+      `Performed count query for resource "${resource}" in ${result.durationMilliseconds} ms.`
     );
-    return timed.result;
+    return result.result;
   }
   async function performInsert<I extends Record<string, any>>(
     resource: string,
     query: TemplatedInsert<I>,
     input: I
   ): Promise<void> {
-    const timed = await timingWrapper(query.execute.bind(query), input);
-    progress.progress(++queries, queryCount, timed.durationMilliseconds);
+    const result = await duration(query.execute.bind(query))(input);
+    progress.progress(++queries, queryCount, result.durationMilliseconds);
     progress.update(
-      `Written '${resource}' in ${timed.durationMilliseconds} ms`
+      `Written '${resource}' in ${result.durationMilliseconds} ms`
     );
   }
 

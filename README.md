@@ -150,6 +150,8 @@ TODO: Overview of reports and their schema.
 
 ## Developing this service further
 
+### The templated query system
+
 If you wish to change the queries and/or add query invocations you'll need to know how the templated query system works.
 
 In order to write a new query add one in `report-generation/queries.ts` or another file.
@@ -162,14 +164,16 @@ export const mySelectQueryTemplate = Handlebars.compile(`\
 
 SELECT ?resourceUri ?label WHERE {
   ?resourceUri a <{{classUri}}>;
-    skos:prefLabel ?label.
+    skos:prefLabel ?label;
+    example:day {{toDateLiteral day}};
+    example:time ?time.
 }
 `, { noEscape:true });
 ```
 
 DON'T forget the 'noEscape: true' part. This is not HTML and we don't want HTML encoding.
 
-It's important to add two typescript types together with this template and export them: one for the input and one for the output.
+It's important to add two typescript types together with a SELECT query and export them: one for the input and one for the output. For INSERT queries you will only need an input type.
 
 The input is what will be passed to the handlebars templating system. In this case:
 
@@ -177,8 +181,20 @@ The input is what will be passed to the handlebars templating system. In this ca
 export type MySelectQueryInput = {
   prefixes: string;
   classUri: string;
+  day: DateOnly;
 }
 ```
+
+To ANY variable in the template needs a corresponding key in the type. Feel free to use types like 'DateOnly' of 'TimeOnly' or some enums. In this case you will need the literal helper which converts the type to an RDF literal (`"Serial"^^"xsd:Type"`).
+
+| Variabele type | Helper | Type Notation | Handlebars notation |
+| :--- | :--- | :--- | :--- |
+| `DateOnly` | `toDateLiteral` | `exampleDate:DateOnly` | `{{toDateLiteral exampleDate}}` |
+| `TimeOnly` | `toTimeLiteral` | `exampleTime:TimeOnly` | `{{toDateLiteral exampleTime}}` |
+| `Dayjs` | `toDateTimeLiteral` | `exampleDateTime:DayJs` | `{{toDateTimeLiteral exampleDateTime}}` |
+| `TaskStatus` | `toTaskStatusLiteral` | `exampleStatus:TaskStatus` | `{{toTaskStatusLiteral exampleStatus}}` |
+
+The last row in the table in an enum value. Other enums such as `TaskType`, `JobStatus`, `JobType`, `DayOfWeek` and `DatamonitoringFunction` are also supported in a similar way.
 
 The output is linked to the selected variables after the `SELECT` keyword. In this case.
 
@@ -186,8 +202,11 @@ The output is linked to the selected variables after the `SELECT` keyword. In th
 export type MySelectQueryOutput = {
   resourceUri: string;
   label: string;
+  timeOfDay: TimeOnly;
 }
 ```
+
+In this type structure you can also use TimeOnly, DateOnly, Dayjs(modeling a timestamp) and enums. When parsing the bindings after querying the objects function will automatically convert the function to the correct type because the linked data has type information. Of course you can just use strings and number without helpers. Remember that Handlebars is 'dumb'. Whatever template you write will need to be correct SPARQL. So putting URI's in your query will require you not to forget the `<` and `>` characters.
 
 Then, in another file where you want to execute the query, you'll instantiate the TemplatedSelect class.
 
@@ -196,18 +215,39 @@ const mySelectQuery = new TemplatedSelect<
   MySelectQueryInput, // Input type parameter
   MySelectQueryOutput, // Output type parameter
 >(
-  queryEngine, // The comunica query engine (look at source)
+  queryEngine, // The comunica query engine. Get it from query-engine.ts module
   endpoint, // URL of endpoint; typically ending in '/sparql'
   mySelectQueryTemplate, // The handlebars template you exported earlier
 );
 ```
 
+
 Now this query machine is ready to go. You can launch it in two ways:
 
 * `await mySelectQuery.bindings(input)`: Get results as an array of comunica bindings.
-* `await mySelectQuery.objects(input)`: Get results as an array of javascript objects in the shape of `MySelectQueryOutput[]` in the example.
+* `await mySelectQuery.objects('resourceUri', input)`: Get results as an array of javascript objects in the shape of `MySelectQueryOutput[]` in the example.
 
-This class works well up to tens of thousands of rows but was not really designed to handle really large amounts of rows. There is no optimization for extremely large result sets at this time.
+The objects function needs to map the bindings onto a list of objects modeling resources. In order to do that it needs a key that is the URI of the resource being returned. Now we can perform the query using the objects function and get results.
+
+```typescript
+// Perform the query and get the results as objects.
+const result = await mySelectQuery.objects('resourceUri', {
+  prefixes: PREFIXES,
+  classUri: 'http://whatever.com/ns/examples/classes/Example',
+  day: DateOnly.yesterday(),
+});
+
+// Print the results
+for (const row of result) {
+  logger.info(`Row. Resource <${row.resourceUri}> with label "${row.label}" and time of day ${timeOfDay.toString()}`);
+}
+```
+
+`result` is an array of objects of the type `MySelectQueryOutput`.
+
+![](./docs/image.png)
+
+This class works well up to tens of thousands of rows but was not really designed to handle really large amounts of rows. There is no optimization for extremely large result sets at this time. This is also not an ORM and it cannot handle relations and/or follow links. It's mostly created because this service will generate a LOT of different queries.
 
 Just one little snippet to complete the example. Here's how you consume the results:
 
@@ -217,13 +257,30 @@ const result = await mySelectQuery.objects({
   prefixes: PREFIXES,
   classUri: "http://data.vlaanderen.be/ns/besluit#Besluit",
 });
-// Print the results
-for (const row of result) {
-  console.log(`Row. Resource <${row.resourceUri}> with label "${row.label}"`);
-}
 ```
 
 Because of the way the templated query system was designed you should get full type checking at compile time. I hope it helps to prevent bugs.
+
+If you have a query which returns only one row (many count queries) you can use the result function which does not try to map to a list of objects but just gives you one `MySelectQueryOutput` record. Be mindful that this function will throw if more then one row is returned. If you want to do your own thing just use the `bindings` function to get the result as Comunica bindings.
+
+```typescript
+// If you only want the first row do this:
+const first = await mySelectQuery.result(input)
+```
+`INSERT` queries are similar to `SELECT` ones but give no output. They only have an input type and to invoke them you need to call the `execute` function.
+
+For queries that ONLY insert data you should use the `TemplatedInsert` class. For queries that modify or update data you'll have to use the `TemplatedUpdate` class. The only difference between the two is that the `TemplatedInsert` class writes the triples to a memory store as well for debugging. `TemplatedUpdate` just executes queries that do whatever and return no output.
+
+### Async wrappers
+
+The util package contains some handy dandy wrapper functions that all work the same way. Because of the nature of this service there are to functionalities that are often needed:
+
+* Retrying: You'll want some database queries to be able to be retried a couple of times because SPARQL endpoints can be be glitchy sometimes.
+* Timing: You'll want to know how long some queries take (milliseconds) and how long some long running functions take (seconds)
+
+These are the wrapper functions in the util package.
+
+* `
 
 
 

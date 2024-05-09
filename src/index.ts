@@ -25,6 +25,7 @@ import {
 } from "./types.js";
 import { setupDebugEndpoints } from "./debug-endpoints/endpoints.js";
 import { logger } from "./logger.js";
+import { retry } from "./util/util.js";
 
 async function startupProcedure() {
   // Check all endpoints
@@ -40,8 +41,8 @@ async function startupProcedure() {
       testQueryTemplate
     );
     try {
-      const result = await testQuery.result({});
-      if (result.result !== 2)
+      const result = await retry(testQuery.result)({});
+      if (result.result.result !== 2)
         throw new Error(
           `The endpoint "${endpoint}" does not know that 1+1=2. Might want to look into that.`
         );

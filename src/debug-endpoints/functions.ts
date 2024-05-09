@@ -10,7 +10,7 @@ import {
   JobType,
   getEnumStringFromUri,
 } from "../types.js";
-import { TimeOnly } from "date-util.js";
+import { TimeOnly } from "util/date-time.js";
 
 const showJobsTemplate = Handlebars.compile(
   fs.readFileSync("./templates/show-jobs.hbs", { encoding: "utf-8" })

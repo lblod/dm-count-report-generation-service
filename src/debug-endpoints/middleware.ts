@@ -3,7 +3,7 @@ import { z, ZodSchema } from "zod";
 import { fromError } from "zod-validation-error";
 import fs from "node:fs";
 import Handlebars from "handlebars";
-import { durationWrapper } from "../util/util.js";
+import { duration } from "../util/util.js";
 import { logger } from "../logger.js";
 
 const debugResultTemplate = Handlebars.compile(
@@ -68,7 +68,7 @@ export function debugHtmlRenderMiddleware(
     title: "Result of function invocation - Success",
     method: req.method + " " + req.originalUrl,
     query: JSON.stringify(req.query),
-    duration: res.locals.result.durationSeconds,
+    duration: res.locals.result.durationMilliseconds,
     result: JSON.stringify(res.locals.result.result, undefined, 3),
   });
   res.send(html);
@@ -176,7 +176,7 @@ export function addSimpleDebugEndpoint(
   method: HttpMethod,
   path: string,
   querySchema: ZodSchema<any, any>,
-  functionToExecute: (query: z.infer<typeof querySchema>) => any
+  functionToExecute: (query: z.infer<typeof querySchema>) => Promise<any>
 ) {
   const middlewares = [
     getZodQueryValidationMiddleware(querySchema),
@@ -187,15 +187,13 @@ export function addSimpleDebugEndpoint(
     ) => {
       // If the function throws the duration wrapper will also throw
       try {
-        const { durationSeconds, result } = await durationWrapper(
-          functionToExecute,
-          "info",
-          [req.query]
-        );
+        const { durationMilliseconds, result } = await duration(
+          functionToExecute
+        )(req.query);
         // Send result
         res.locals.result = {
           success: true,
-          durationSeconds,
+          durationMilliseconds,
           result,
         };
         next();

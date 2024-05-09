@@ -1,9 +1,8 @@
 import { QueryEngine } from "@comunica/query-sparql";
 import { config } from "../configuration.js";
-import { TimeOnly } from "../date-util.js";
+import { TimeOnly } from "../util/date-time.js";
 import dayjs from "dayjs";
 import { PREFIXES } from "../local-constants.js";
-import { logger } from "../logger.js";
 import {
   DeleteAllJobsInput,
   GetJobsInput,
@@ -35,6 +34,7 @@ import {
 } from "../types.js";
 import { v4 as uuidv4 } from "uuid";
 import { createTask } from "./task.js";
+import { retry } from "util/util.js";
 
 export class Job {
   _updateStatusQuery: TemplatedInsert<UpdateJobStatusInput>;
@@ -316,11 +316,14 @@ export async function loadJobs() {
     defaults.endpoint,
     getRestJobsTemplate
   );
-  const periodicJobRecords = await getPeriodicJobsQuery.objects("jobUri", {
-    prefixes: PREFIXES,
-    jobGraphUri: config.env.JOB_GRAPH_URI,
-  });
-  for (const record of periodicJobRecords) {
+  const periodicJobRecords = await retry(getPeriodicJobsQuery.objects)(
+    "jobUri",
+    {
+      prefixes: PREFIXES,
+      jobGraphUri: config.env.JOB_GRAPH_URI,
+    }
+  );
+  for (const record of periodicJobRecords.result) {
     const newJob = new PeriodicJob(
       defaults.queryEngine,
       defaults.endpoint,
@@ -331,15 +334,13 @@ export async function loadJobs() {
       record.timeOfInvocation,
       record.daysOfInvocation
     );
-    logger.debug("periodic", newJob);
     jobs.set(newJob.uri, newJob);
   }
-  const restJobRecords = await getRestJobsQuery.objects("jobUri", {
+  const restJobRecords = await retry(getRestJobsQuery.objects)("jobUri", {
     prefixes: PREFIXES,
     jobGraphUri: config.env.JOB_GRAPH_URI,
   });
-  logger.debug("restJobRecords", restJobRecords);
-  for (const record of restJobRecords) {
+  for (const record of restJobRecords.result) {
     const newJob = new RestJob(
       defaults.queryEngine,
       defaults.endpoint,
@@ -349,7 +350,6 @@ export async function loadJobs() {
       record.datamonitoringFunction,
       record.restPath
     );
-    logger.debug("rest", newJob);
     jobs.set(newJob.uri, newJob);
   }
 }
@@ -364,7 +364,7 @@ export async function deleteAllJobs() {
     defaults.endpoint,
     deleteAllJobsTemplate
   );
-  await deleteAllJobsQuery.execute({
+  await retry(deleteAllJobsQuery.execute)({
     prefixes: PREFIXES,
     jobGraphUri: config.env.JOB_GRAPH_URI,
   });

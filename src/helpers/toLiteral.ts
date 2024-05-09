@@ -1,5 +1,5 @@
 import dayjs from "dayjs";
-import { DateOnly, TimeOnly } from "../date-util.js";
+import { DateOnly, TimeOnly } from "../util/date-time.js";
 import Handlebars from "handlebars";
 
 Handlebars.registerHelper("toDateLiteral", function (dateOnly: unknown) {

@@ -63,7 +63,7 @@
       const { timestamp, message } = eventObject.update;
       const par = document.createElement('p');
       const pre = document.createElement('pre');
-      pre.textContent = timestamp + ": " + JSON.stringify(message);
+      pre.textContent = timestamp + ": " + message;
       par.appendChild(pre);
       logElement.appendChild(par);
       return;
