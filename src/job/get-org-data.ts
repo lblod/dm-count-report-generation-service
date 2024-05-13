@@ -47,6 +47,7 @@ async function getOrgResouces(
   const orgs = await getOrganisationsQuery.objects("organisationUri", {
     prefixes: PREFIXES,
     limit: config.env.LIMIT_NUMBER_ADMIN_UNITS, // 0 means infinite
+    graphUri: config.env.ADMIN_UNIT_GRAPH_URI,
   });
   await delay(config.env.SLEEP_BETWEEN_QUERIES_MS);
 
@@ -56,6 +57,7 @@ async function getOrgResouces(
       {
         prefixes: PREFIXES,
         adminitrativeUnitUri: org.organisationUri, // uri
+        graphUri: config.env.ADMIN_UNIT_GRAPH_URI,
       }
     );
     result.adminUnits.push({

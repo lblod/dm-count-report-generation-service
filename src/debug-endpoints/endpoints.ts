@@ -16,9 +16,11 @@ import { getTasks } from "../job/task.js";
 import { logger } from "../logger.js";
 import { now } from "../util/date-time.js";
 
-const debugIndexHtml = fs.readFileSync("./templates/debug.html", {
-  encoding: "utf-8",
-});
+const debugIndexHtml = Handlebars.compile(
+  fs.readFileSync("./templates/debug.hbs", {
+    encoding: "utf-8",
+  })
+)({});
 
 const staticIndexTemplate = Handlebars.compile(
   fs.readFileSync("./templates/static-index.hbs", { encoding: "utf-8" })

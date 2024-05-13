@@ -105,6 +105,7 @@ const dmReportGenerationServiceEnvSchema = z.object({
   DISABLE_DEBUG_ENDPOINT: envBooleanSchema.optional(),
   REPORT_GRAPH_URI: z.string().optional(),
   JOB_GRAPH_URI: z.string().optional(),
+  ADMIN_UNIT_GRAPH_URI: z.string().optional(),
   CONFIG_FILE_LOCATION: z.string().optional(),
   SLEEP_BETWEEN_QUERIES_MS: envIntegerSchema.optional(),
   SHOW_SPARQL_QUERIES: envBooleanSchema.optional(),
@@ -118,9 +119,11 @@ const dmReportGenerationServiceEnvSchema = z.object({
   DUMP_FILES_LOCATION: z.string().optional(),
   QUERY_MAX_RETRIES: z.number().int().min(0).max(10).optional(),
   QUERY_WAIT_TIME_ON_FAIL: z.number().int().min(0).max(60_000).optional(),
+  ROOT_URL_PATH: z
+    .string()
+    .regex(/(\/[a-z\-/0-9]*)/)
+    .optional(),
 });
-
-// Useful types
 
 export type DmReportGenerationServiceConfigFile = z.infer<
   typeof dmReportGenerationServiceConfigFileSchema
@@ -146,6 +149,7 @@ const defaultEnv = {
   DISABLE_DEBUG_ENDPOINT: false,
   REPORT_GRAPH_URI: "http://mu.semte.ch/graphs/dm-reports",
   JOB_GRAPH_URI: "http://mu.semte.ch/graphs/job",
+  ADMIN_UNIT_GRAPH_URI: "http://mu.semte.ch/graphs/public",
   CONFIG_FILE_LOCATION: "/config",
   SLEEP_BETWEEN_QUERIES_MS: 0,
   SHOW_SPARQL_QUERIES: false,
@@ -159,6 +163,7 @@ const defaultEnv = {
   DUMP_FILES_LOCATION: "/dump",
   QUERY_MAX_RETRIES: 3,
   QUERY_WAIT_TIME_ON_FAIL: 1000,
+  ROOT_URL_PATH: "/counting-service",
 };
 
 const envResult = dmReportGenerationServiceEnvSchema.safeParse(process.env);

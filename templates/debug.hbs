@@ -1,41 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Debug endpoints</title>
 </head>
+
 <body>
   <h1>Debug endpoints</h1>
   <p>These endpoints are only active under development.</p>
   <ul>
     <li>
-      <p><a href="./configuration">/configuration</a></p>
+      <p><a href="{{rel '/configuration'}}">/configuration</a></p>
       <p>Show current configuration as JSON.</p>
     </li>
     <li>
-      <p><a href="./force-error">/force-error</a></p>
+      <p><a href="{{rel '/force-error'}}">/force-error</a></p>
       <p>Force an error to test error catching middleware.</p>
     </li>
     <li>
-      <p><a href="./jobs">/jobs</a></p>
-      <p>Page showing all jobs knwon to the service. If a rest activated job is present a link will be shown to activate it.</p>
+      <p><a href="{{rel '/jobs'}}">/jobs</a></p>
+      <p>Page showing all jobs knwon to the service. If a rest activated job is present a link will be shown to activate
+        it.</p>
     </li>
     <li>
-      <p><a href="./dump">/dump</a></p>
-      <p>Dump the data contained in the write cache as a TTL file. Optional query parameter 'filename' where you can input the file name of the dump file. Do not use an extention.</p>
+      <p><a href="{{rel '/dump'}}">/dump</a></p>
+      <p>Dump the data contained in the write cache as a TTL file. Optional query parameter 'filename' where you can
+        input the file name of the dump file. Do not use an extention.</p>
     </li>
     <li>
-      <p><a href="./clear-store">/clear-store</a></p>
+      <p><a href="{{rel '/clear-store'}}">/clear-store</a></p>
       <p>Clear the write cache where the last reports are cached</p>
     </li>
     <li>
-      <p><a href="./delete-all-jobs">/delete-all-jobs</a></p>
+      <p><a href="{{rel '/delete-all-jobs'}}">/delete-all-jobs</a></p>
       <p>Delete all jobs from the database and from memory.</p>
     </li>
 
     <li>
-      <p><a href="./dump-files">/dump-files</a></p>
+      <p><a href="{{rel '/dump-files'}}">/dump-files</a></p>
       <p>Show index of the created dump files</p>
     </li>
     <li>
@@ -44,4 +48,5 @@
     </li>
   </ul>
 </body>
+
 </html>

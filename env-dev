@@ -15,3 +15,5 @@ export SLEEP_BETWEEN_QUERIES_MS=10
 export DUMP_FILES_LOCATION="/Users/dv/Documents/abb/dm-count-report-generation-service/dumps"
 export REPORT_INVOCATION_TIME="00:00"
 export REPORT_INVOCATION_DAYS="monday,tuesday,wednesday,thursday,friday,saturday,sunday"
+export ROOT_URL_PATH="/"
+
