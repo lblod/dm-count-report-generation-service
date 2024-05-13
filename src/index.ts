@@ -41,7 +41,8 @@ async function startupProcedure() {
       testQueryTemplate
     );
     try {
-      const result = await testQuery.result({});
+      // Try lots of times because the database might not be up yet
+      const result = await testQuery.result({}, 10, 1000);
       if (result.result !== 2)
         throw new Error(
           `The endpoint "${endpoint}" does not know that 1+1=2. Might want to look into that.`

@@ -372,12 +372,18 @@ export class TemplatedSelect<
    * @param input Handlebars input
    * @returns A single object
    */
-  async result(input: T): Promise<U> {
+  async result(
+    input: T,
+    retries: undefined | number = undefined,
+    waitMilliseconds: undefined | number = undefined
+  ): Promise<U> {
     const query = this.getQuery(input);
     const bindingsStream = await (async () => {
       try {
         const bindings = await retry(
-          this.queryEngine.queryBindings.bind(this.queryEngine)
+          this.queryEngine.queryBindings.bind(this.queryEngine),
+          retries,
+          waitMilliseconds
         )(query, {
           sources: [this.endpoint],
           lenient: true,
