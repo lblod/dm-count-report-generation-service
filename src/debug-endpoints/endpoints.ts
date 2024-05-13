@@ -1,5 +1,4 @@
 import { config } from "../configuration.js";
-import dayjs from "dayjs";
 import express, { Express, Request, Response } from "express";
 import fs from "node:fs";
 import { clearStore, dumpStore } from "../queries/store.js";
@@ -15,6 +14,7 @@ import { deleteAllJobs } from "../job/job.js";
 import { showJobs, startTask } from "./functions.js";
 import { getTasks } from "../job/task.js";
 import { logger } from "../logger.js";
+import { now } from "../util/date-time.js";
 
 const debugIndexHtml = fs.readFileSync("./templates/debug.html", {
   encoding: "utf-8",
@@ -37,7 +37,7 @@ const emptySchema = z.union([z.undefined(), z.object({})]);
 
 async function storeDump(query: z.infer<typeof storeDumpQuerySchema>) {
   const defaultedFilenameWithoutExtention =
-    query.filename ?? "dump-" + dayjs().format("YYYYMMDDHHmm");
+    query.filename ?? "dump-" + now().format("YYYYMMDDHHmm");
   dumpStore(
     `${config.env.DUMP_FILES_LOCATION}/${defaultedFilenameWithoutExtention}.ttl`
   );

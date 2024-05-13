@@ -55,7 +55,7 @@
   const logElement = document.getElementById('log');
 
   let counter = 0;
-  const eventSource = new EventSource("/progress/{{uuid}}");
+  const eventSource = new EventSource("./progress/{{uuid}}");
   eventSource.onmessage = function (event) {
     console.log('event received', event);
     const eventObject = JSON.parse(event.data);

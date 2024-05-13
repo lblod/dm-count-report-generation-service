@@ -1,8 +1,8 @@
-import dayjs from "dayjs";
 import { performance } from "perf_hooks";
 import { logger } from "../logger.js";
 import { LogLevel } from "../types.js";
 import { config } from "../configuration.js";
+import { now } from "./date-time.js";
 
 /**
  * Uses setimeout to halt execution for 'millis' milliseconds asynchronously
@@ -34,14 +34,14 @@ export function longDuration<F extends (...args: any[]) => Promise<any>>(
   logLevel: LogLevel = "debug"
 ): (...args: Parameters<F>) => Promise<DurationResult<Awaited<ReturnType<F>>>> {
   return async function (...args: any[]) {
-    const start = dayjs();
+    const start = now();
     logger.log(
       logLevel,
       `Function "${wrapped.name}" invoked at ${start.format()}`
     );
     try {
       const result = await wrapped(...args);
-      const end = dayjs();
+      const end = now();
       const duration = end.diff(start, "second", true);
       logger.log(
         logLevel,
@@ -54,7 +54,7 @@ export function longDuration<F extends (...args: any[]) => Promise<any>>(
         durationSeconds: duration,
       };
     } catch (e: unknown) {
-      const end = dayjs();
+      const end = now();
       const duration = end.diff(start, "second", true);
       throw extendError(e, `After ${duration} seconds`);
     }
@@ -80,7 +80,7 @@ export function duration<F extends (...args: any[]) => Promise<any>>(
         durationMilliseconds: Math.round(duration),
       };
     } catch (e: unknown) {
-      const end = dayjs();
+      const end = now();
       const duration = end.diff(start, "second", true);
       throw extendError(e, `After ${duration} millis`);
     }

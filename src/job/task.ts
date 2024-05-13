@@ -28,6 +28,7 @@ import { longDuration } from "../util/util.js";
 import { TASK_FUNCTIONS } from "./task-functions-map.js";
 import { Job } from "./job.js";
 import { v4 as uuidv4 } from "uuid";
+import { now } from "../util/date-time.js";
 
 // TODO type checking for return value
 export type TaskFunction = (
@@ -71,7 +72,7 @@ class TaskProgress {
       )}: ${message}`
     );
     const updateMessage: UpdateMessage = {
-      timestamp: dayjs().format(),
+      timestamp: now().format(),
       message,
     };
     this._eventEmitter.emit(`update`, updateMessage);
@@ -206,9 +207,9 @@ export class Task {
     this._uuid = uuid;
     this._status = initialStatus;
     this._progress = new TaskProgress(this, "verbose");
-    const now = dayjs();
-    this._createdAt = now;
-    this._modifiedAt = now;
+    const n = now();
+    this._createdAt = n;
+    this._modifiedAt = n;
   }
 
   get uri() {
@@ -234,16 +235,16 @@ export class Task {
   }
 
   async updateStatus(status: TaskStatus) {
-    const now = dayjs();
+    const n = now();
     await this._updateStatusQuery.execute({
       prefixes: PREFIXES,
-      modifiedAt: now,
+      modifiedAt: n,
       status,
       jobGraphUri: config.env.JOB_GRAPH_URI,
       taskUri: this.uri,
     });
     this._status = status;
-    this._modifiedAt = now;
+    this._modifiedAt = n;
   }
 
   async _createNewResource() {

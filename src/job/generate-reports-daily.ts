@@ -25,8 +25,7 @@ import { queryEngine } from "../queries/query-engine.js";
 import { config } from "../configuration.js";
 import { duration } from "../util/util.js";
 import { PREFIXES } from "../local-constants.js";
-import { DateOnly } from "../util/date-time.js";
-import dayjs from "dayjs";
+import { DateOnly, now } from "../util/date-time.js";
 import { v4 as uuidv4 } from "uuid";
 
 function getQueries(queryEngine: QueryEngine, endpoint: string) {
@@ -183,7 +182,7 @@ export const generateReportsDaily: TaskFunction = async (
         await performInsert("GoverningBodyCountReport", writeCountReportQuery, {
           prefixes: PREFIXES,
           govBodyUri: goveringBody.uri,
-          createdAt: dayjs(),
+          createdAt: now(),
           reportUri,
           reportGraphUri: config.env.REPORT_GRAPH_URI,
           adminUnitUri: adminUnit.uri,
@@ -223,7 +222,7 @@ export const generateReportsDaily: TaskFunction = async (
           adminUnitUri: adminUnit.uri,
           prefLabel: `Count report for admin unit '${adminUnit.label}' on ${day}`,
           reportUri: `http://lblod.data.gift/vocabularies/datamonitoring/countReport/${uuidv4()}`,
-          createdAt: dayjs(),
+          createdAt: now(),
           day: defaultedDay,
           reportUris: governingBodyReportUriList,
         }

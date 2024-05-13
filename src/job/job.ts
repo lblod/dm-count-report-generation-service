@@ -1,7 +1,6 @@
 import { QueryEngine } from "@comunica/query-sparql";
 import { config } from "../configuration.js";
-import { TimeOnly } from "../util/date-time.js";
-import dayjs from "dayjs";
+import { TimeOnly, now } from "../util/date-time.js";
 import { PREFIXES } from "../local-constants.js";
 import {
   DeleteAllJobsInput,
@@ -84,7 +83,7 @@ export class Job {
   async updateStatus(status: JobStatus) {
     await this._updateStatusQuery.execute({
       prefixes: PREFIXES,
-      modifiedAt: dayjs(),
+      modifiedAt: now(),
       status,
       jobGraphUri: this._graphUri,
       jobUri: this.uri,
@@ -151,7 +150,7 @@ export class PeriodicJob extends Job {
       jobGraphUri: this._graphUri,
       newJobUri: this.uri,
       status: this._status,
-      createdAt: dayjs(),
+      createdAt: now(),
       description: `Job created by dm-count-report-generation-service`,
       jobType: JobType.PERIODIC,
       timeOfInvocation: this._timeOfInvocation,
@@ -205,7 +204,7 @@ export class RestJob extends Job {
       jobGraphUri: this._graphUri,
       newJobUri: this.uri,
       status: this._status,
-      createdAt: dayjs(),
+      createdAt: now(),
       description: `Job created by dm-count-report-generation-service`,
       jobType: JobType.REST_INVOKED,
       restPath: this._restPath,

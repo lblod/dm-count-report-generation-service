@@ -8,6 +8,10 @@ import { DayOfWeek } from "../types.js";
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
+export function now(): dayjs.Dayjs {
+  return dayjs().tz(DEFAULT_TIMEZONE);
+}
+
 export const DATE_ISO_REGEX = /^(\d{4})-(\d{1,2})-(\d{1,2})$/;
 
 // 00:00
@@ -37,7 +41,7 @@ export const TIME_ANY_NOTATION_REGEX = RegExp(
 
 const zeroPad = (num: number, places: number): string =>
   String(num).padStart(places, "0");
-export const utcOffset = dayjs().tz(DEFAULT_TIMEZONE).utcOffset();
+export const utcOffset = now().utcOffset();
 export const utcOffsetHours =
   utcOffset < 0
     ? -Math.abs(Math.floor(utcOffset / 60))
@@ -165,17 +169,16 @@ export class DateOnly {
   }
 
   static today(): DateOnly {
-    return new DateOnly(dayjs());
+    return new DateOnly(now());
   }
 
   static yesterday(): DateOnly {
-    const yesterdayTs = dayjs().add(-1, "day");
+    const yesterdayTs = now().add(-1, "day");
     return new DateOnly(yesterdayTs);
   }
 
   static todayDayOfWeek(): DayOfWeek {
-    const now = dayjs().tz(DEFAULT_TIMEZONE);
-    return dayOfWeekMap[now.day()]!;
+    return dayOfWeekMap[now().day()]!;
   }
 }
 

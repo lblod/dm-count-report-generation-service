@@ -1,13 +1,12 @@
-import dayjs from "dayjs";
 import { PeriodicJob, getJobs } from "../job/job.js";
 import cron from "node-cron";
 import { JobType } from "../types.js";
-import { DateOnly, inHalfOpenInterval } from "../util/date-time.js";
+import { DateOnly, inHalfOpenInterval, now } from "../util/date-time.js";
 
 //This module is basically a minute clock. Each minute check if an periodic task is needed to be triggered
 export function initCron() {
   cron.schedule("* * * * *", () => {
-    const start = dayjs();
+    const start = now();
     start.set("s", 0); // Cron is guaranteerd not to trigger before the moment.
     start.set("ms", 0);
     const end = start.add(1, "m");
