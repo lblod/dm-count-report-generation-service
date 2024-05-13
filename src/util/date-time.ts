@@ -4,6 +4,7 @@ import { DEFAULT_TIMEZONE } from "../local-constants.js";
 import timezone from "dayjs/plugin/timezone.js";
 import utc from "dayjs/plugin/utc.js";
 import { z } from "zod";
+import { DayOfWeek } from "../types.js";
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
@@ -46,6 +47,16 @@ export const utcOffsetString =
   utcOffset < 0
     ? `-${zeroPad(utcOffsetHours, 2)}:${zeroPad(utcOffsetMinutes, 2)}`
     : `+${zeroPad(utcOffsetHours, 2)}:${zeroPad(utcOffsetMinutes, 2)}`;
+
+const dayOfWeekMap = [
+  DayOfWeek.SUNDAY, // In Dayjs, sunday is 0
+  DayOfWeek.MONDAY,
+  DayOfWeek.TUESDAY,
+  DayOfWeek.WEDNESDAY,
+  DayOfWeek.THURSDAY,
+  DayOfWeek.FRIDAY,
+  DayOfWeek.SATURDAY,
+];
 
 /**
  * This immutable class models a date and a date only. This is NOT a timestamp.
@@ -160,6 +171,11 @@ export class DateOnly {
   static yesterday(): DateOnly {
     const yesterdayTs = dayjs().add(-1, "day");
     return new DateOnly(yesterdayTs);
+  }
+
+  static todayDayOfWeek(): DayOfWeek {
+    const now = dayjs().tz(DEFAULT_TIMEZONE);
+    return dayOfWeekMap[now.day()]!;
   }
 }
 
@@ -327,4 +343,18 @@ export class TimeOnly {
       now.get("millisecond")
     );
   }
+}
+
+function toBigInt(d: dayjs.Dayjs) {
+  return BigInt(d.unix()) * BigInt(1000) + BigInt(d.get("millisecond"));
+}
+
+// Sopme helpers
+export function inHalfOpenInterval(
+  x: dayjs.Dayjs,
+  a: dayjs.Dayjs,
+  b: dayjs.Dayjs
+): boolean {
+  const X = toBigInt(x);
+  return toBigInt(a) <= X && X < toBigInt(b);
 }

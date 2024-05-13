@@ -92,6 +92,12 @@ export class Job {
     this._status = status;
   }
 
+  async invoke(...args: any[]) {
+    const task = await createTask(this, TaskType.SERIAL, TaskStatus.BUSY);
+    await task.execute(...args);
+    return task;
+  }
+
   toString() {
     return `JOB(${this.uri}) with status: ${getEnumStringFromUri(
       this.status,
@@ -207,12 +213,6 @@ export class RestJob extends Job {
     });
   }
 
-  async invoke(...args: any[]) {
-    const task = await createTask(this, TaskType.SERIAL, TaskStatus.BUSY);
-    await task.execute(...args);
-    return task;
-  }
-
   override toString(): string {
     return `${super.toString()}\n\tRest job with activated by HTTP using path "/${
       this.restPath
@@ -316,14 +316,11 @@ export async function loadJobs() {
     defaults.endpoint,
     getRestJobsTemplate
   );
-  const periodicJobRecords = await retry(getPeriodicJobsQuery.objects)(
-    "jobUri",
-    {
-      prefixes: PREFIXES,
-      jobGraphUri: config.env.JOB_GRAPH_URI,
-    }
-  );
-  for (const record of periodicJobRecords.result) {
+  const periodicJobRecords = await getPeriodicJobsQuery.objects("jobUri", {
+    prefixes: PREFIXES,
+    jobGraphUri: config.env.JOB_GRAPH_URI,
+  });
+  for (const record of periodicJobRecords) {
     const newJob = new PeriodicJob(
       defaults.queryEngine,
       defaults.endpoint,
@@ -336,7 +333,9 @@ export async function loadJobs() {
     );
     jobs.set(newJob.uri, newJob);
   }
-  const restJobRecords = await retry(getRestJobsQuery.objects)("jobUri", {
+  const restJobRecords = await retry(
+    getRestJobsQuery.objects.bind(getRestJobsQuery)
+  )("jobUri", {
     prefixes: PREFIXES,
     jobGraphUri: config.env.JOB_GRAPH_URI,
   });

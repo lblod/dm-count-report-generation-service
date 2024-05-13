@@ -1,14 +1,13 @@
 import { z } from "zod";
 import fs from "node:fs";
+import { fromError } from "zod-validation-error";
 import {
   ALL_DAYS_OF_WEEK,
   PREFIXES,
   RESOURCE_CLASS_SHORT_URI_REGEX,
 } from "./local-constants.js"; // Not named 'constants' because of name conflict with node. Same of the nam of this module.
-import { fromError } from "zod-validation-error";
 import { DayOfWeek, LOG_LEVELS, stringToDayOfWeek } from "./types.js";
 import { TimeOnly, TIME_ANY_NOTATION_REGEX } from "./util/date-time.js";
-import { setDefaultRetriesAndWaitTime } from "util/util.js";
 
 // Extract namespaces and build a conversion function to convert short URI's to full ones
 
@@ -117,8 +116,8 @@ const dmReportGenerationServiceEnvSchema = z.object({
   LOG_LEVEL: z.enum(LOG_LEVELS).optional(),
   NO_TIME_FILTER: envBooleanSchema.optional(),
   DUMP_FILES_LOCATION: z.string().optional(),
-  QUERY_MAX_RETRIES: z.number().int().min(0).max(10),
-  QUERY_WAIT_TIME_ON_FAIL: z.number().int().min(0).max(60_000),
+  QUERY_MAX_RETRIES: z.number().int().min(0).max(10).optional(),
+  QUERY_WAIT_TIME_ON_FAIL: z.number().int().min(0).max(60_000).optional(),
 });
 
 // Useful types
@@ -145,12 +144,12 @@ export type DmReportGenerationServiceConfig = {
 
 const defaultEnv = {
   DISABLE_DEBUG_ENDPOINT: false,
-  REPORT_GRAPH_URI: "http://mu.semte.ch/graphs/public",
+  REPORT_GRAPH_URI: "http://mu.semte.ch/graphs/dm-reports",
   JOB_GRAPH_URI: "http://mu.semte.ch/graphs/job",
   CONFIG_FILE_LOCATION: "/config",
   SLEEP_BETWEEN_QUERIES_MS: 0,
   SHOW_SPARQL_QUERIES: false,
-  LIMIT_NUMBER_ADMIN_UNITS: 0, // Default value of 0 means no limit
+  LIMIT_NUMBER_ADMIN_UNITS: 0, // Default value of 0 means no limit. In production this should always be 0
   ORG_RESOURCES_TTL_S: 300, // Default cache TTL is five minutes
   SERVER_PORT: 80, // HTTP (TODO add HTTPS port)
   REPORT_INVOCATION_TIME: new TimeOnly("00:00"),
@@ -195,12 +194,6 @@ const endpointConfig: EndpointConfig[] = fileResult.data.endpoints.map(
       classes: fileEndpoint.classes.map(convertUri),
     };
   }
-);
-
-//Set defaults for retry function
-setDefaultRetriesAndWaitTime(
-  defaultEnv.QUERY_MAX_RETRIES,
-  defaultEnv.QUERY_WAIT_TIME_ON_FAIL
 );
 
 export const config: DmReportGenerationServiceConfig = {

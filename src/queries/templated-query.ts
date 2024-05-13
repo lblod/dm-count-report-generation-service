@@ -6,6 +6,7 @@ import dayjs from "dayjs";
 import { store } from "./store.js";
 import { DmEnum } from "../types.js";
 import { logger } from "../logger.js";
+import { retry } from "util/util.js";
 
 const SKIP_PREFIX_REGEX = /^PREFIX[.\w\s:<>/\-#]+PREFIX[.\w\s:<>/\-#]+\n/g;
 
@@ -186,7 +187,7 @@ class TemplatedQueryBase<T extends Record<string, any>> {
 class VoidBase<T extends Record<string, any>> extends TemplatedQueryBase<T> {
   async _queryVoidToEndpoint(query: string): Promise<void> {
     try {
-      await this.queryEngine.queryVoid(query, {
+      await retry(this.queryEngine.queryVoid.bind(this.queryEngine))(query, {
         sources: [
           {
             type: "sparql",
@@ -276,8 +277,11 @@ export class TemplatedSelect<
   async bindings(input: T): Promise<Bindings[]> {
     const query = this.getQuery(input);
     try {
-      const bindingsStream = await this.queryEngine.queryBindings(query, {
+      const { result: bindingsStream } = await retry(
+        this.queryEngine.queryBindings.bind(this.queryEngine)
+      )(query, {
         sources: [this.endpoint],
+        lenient: true,
       });
       if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint, query);
       return bindingsStream.toArray();
@@ -299,12 +303,14 @@ export class TemplatedSelect<
     const query = this.getQuery(input);
     const bindingsStream = await (async () => {
       try {
-        const bindings = await this.queryEngine.queryBindings(query, {
+        const bindings = await retry(
+          this.queryEngine.queryBindings.bind(this.queryEngine)
+        )(query, {
           sources: [this.endpoint],
           lenient: true,
         });
         if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint, query);
-        return bindings;
+        return bindings.result;
       } catch (e) {
         logQuery(this.endpoint, query, false);
         logger.error(`Last query logged failed`);
@@ -370,11 +376,14 @@ export class TemplatedSelect<
     const query = this.getQuery(input);
     const bindingsStream = await (async () => {
       try {
-        const bindings = await this.queryEngine.queryBindings(query, {
+        const bindings = await retry(
+          this.queryEngine.queryBindings.bind(this.queryEngine)
+        )(query, {
           sources: [this.endpoint],
+          lenient: true,
         });
         if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint, query);
-        return bindings;
+        return bindings.result;
       } catch (e) {
         logQuery(this.endpoint, query, false);
         logger.error(`Last query logged failed`);

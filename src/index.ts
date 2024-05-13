@@ -25,7 +25,7 @@ import {
 } from "./types.js";
 import { setupDebugEndpoints } from "./debug-endpoints/endpoints.js";
 import { logger } from "./logger.js";
-import { retry } from "./util/util.js";
+import { initCron } from "./cron/cron.js";
 
 async function startupProcedure() {
   // Check all endpoints
@@ -41,8 +41,8 @@ async function startupProcedure() {
       testQueryTemplate
     );
     try {
-      const result = await retry(testQuery.result)({});
-      if (result.result.result !== 2)
+      const result = await testQuery.result({});
+      if (result.result !== 2)
         throw new Error(
           `The endpoint "${endpoint}" does not know that 1+1=2. Might want to look into that.`
         );
@@ -117,6 +117,7 @@ async function startupProcedure() {
   setTaskCreationDefaults(queryEngine, config.env.REPORT_ENDPOINT);
   await deleteBusyTasks();
   logger.info("Made sure there are no busy tasks");
+  initCron();
   // await loadTasks();
   // logger.info(`CHECK PASSED: Tasks loaded. ${getTasks().length} found.`);
   // If any of the tasks loaded is still busy this means that the service was not properly closed last time.

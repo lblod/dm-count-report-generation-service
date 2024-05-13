@@ -2,6 +2,7 @@ import dayjs from "dayjs";
 import { logger } from "../logger.js";
 import { LogLevel } from "../types.js";
 import { performance } from "perf_hooks";
+import { config } from "configuration.js";
 
 /**
  * Uses setimeout to halt execution for 'millis' milliseconds asynchronously
@@ -91,8 +92,8 @@ type RetryResult<R> = {
   retries: number;
 };
 
-let defaultMaxRetries = 3;
-let defaultWaitMilliseconds = 1000;
+let defaultMaxRetries = config.env.QUERY_MAX_RETRIES;
+let defaultWaitMilliseconds = config.env.QUERY_WAIT_TIME_ON_FAIL;
 
 export function setDefaultRetriesAndWaitTime(
   maxRetries: number,

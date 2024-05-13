@@ -53,6 +53,8 @@ It will be updated in the future.
 | LOG_LEVEL<br>(string) | `"info"` | Level of the logs. Accepted values are "error","warn","info","http","verbose","debug" and "silly". For production set to "error". For development set to "info" or "debug". |
 | NO_TIME_FILTER<br>(boolean) | `"false"` | Set to true for testing. This disabled the date related filtering when counting. This can be useful when no new data was posted and too many queries yield 0. |
 | DUMP_FILES_LOCATION<br>(string, directory) | `"/dump"` | Only relevant if DISABLE_DEBUG_ENDPOINT is `false`. This specifies the directory where the service will save the dump files for debugging. |
+| QUERY_MAX_RETRIES<br>(number) | `3` | Amount of times the making a query is retried. |
+| QUERY_WAIT_TIME_ON_FAIL<br>(number, milliseconds) | `1000` | Amount of time to wait for a retry when a query has failed. |
 
 * Boolean: "true" for `true`, "false" for `false`.
 
