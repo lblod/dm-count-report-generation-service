@@ -6,7 +6,14 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   {
     "rules": {
-      "@typescript-eslint/no-explicit-any": "off"
+      "@typescript-eslint/no-explicit-any": "off",
+      "no-restricted-imports": "off",
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        {
+          "patterns": ["!./*", "!../*"]
+        }
+      ]
     }
   }
 );

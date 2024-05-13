@@ -6,7 +6,7 @@ import dayjs from "dayjs";
 import { store } from "./store.js";
 import { DmEnum } from "../types.js";
 import { logger } from "../logger.js";
-import { retry } from "util/util.js";
+import { retry } from "../util/util.js";
 
 const SKIP_PREFIX_REGEX = /^PREFIX[.\w\s:<>/\-#]+PREFIX[.\w\s:<>/\-#]+\n/g;
 

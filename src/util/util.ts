@@ -1,8 +1,8 @@
 import dayjs from "dayjs";
+import { performance } from "perf_hooks";
 import { logger } from "../logger.js";
 import { LogLevel } from "../types.js";
-import { performance } from "perf_hooks";
-import { config } from "configuration.js";
+import { config } from "../configuration.js";
 
 /**
  * Uses setimeout to halt execution for 'millis' milliseconds asynchronously

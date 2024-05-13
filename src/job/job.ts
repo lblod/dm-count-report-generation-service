@@ -34,7 +34,7 @@ import {
 } from "../types.js";
 import { v4 as uuidv4 } from "uuid";
 import { createTask } from "./task.js";
-import { retry } from "util/util.js";
+import { retry } from "../util/util.js";
 
 export class Job {
   _updateStatusQuery: TemplatedInsert<UpdateJobStatusInput>;
