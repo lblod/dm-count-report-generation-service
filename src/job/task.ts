@@ -22,13 +22,12 @@ import {
   getEnumStringFromUri,
 } from "../types.js";
 import { EventEmitter } from "node:events";
-import dayjs from "dayjs";
 import { config } from "../configuration.js";
 import { longDuration } from "../util/util.js";
 import { TASK_FUNCTIONS } from "./task-functions-map.js";
 import { Job } from "./job.js";
 import { v4 as uuidv4 } from "uuid";
-import { now } from "../util/date-time.js";
+import { DateTime, now } from "../util/date-time.js";
 
 // TODO type checking for return value
 export type TaskFunction = (
@@ -80,7 +79,7 @@ class TaskProgress {
   progress(
     done: number,
     total: number,
-    lastDurationMilliseconds: number | null | undefined,
+    lastDurationMilliseconds: number | null | undefined = undefined,
     subProcessIdentifier: string | undefined = undefined
   ) {
     logger.log(
@@ -149,8 +148,8 @@ export class Task {
   _uuid: string;
   _status: TaskStatus;
   _promises: Promise<any>[] = [];
-  _createdAt: dayjs.Dayjs;
-  _modifiedAt: dayjs.Dayjs;
+  _createdAt: DateTime;
+  _modifiedAt: DateTime;
   get createdAt() {
     return this._createdAt;
   }

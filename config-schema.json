@@ -21,13 +21,27 @@
         "required": [
           "url",
           "classes"
-        ],
-        "additionalProperties": false
+        ]
+      }
+    },
+    "harvester-endpoints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "required": [
+          "url"
+        ]
       }
     }
   },
   "required": [
-    "endpoints"
-  ],
-  "additionalProperties": true
+    "endpoints",
+    "harvester-endpoints"
+  ]
 }

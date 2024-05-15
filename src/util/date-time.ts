@@ -8,7 +8,9 @@ import { DayOfWeek } from "../types.js";
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-export function now(): dayjs.Dayjs {
+export type DateTime = dayjs.Dayjs;
+
+export function now(): DateTime {
   return dayjs().tz(DEFAULT_TIMEZONE);
 }
 
@@ -348,15 +350,15 @@ export class TimeOnly {
   }
 }
 
-function toBigInt(d: dayjs.Dayjs) {
+function toBigInt(d: DateTime) {
   return BigInt(d.unix()) * BigInt(1000) + BigInt(d.get("millisecond"));
 }
 
 // Sopme helpers
 export function inHalfOpenInterval(
-  x: dayjs.Dayjs,
-  a: dayjs.Dayjs,
-  b: dayjs.Dayjs
+  x: DateTime,
+  a: DateTime,
+  b: DateTime
 ): boolean {
   const X = toBigInt(x);
   return toBigInt(a) <= X && X < toBigInt(b);

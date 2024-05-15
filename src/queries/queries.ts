@@ -1,7 +1,6 @@
 import Handlebars from "handlebars";
-import dayjs from "dayjs";
 import "./../helpers/index.js"; // Making sure the modules in the helpers folder are loaded before these templates are compiled
-import { DateOnly, TimeOnly } from "../util/date-time.js";
+import { DateOnly, DateTime, TimeOnly } from "../util/date-time.js";
 import {
   DataMonitoringFunction,
   DayOfWeek,
@@ -31,8 +30,8 @@ export type GetOrganisationsInput = {
 
 export type GetOrganisationsOutput = {
   organisationUri: string;
-  label: string;
-  id: string;
+  label: string | string[]; // Some org seem to have 2 labels's...
+  id: string | string[]; // Some org seem to have 2 ID's...
 };
 
 export const getOrganisationsTemplate = Handlebars.compile(
@@ -40,12 +39,16 @@ export const getOrganisationsTemplate = Handlebars.compile(
 {{prefixes}}
 SELECT ?organisationUri ?label ?id WHERE {
   GRAPH <{{graphUri}}> {
-    ?organisationUri a besluit:Bestuurseenheid;
-      mu:uuid ?id;
-      skos:prefLabel ?label;
-      org:classification <http://data.vlaanderen.be/id/concept/BestuurseenheidClassificatieCode/5ab0e9b8a3b2ca7c5e000001>.
+    {
+      SELECT ?organisationUri WHERE {
+        ?organisationUri a besluit:Bestuurseenheid;
+        org:classification <http://data.vlaanderen.be/id/concept/BestuurseenheidClassificatieCode/5ab0e9b8a3b2ca7c5e000001>.
+      } {{limitClause limit}}
+    }
+    ?organisationUri mu:uuid ?id;
+      skos:prefLabel ?label.
   }
-} {{limitClause limit}}
+}
 `,
   { noEscape: true }
 );
@@ -99,8 +102,8 @@ SELECT ?goveringBodyUri ?label WHERE {
 export type CountSessionsQueryInput = {
   prefixes: string;
   governingBodyUri: string;
-  from: dayjs.Dayjs;
-  to: dayjs.Dayjs;
+  from: DateTime;
+  to: DateTime;
   noFilterForDebug: boolean;
 };
 
@@ -136,8 +139,8 @@ SELECT (COUNT(DISTINCT ?session) as ?count) WHERE {
 export type CountAgendaItemsQueryInput = {
   prefixes: string;
   governingBodyUri: string;
-  from: dayjs.Dayjs;
-  to: dayjs.Dayjs;
+  from: DateTime;
+  to: DateTime;
   noFilterForDebug: boolean;
 };
 
@@ -183,8 +186,8 @@ SELECT (COUNT(DISTINCT ?agendaItem) as ?count) WHERE {
 export type CountResolutionsQueryInput = {
   prefixes: string;
   governingBodyUri: string;
-  from: dayjs.Dayjs;
-  to: dayjs.Dayjs;
+  from: DateTime;
+  to: DateTime;
   noFilterForDebug: boolean;
 };
 
@@ -231,8 +234,8 @@ SELECT (COUNT(DISTINCT ?resolution) as ?count) WHERE {
 export type CountVoteQueryInput = {
   prefixes: string;
   governingBodyUri: string;
-  from: dayjs.Dayjs;
-  to: dayjs.Dayjs;
+  from: DateTime;
+  to: DateTime;
   noFilterForDebug: boolean;
 };
 
@@ -277,7 +280,7 @@ export type WriteReportInput = {
   prefixes: string;
   reportGraphUri: string;
   reportUri: string;
-  createdAt: dayjs.Dayjs;
+  createdAt: DateTime;
   day: DateOnly;
   govBodyUri: string;
   adminUnitUri: string;
@@ -323,7 +326,7 @@ export type WriteAdminUnitReportInput = {
   prefLabel: string;
   reportGraphUri: string;
   reportUri: string;
-  createdAt: dayjs.Dayjs;
+  createdAt: DateTime;
   adminUnitUri: string;
   day: DateOnly;
   reportUris: string[];
@@ -363,7 +366,7 @@ export type WriteNewTaskInput = {
   taskUri: string;
   uuid: string;
   status: TaskStatus;
-  createdAt: dayjs.Dayjs;
+  createdAt: DateTime;
   index: number;
   description: string;
   taskType: TaskType;
@@ -462,7 +465,7 @@ export type UpdateTaskStatusInput = {
   jobGraphUri: string;
   taskUri: string;
   status: TaskStatus;
-  modifiedAt: dayjs.Dayjs;
+  modifiedAt: DateTime;
 };
 
 export const updateTaskStatusTemplate = Handlebars.compile(
@@ -496,7 +499,7 @@ export type UpdateJobStatusInput = {
   jobGraphUri: string;
   jobUri: string;
   status: JobStatus;
-  modifiedAt: dayjs.Dayjs;
+  modifiedAt: DateTime;
 };
 
 export const updateJobStatusTemplate = Handlebars.compile(
@@ -534,8 +537,8 @@ export type GetJobsOutput = {
   jobUri: string;
   uuid: string;
   status: JobStatus;
-  createdAt: dayjs.Dayjs;
-  modifiedAt: dayjs.Dayjs;
+  createdAt: DateTime;
+  modifiedAt: DateTime;
   description: TaskStatus;
   jobType: JobType;
   datamonitoringFunction: DataMonitoringFunction;
@@ -602,7 +605,7 @@ export type WriteNewPeriodicJobInput = {
   uuid: string;
   newJobUri: string;
   status: JobStatus;
-  createdAt: dayjs.Dayjs;
+  createdAt: DateTime;
   description: string;
   jobType: JobType.PERIODIC;
   timeOfInvocation: TimeOnly;
@@ -642,7 +645,7 @@ export type WriteNewRestJobInput = {
   uuid: string;
   newJobUri: string;
   status: JobStatus;
-  createdAt: dayjs.Dayjs;
+  createdAt: DateTime;
   description: string;
   jobType: JobType.REST_INVOKED;
   restPath: string;
@@ -677,6 +680,7 @@ INSERT {
 export type DeleteAllJobsInput = {
   prefixes: string;
   jobGraphUri: string;
+  jobTypes: JobType[] | undefined;
 };
 
 export const deleteAllJobsTemplate = Handlebars.compile(
@@ -691,6 +695,15 @@ DELETE {
   GRAPH <{{jobGraphUri}}> {
     ?job a cogs:Job, datamonitoring:DatamonitoringJob;
       datamonitoring:jobParameters ?blind.
+    {{#if (listPopulated jobTypes)}}
+    {{#each jobTypes}}
+      {
+        ?job datamonitoring:jobType {{toJobTypeLiteral this}}.
+      }
+      {{#unless @last}}UNION{{/unless}}
+    {{/each}}
+    {{/if}}
+
     ?blind ?pb ?ob.
     ?job ?p ?o.
   }

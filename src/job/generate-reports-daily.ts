@@ -109,14 +109,15 @@ export const generateReportsDaily: TaskFunction = async (
     orgResources.adminUnits.reduce<number>(
       (acc, curr) => acc + curr.govBodies.length * 5 + 1,
       0
-    ) * config.file.length;
+    ) * config.file.endpoints.length;
+  progress.progress(0, queryCount);
   progress.update(
-    `Got org resources. ${queryCount} queries to perform for ${governingBodiesCount} governing bodies and ${orgResources.adminUnits.length} admin units for ${config.file.length} endpoints.`
+    `Got org resources. ${queryCount} queries to perform for ${governingBodiesCount} governing bodies and ${orgResources.adminUnits.length} admin units for ${config.file.endpoints.length} endpoints.`
   );
   let queries = 0;
 
   // Now perform the query machine gun
-  for (const endpoint of config.file) {
+  for (const endpoint of config.file.endpoints) {
     const {
       countSessionsQuery,
       countAgendaItemsQuery,

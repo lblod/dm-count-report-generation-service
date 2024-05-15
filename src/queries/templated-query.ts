@@ -1,12 +1,12 @@
 import { QueryEngine } from "@comunica/query-sparql";
 import { Bindings, Term } from "@rdfjs/types";
 import { config } from "../configuration.js";
-import { DateOnly, TimeOnly } from "../util/date-time.js";
-import dayjs from "dayjs";
+import { DateOnly, DateTime, TimeOnly } from "../util/date-time.js";
 import { store } from "./store.js";
 import { DmEnum } from "../types.js";
 import { logger } from "../logger.js";
 import { retry } from "../util/util.js";
+import dayjs from "dayjs";
 
 const SKIP_PREFIX_REGEX = /^PREFIX[.\w\s:<>/\-#]+PREFIX[.\w\s:<>/\-#]+\n/g;
 
@@ -40,7 +40,7 @@ function toObject(
   | string
   | number
   | boolean
-  | dayjs.Dayjs
+  | DateTime
   | DateOnly
   | TimeOnly
   | DmEnum
@@ -290,6 +290,42 @@ export class TemplatedSelect<
       logger.error(`Last query logged failed`);
       throw e;
     }
+  }
+  /**
+   * Get query result as an array of objects with type U
+   * This is simpler than the 'objects' function; which tries to interpret the stream of bindings
+   * as a stream of resources. In this case it's simpler. You get one object per result row.
+   * Unsuitable for more than 10k rows
+   * @param input Handlebars input
+   * @returns An array of objects
+   */
+  async records(input: T): Promise<U[]> {
+    const query = this.getQuery(input);
+    const bindingsStream = await (async () => {
+      try {
+        const bindings = await retry(
+          this.queryEngine.queryBindings.bind(this.queryEngine)
+        )(query, {
+          sources: [this.endpoint],
+          lenient: true,
+        });
+        if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint, query);
+        return bindings.result;
+      } catch (e) {
+        logQuery(this.endpoint, query, false);
+        logger.error(`Last query logged failed`);
+        throw e;
+      }
+    })();
+    const result: U[] = [];
+    for await (const bindings of bindingsStream) {
+      const output: Record<string, any> = {};
+      for (const [variabele, term] of bindings) {
+        output[variabele.value] = toObject(term);
+      }
+      result.push(output as U);
+    }
+    return result;
   }
 
   /**

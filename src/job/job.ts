@@ -33,7 +33,8 @@ import {
 } from "../types.js";
 import { v4 as uuidv4 } from "uuid";
 import { createTask } from "./task.js";
-import { retry } from "../util/util.js";
+import { delay, retry } from "../util/util.js";
+import { logger } from "../logger.js";
 
 export class Job {
   _updateStatusQuery: TemplatedInsert<UpdateJobStatusInput>;
@@ -93,6 +94,16 @@ export class Job {
 
   async invoke(...args: any[]) {
     const task = await createTask(this, TaskType.SERIAL, TaskStatus.BUSY);
+    logger.debug(
+      `Invoking job with uri ${this.uri}. Created task ${
+        task.uri
+      } with function ${getEnumStringFromUri(
+        task.datamonitoringFunction,
+        false
+      )}`
+    );
+    // We wait with the invocation for rest tasks for a second because we want the process page to load first so the user does not miss any debug messages.
+    if (this.jobType === JobType.REST_INVOKED) await delay(1000);
     await task.execute(...args);
     return task;
   }
@@ -352,34 +363,35 @@ export async function loadJobs() {
   }
 }
 
-export async function deleteAllJobs() {
+export async function deleteAllJobs(
+  jobTypes: JobType[] | undefined | Record<string, never> = undefined // The empty object it to make this function compatible as a debug endpoint function with no query parameters
+) {
   if (!defaults)
     throw new Error(
       `Defaults have not been set. Call 'setJobCreeationDefaults' first from the job module.`
     );
+  const noParams =
+    !jobTypes ||
+    (typeof jobTypes === "object" && Object.keys(jobTypes).length === 0);
+
+  const defaultedJobTypes = noParams ? [] : (jobTypes as JobType[]);
+
   const deleteAllJobsQuery = new TemplatedUpdate<DeleteAllJobsInput>(
     defaults.queryEngine,
     defaults.endpoint,
     deleteAllJobsTemplate
   );
-  await retry(deleteAllJobsQuery.execute)({
+  await deleteAllJobsQuery.execute({
     prefixes: PREFIXES,
     jobGraphUri: config.env.JOB_GRAPH_URI,
+    jobTypes: defaultedJobTypes,
   });
-  jobs.clear(); // Release references
-}
-
-let debugJob: Job | null = null;
-
-export function setDebugJob(job: Job) {
-  debugJob = job;
-}
-
-export function getDebugJob(): Job {
-  if (config.env.DISABLE_DEBUG_ENDPOINT)
-    throw new Error(
-      `Cannot get debug job if debug endpoints have been disabled`
-    );
-  if (!debugJob) throw new Error(`Application was not initialised correctly`);
-  return debugJob;
+  if (defaultedJobTypes.length === 0) {
+    jobs.clear(); // Remove all jobs? Release everything.
+    return;
+  }
+  // In specific cases remove the references directly
+  for (const [uri, job] of jobs.entries()) {
+    if (defaultedJobTypes.includes(job.jobType)) jobs.delete(uri);
+  }
 }

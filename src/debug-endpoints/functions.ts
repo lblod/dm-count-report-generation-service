@@ -11,6 +11,7 @@ import {
   getEnumStringFromUri,
 } from "../types.js";
 import { TimeOnly } from "../util/date-time.js";
+import { logger } from "../logger.js";
 
 const showJobsTemplate = Handlebars.compile(
   fs.readFileSync("./templates/show-jobs.hbs", { encoding: "utf-8" })
@@ -103,7 +104,7 @@ export async function startTask(req: Request, res: Response): Promise<void> {
   const restJobs = getJobs().filter(
     (j) => j.jobType === JobType.REST_INVOKED
   ) as RestJob[];
-  const job = restJobs.find((j) => j.restPath);
+  const job = restJobs.find((j) => j.restPath === restPath);
   if (!job)
     throw new Error(
       `No Rest job with the path found. path was "${restPath}" available. Supported paths are: ${restJobs
@@ -116,10 +117,20 @@ export async function startTask(req: Request, res: Response): Promise<void> {
     if (!testTask) {
       // If no task is found then start it
       // Invoking should never take long
+      logger.debug(
+        `Invoking from REST path ${restPath} a job "${
+          job.uri
+        }" with datamonitoring function ${getEnumStringFromUri(
+          job.datamonitoringFunction,
+          false
+        )}. `
+      );
       return await job.invoke();
     }
     return testTask;
   })();
+  // invoke returns fast. Actual task is running in the background
+
   const html = showTaskTemplate({
     title: `Task with uri ${task.uri}`,
     createdAt: task.createdAt,

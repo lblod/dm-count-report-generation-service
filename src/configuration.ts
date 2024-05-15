@@ -90,14 +90,23 @@ const invocationDaysSchema = z
   })
   .pipe(z.array(z.nativeEnum(DayOfWeek)));
 
-const dmReportGenerationServiceConfigFileSchema = z.object({
-  endpoints: z.array(
-    z.object({
-      url: z.string().url(),
-      classes: z.array(uriSchema),
-    })
-  ),
-});
+const dmReportGenerationServiceConfigFileSchema = z
+  .object({
+    endpoints: z.array(
+      z.object({
+        url: z.string().url(),
+        classes: z.array(uriSchema),
+      })
+    ),
+    "harvester-endpoints": z
+      .array(
+        z.object({
+          url: z.string().url(),
+        })
+      )
+      .min(1),
+  })
+  .strict();
 
 const dmReportGenerationServiceEnvSchema = z.object({
   ADMIN_UNIT_ENDPOINT: z.string().url(),
@@ -139,7 +148,10 @@ export type DmReportGenerationServiceEnv = z.infer<
 >;
 
 export type DmReportGenerationServiceConfig = {
-  file: EndpointConfig[];
+  file: {
+    endpoints: EndpointConfig[];
+    harvesterEndpoints: { url: string }[];
+  };
   env: Required<DmReportGenerationServiceEnv>;
 };
 
@@ -203,5 +215,8 @@ const endpointConfig: EndpointConfig[] = fileResult.data.endpoints.map(
 
 export const config: DmReportGenerationServiceConfig = {
   env: defaultedEnv,
-  file: endpointConfig,
+  file: {
+    endpoints: endpointConfig,
+    harvesterEndpoints: fileResult.data["harvester-endpoints"],
+  },
 };

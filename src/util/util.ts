@@ -80,9 +80,9 @@ export function duration<F extends (...args: any[]) => Promise<any>>(
         durationMilliseconds: Math.round(duration),
       };
     } catch (e: unknown) {
-      const end = now();
-      const duration = end.diff(start, "second", true);
-      throw extendError(e, `After ${duration} millis`);
+      const end = performance.now();
+      const duration = end - start;
+      throw extendError(e, `After ${duration.toFixed(0)} millis`);
     }
   };
 }

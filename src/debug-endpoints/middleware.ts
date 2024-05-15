@@ -157,7 +157,20 @@ export function addDebugEndpoint(
 ) {
   const middlewares = [
     getZodQueryValidationMiddleware(querySchema),
-    sendingFunction,
+    async (
+      req: express.Request,
+      res: express.Response,
+      next: express.NextFunction
+    ) => {
+      // If the function throws the duration wrapper will also throw
+      try {
+        await sendingFunction(req, res, next);
+        next();
+      } catch (e: any) {
+        logger.error(e.message);
+        next(e);
+      }
+    },
     debugErrorHandlingMiddelware,
   ] as any[];
   callHttpMethod(app, path, method, middlewares);

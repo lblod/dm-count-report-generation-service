@@ -11,9 +11,9 @@ import {
 import {
   createPeriodicJob,
   createRestJob,
+  deleteAllJobs,
   getJobs,
   loadJobs,
-  setDebugJob,
   setJobCreeationDefaults,
 } from "./job/job.js";
 import { deleteBusyTasks, setTaskCreationDefaults } from "./job/task.js";
@@ -28,11 +28,14 @@ import { logger } from "./logger.js";
 import { initCron } from "./cron/cron.js";
 
 async function startupProcedure() {
+  logger.info(
+    "CHECK PASSED: Configuration is validated successfully. Both config file and env variables."
+  );
   // Check all endpoints
   const endpoints = new Set([
     config.env.ADMIN_UNIT_ENDPOINT,
     config.env.REPORT_ENDPOINT,
-    ...config.file.map((value) => value.url),
+    ...config.file.endpoints.map((value) => value.url),
   ]);
   for (const endpoint of endpoints) {
     const testQuery = new TemplatedSelect<TestQueryInput, TestQueryOutput>(
@@ -60,7 +63,7 @@ async function startupProcedure() {
   setJobCreeationDefaults(queryEngine, config.env.REPORT_ENDPOINT);
   await loadJobs();
   logger.info(`CHECK PASSED: Jobs loaded. ${getJobs().length} found.`);
-  // This microservice is supposed to have at least one periodic job creating reports. If it does not exist create one
+
   if (
     !getJobs().some(
       (job) =>
@@ -79,6 +82,7 @@ async function startupProcedure() {
       config.env.REPORT_INVOCATION_DAYS,
       JobStatus.ACTIVE // Activate right away
     );
+    // TODO create other periodic job as well.
   } else {
     logger.info(
       `One ore more jobs already exist in the database to generate reports. Using these jobs. Environment variables REPORT_INVOCATION_TIME and REPORT_INVOCATION_DAYS ignored.`
@@ -87,31 +91,35 @@ async function startupProcedure() {
   if (!config.env.DISABLE_DEBUG_ENDPOINT) {
     // If debug mode is activated this microservicie is supposed to have a job for debugging
     const restInvokedJobs = getJobs().filter(
-      (job) =>
-        job.jobType === JobType.REST_INVOKED &&
-        job.datamonitoringFunction === DataMonitoringFunction.GENERATE_REPORTS
+      (job) => job.jobType === JobType.REST_INVOKED
     );
-    if (restInvokedJobs.length === 0) {
-      logger.info(`Debug job does not exist. Creating one.`);
-      setDebugJob(
-        await createRestJob(
-          DataMonitoringFunction.GENERATE_REPORTS,
-          "start-report-generation",
-          JobStatus.ACTIVE
-        )
-      );
-    } else {
-      if (restInvokedJobs.length === 1) {
-        setDebugJob(restInvokedJobs[0]);
-        logger.info(`REST invoked job found. Setting it as the debug job`);
-      } else {
-        setDebugJob(restInvokedJobs[0]);
-        logger.warn(
-          `More then one rest invoked job found. Setting the first one as the debug job. URI's of the jobs found are: \n${restInvokedJobs.map(
-            (job) => "\n\t" + job.uri + ","
-          )}`
-        );
+    const recreate = await (async () => {
+      switch (restInvokedJobs.length) {
+        case 0:
+          logger.info(`Debug jobs do not exist. Creating them.`);
+          return true;
+        case 1:
+          logger.warn(
+            `Only one rest job was found and that is very strange. There should be two. Deleting all rest jobs and recreating them`
+          );
+          await deleteAllJobs([JobType.REST_INVOKED]);
+          return true;
+        default:
+          logger.info(`Debug jobs exist in the database. OK.`);
+          return false;
       }
+    })();
+    if (recreate) {
+      await createRestJob(
+        DataMonitoringFunction.GENERATE_REPORTS,
+        "start-count-report",
+        JobStatus.ACTIVE
+      );
+      await createRestJob(
+        DataMonitoringFunction.CHECK_HARVESTING_EXECUTION_TIME,
+        "start-harvesting-exec-time-report",
+        JobStatus.ACTIVE
+      );
     }
   }
   // Tasks
