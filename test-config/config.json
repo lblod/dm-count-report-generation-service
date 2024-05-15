@@ -21,5 +21,15 @@
     {
       "url": "https://lokaalbeslist-harvester-3.s.redhost.be/sparql"
     }
-  ]
+  ],
+  "periodic-function-invocation-times": {
+    "COUNT_RESOURCES": {
+      "time": "00:00",
+      "days": "monday,tuesday,wednesday,thursday,friday,saturday,sunday"
+    },
+    "CHECK_HARVESTING_EXECUTION_TIME": {
+      "time": "00:00",
+      "days": "monday,tuesday,wednesday,thursday,friday,saturday,sunday"
+    }
+  }
 }

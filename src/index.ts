@@ -22,6 +22,8 @@ import {
   DayOfWeek,
   JobStatus,
   JobType,
+  getEnumFromUri,
+  getEnumStringFromUri,
 } from "./types.js";
 import { setupDebugEndpoints } from "./debug-endpoints/endpoints.js";
 import { logger } from "./logger.js";
@@ -63,30 +65,36 @@ async function startupProcedure() {
   setJobCreeationDefaults(queryEngine, config.env.REPORT_ENDPOINT);
   await loadJobs();
   logger.info(`CHECK PASSED: Jobs loaded. ${getJobs().length} found.`);
-
-  if (
-    !getJobs().some(
-      (job) =>
-        job.jobType === JobType.PERIODIC &&
-        job.datamonitoringFunction === DataMonitoringFunction.GENERATE_REPORTS
-    )
-  ) {
-    logger.info(
-      `Job creating reports does not exist. Creating one using the environment variables\nAt ${config.env.REPORT_INVOCATION_TIME.toString()} on ${config.env.REPORT_INVOCATION_DAYS.map(
-        (day) => Object.entries(DayOfWeek).find((entry) => entry[1] === day)![0]
-      )}`
+  // For all invocation times provided in the config file; check if a periodic job is present and create one if necassary
+  for (const [func, invocationInfo] of Object.entries(
+    config.file.periodicFunctionInvocationTimes
+  )) {
+    const job = getJobs().find(
+      (j) =>
+        j.jobType === JobType.PERIODIC &&
+        j.datamonitoringFunction === (func as DataMonitoringFunction)
     );
-    await createPeriodicJob(
-      DataMonitoringFunction.GENERATE_REPORTS,
-      config.env.REPORT_INVOCATION_TIME,
-      config.env.REPORT_INVOCATION_DAYS,
-      JobStatus.ACTIVE // Activate right away
-    );
-    // TODO create other periodic job as well.
-  } else {
-    logger.info(
-      `One ore more jobs already exist in the database to generate reports. Using these jobs. Environment variables REPORT_INVOCATION_TIME and REPORT_INVOCATION_DAYS ignored.`
-    );
+    if (job) {
+      logger.warn(
+        `Job for function ${getEnumStringFromUri(
+          func,
+          false
+        )} already exists. Config file ignored.`
+      );
+    } else {
+      logger.info(
+        `Job for function ${getEnumStringFromUri(
+          func,
+          false
+        )} does not exist yet. Config file is read.`
+      );
+      await createPeriodicJob(
+        func as DataMonitoringFunction,
+        invocationInfo.time,
+        invocationInfo.days,
+        JobStatus.ACTIVE
+      );
+    }
   }
   if (!config.env.DISABLE_DEBUG_ENDPOINT) {
     // If debug mode is activated this microservicie is supposed to have a job for debugging
@@ -111,7 +119,7 @@ async function startupProcedure() {
     })();
     if (recreate) {
       await createRestJob(
-        DataMonitoringFunction.GENERATE_REPORTS,
+        DataMonitoringFunction.COUNT_RESOURCES,
         "start-count-report",
         JobStatus.ACTIVE
       );

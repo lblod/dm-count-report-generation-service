@@ -6,7 +6,12 @@ import {
   PREFIXES,
   RESOURCE_CLASS_SHORT_URI_REGEX,
 } from "./local-constants.js"; // Not named 'constants' because of name conflict with node. Same of the nam of this module.
-import { DayOfWeek, LOG_LEVELS, stringToDayOfWeek } from "./types.js";
+import {
+  DataMonitoringFunction,
+  DayOfWeek,
+  LOG_LEVELS,
+  stringToDayOfWeek,
+} from "./types.js";
 import { TimeOnly, TIME_ANY_NOTATION_REGEX } from "./util/date-time.js";
 
 // Extract namespaces and build a conversion function to convert short URI's to full ones
@@ -89,6 +94,23 @@ const invocationDaysSchema = z
     return [...new Set(result)]; // Remove duplicate days if present
   })
   .pipe(z.array(z.nativeEnum(DayOfWeek)));
+const datamonitoringFunctionSchema = z
+  .string()
+  .transform((x, ctx) => {
+    if (!Object.keys(DataMonitoringFunction).includes(x)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `This needs to represent a data monitoring function enum value. Got ${x}. Needs to be one of: ${Object.keys(
+          DataMonitoringFunction
+        ).join(",")}`,
+      });
+      return z.never();
+    }
+    return (DataMonitoringFunction as Record<string, string>)[
+      x
+    ] as DataMonitoringFunction;
+  })
+  .pipe(z.nativeEnum(DataMonitoringFunction));
 
 const dmReportGenerationServiceConfigFileSchema = z
   .object({
@@ -105,6 +127,13 @@ const dmReportGenerationServiceConfigFileSchema = z
         })
       )
       .min(1),
+    "periodic-function-invocation-times": z.record(
+      datamonitoringFunctionSchema,
+      z.object({
+        time: invocationTimeSchema,
+        days: invocationDaysSchema,
+      })
+    ),
   })
   .strict();
 
@@ -121,8 +150,6 @@ const dmReportGenerationServiceEnvSchema = z.object({
   LIMIT_NUMBER_ADMIN_UNITS: envIntegerSchema.optional(),
   ORG_RESOURCES_TTL_S: envIntegerSchema.optional(),
   SERVER_PORT: envIntegerSchema.optional(),
-  REPORT_INVOCATION_TIME: invocationTimeSchema.optional(),
-  REPORT_INVOCATION_DAYS: invocationDaysSchema.optional(),
   LOG_LEVEL: z.enum(LOG_LEVELS).optional(),
   NO_TIME_FILTER: envBooleanSchema.optional(),
   DUMP_FILES_LOCATION: z.string().optional(),
@@ -151,6 +178,15 @@ export type DmReportGenerationServiceConfig = {
   file: {
     endpoints: EndpointConfig[];
     harvesterEndpoints: { url: string }[];
+    periodicFunctionInvocationTimes: Partial<
+      Record<
+        DataMonitoringFunction,
+        {
+          time: TimeOnly;
+          days: DayOfWeek[];
+        }
+      >
+    >;
   };
   env: Required<DmReportGenerationServiceEnv>;
 };
@@ -168,8 +204,6 @@ const defaultEnv = {
   LIMIT_NUMBER_ADMIN_UNITS: 0, // Default value of 0 means no limit. In production this should always be 0
   ORG_RESOURCES_TTL_S: 300, // Default cache TTL is five minutes
   SERVER_PORT: 80, // HTTP (TODO add HTTPS port)
-  REPORT_INVOCATION_TIME: new TimeOnly("00:00"),
-  REPORT_INVOCATION_DAYS: ALL_DAYS_OF_WEEK,
   LOG_LEVEL: "info" as const,
   NO_TIME_FILTER: false,
   DUMP_FILES_LOCATION: "/dump",
@@ -218,5 +252,7 @@ export const config: DmReportGenerationServiceConfig = {
   file: {
     endpoints: endpointConfig,
     harvesterEndpoints: fileResult.data["harvester-endpoints"],
+    periodicFunctionInvocationTimes:
+      fileResult.data["periodic-function-invocation-times"],
   },
 };

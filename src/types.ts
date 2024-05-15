@@ -53,7 +53,7 @@ export function stringToDayOfWeek(input: string): DayOfWeek | undefined {
 }
 
 export enum DataMonitoringFunction {
-  GENERATE_REPORTS = "https://codifly.be/ns/resources/dm-function/generate-reports",
+  COUNT_RESOURCES = "https://codifly.be/ns/resources/dm-function/count-resources",
   CHECK_HARVESTING_EXECUTION_TIME = "https://codifly.be/ns/resources/dm-function/check-harvesting-execution-time",
 }
 
