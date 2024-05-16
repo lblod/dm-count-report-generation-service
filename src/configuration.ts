@@ -1,11 +1,7 @@
 import { z } from "zod";
 import fs from "node:fs";
 import { fromError } from "zod-validation-error";
-import {
-  ALL_DAYS_OF_WEEK,
-  PREFIXES,
-  RESOURCE_CLASS_SHORT_URI_REGEX,
-} from "./local-constants.js"; // Not named 'constants' because of name conflict with node. Same of the nam of this module.
+import { PREFIXES, RESOURCE_CLASS_SHORT_URI_REGEX } from "./local-constants.js"; // Not named 'constants' because of name conflict with node. Same of the nam of this module.
 import {
   DataMonitoringFunction,
   DayOfWeek,

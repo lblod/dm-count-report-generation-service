@@ -19,10 +19,8 @@ import {
 import { deleteBusyTasks, setTaskCreationDefaults } from "./job/task.js";
 import {
   DataMonitoringFunction,
-  DayOfWeek,
   JobStatus,
   JobType,
-  getEnumFromUri,
   getEnumStringFromUri,
 } from "./types.js";
 import { setupDebugEndpoints } from "./debug-endpoints/endpoints.js";
