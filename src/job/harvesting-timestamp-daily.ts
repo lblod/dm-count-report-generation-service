@@ -65,6 +65,7 @@ type InsertLastExecutedReportInput = {
   times: HarvestingTimeStampResult[];
 };
 
+// This handlebars query is not robust when the times array is empty. Then it will generate a bad syntax.
 const insertLastExecutedReportTemplate = Handlebars.compile(
   `\
 {{prefixes}}

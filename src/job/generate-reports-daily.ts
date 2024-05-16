@@ -187,7 +187,7 @@ export const generateReportsDaily: TaskFunction = async (
           reportUri,
           reportGraphUri: config.env.REPORT_GRAPH_URI,
           adminUnitUri: adminUnit.uri,
-          prefLabel: `Count report for governing body '${goveringBody.label}' on ${day}`,
+          prefLabel: `Count report for governing body '${goveringBody.label}' on ${defaultedDay}`,
           day: defaultedDay,
           counts: [
             {
@@ -221,7 +221,7 @@ export const generateReportsDaily: TaskFunction = async (
           prefixes: PREFIXES,
           reportGraphUri: config.env.REPORT_GRAPH_URI,
           adminUnitUri: adminUnit.uri,
-          prefLabel: `Count report for admin unit '${adminUnit.label}' on ${day}`,
+          prefLabel: `Count report for admin unit '${adminUnit.label}' on ${defaultedDay}`,
           reportUri: `http://lblod.data.gift/vocabularies/datamonitoring/countReport/${uuidv4()}`,
           createdAt: now(),
           day: defaultedDay,

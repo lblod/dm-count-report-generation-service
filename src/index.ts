@@ -29,7 +29,7 @@ import { initCron } from "./cron/cron.js";
 
 async function startupProcedure() {
   logger.info(
-    "CHECK PASSED: Configuration is validated successfully. Both config file and env variables."
+    "CHECK PASSED: Configuration is validated successfully. Both config file and env variables. Checking endpoints..."
   );
   // Check all endpoints
   const endpoints = new Set([
@@ -37,6 +37,11 @@ async function startupProcedure() {
     config.env.REPORT_ENDPOINT,
     ...config.file.endpoints.map((value) => value.url),
   ]);
+  logger.verbose(
+    `Testing SPARQL endpoints (${[...endpoints].join(
+      ","
+    )}) to see if they are up. Will retry 10 times and wait for 30 seconds after each try for each endpoint.`
+  );
   for (const endpoint of endpoints) {
     const testQuery = new TemplatedSelect<TestQueryInput, TestQueryOutput>(
       queryEngine,
@@ -45,11 +50,12 @@ async function startupProcedure() {
     );
     try {
       // Try lots of times because the database might not be up yet
-      const result = await testQuery.result({}, 10, 1000);
+      const result = await testQuery.result({}, 10, 30_000);
       if (result.result !== 2)
         throw new Error(
           `The endpoint "${endpoint}" does not know that 1+1=2. Might want to look into that.`
         );
+      logger.verbose(`\tEndpoint ${endpoint} passed.`);
     } catch (e) {
       logger.error(
         `The service cannot start because query failed on endpoint "${endpoint}"`

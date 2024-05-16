@@ -108,30 +108,28 @@ const datamonitoringFunctionSchema = z
   })
   .pipe(z.nativeEnum(DataMonitoringFunction));
 
-const dmReportGenerationServiceConfigFileSchema = z
-  .object({
-    endpoints: z.array(
+const dmReportGenerationServiceConfigFileSchema = z.object({
+  endpoints: z.array(
+    z.object({
+      url: z.string().url(),
+      classes: z.array(uriSchema),
+    })
+  ),
+  "harvester-endpoints": z
+    .array(
       z.object({
         url: z.string().url(),
-        classes: z.array(uriSchema),
       })
-    ),
-    "harvester-endpoints": z
-      .array(
-        z.object({
-          url: z.string().url(),
-        })
-      )
-      .min(1),
-    "periodic-function-invocation-times": z.record(
-      datamonitoringFunctionSchema,
-      z.object({
-        time: invocationTimeSchema,
-        days: invocationDaysSchema,
-      })
-    ),
-  })
-  .strict();
+    )
+    .min(1),
+  "periodic-function-invocation-times": z.record(
+    datamonitoringFunctionSchema,
+    z.object({
+      time: invocationTimeSchema,
+      days: invocationDaysSchema,
+    })
+  ),
+});
 
 const dmReportGenerationServiceEnvSchema = z.object({
   ADMIN_UNIT_ENDPOINT: z.string().url(),

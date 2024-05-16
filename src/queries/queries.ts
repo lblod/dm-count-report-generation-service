@@ -341,7 +341,7 @@ INSERT {
       skos:prefLabel "{{prefLabel}}";
       datamonitoring:targetAdminitrativeUnit <{{adminUnitUri}}>;
       datamonitoring:createdAt {{toDateTimeLiteral createdAt}};
-      datamonitoring:day: {{toDateLiteral day}};
+      datamonitoring:day {{toDateLiteral day}};
       datamonitoring:istest "true"^^xsd:boolean
       {{#if (listPopulated reportUris)}}
       ;

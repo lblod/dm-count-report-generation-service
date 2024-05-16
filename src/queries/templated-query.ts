@@ -5,7 +5,6 @@ import { DateOnly, DateTime, TimeOnly } from "../util/date-time.js";
 import { store } from "./store.js";
 import { DmEnum } from "../types.js";
 import { logger } from "../logger.js";
-import { retry } from "../util/util.js";
 import dayjs from "dayjs";
 
 const SKIP_PREFIX_REGEX = /^PREFIX[.\w\s:<>/\-#]+PREFIX[.\w\s:<>/\-#]+\n/g;
@@ -185,9 +184,13 @@ class TemplatedQueryBase<T extends Record<string, any>> {
 }
 
 class VoidBase<T extends Record<string, any>> extends TemplatedQueryBase<T> {
-  async _queryVoidToEndpoint(query: string): Promise<void> {
+  async _queryVoidToEndpoint(
+    query: string,
+    maxRetries: number | undefined = undefined,
+    waitMilliseconds: number | undefined = undefined
+  ): Promise<void> {
     try {
-      await retry(this.queryEngine.queryVoid.bind(this.queryEngine))(query, {
+      await this.queryEngine.queryVoid(query, {
         sources: [
           {
             type: "sparql",
@@ -196,6 +199,8 @@ class VoidBase<T extends Record<string, any>> extends TemplatedQueryBase<T> {
         ],
         destination: config.env.REPORT_ENDPOINT,
         fetch: getCustomFetchFunction(query),
+        httpRetryCount: maxRetries ?? config.env.QUERY_MAX_RETRIES,
+        httpRetryDelay: waitMilliseconds ?? config.env.QUERY_MAX_RETRIES,
       });
       if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint, query);
     } catch (e) {
@@ -219,10 +224,14 @@ export class TemplatedInsert<
    * Similar to objects and bindings in TemplatedSelect
    * @param input The input data structure for the handlebars template rendering
    */
-  async execute(input: T): Promise<void> {
+  async execute(
+    input: T,
+    maxRetries: number | undefined = undefined,
+    waitMilliseconds: number | undefined = undefined
+  ): Promise<void> {
     const query = this.getQuery(input);
     // Write to report endpoint using custom fetch
-    await this._queryVoidToEndpoint(query);
+    await this._queryVoidToEndpoint(query, maxRetries, waitMilliseconds);
     if (!config.env.DISABLE_DEBUG_ENDPOINT && store) {
       // Query to store for buffering
       this.queryEngine.queryVoid(query, {
@@ -251,10 +260,14 @@ export class TemplatedUpdate<
    * Similar to objects and bindings in TemplatedSelect
    * @param input The input data structure for the handlebars template rendering
    */
-  async execute(input: T): Promise<void> {
+  async execute(
+    input: T,
+    maxRetries: number | undefined = undefined,
+    waitMilliseconds: number | undefined = undefined
+  ): Promise<void> {
     const query = this.getQuery(input);
     // Write to report endpoint using custom fetch
-    await this._queryVoidToEndpoint(query);
+    await this._queryVoidToEndpoint(query, maxRetries, waitMilliseconds);
   }
 }
 
@@ -274,14 +287,17 @@ export class TemplatedSelect<
    * @param input Handlebars input
    * @returns Comunica bindings array
    */
-  async bindings(input: T): Promise<Bindings[]> {
+  async bindings(
+    input: T,
+    maxRetries: number | undefined = undefined,
+    waitMilliseconds: number | undefined = undefined
+  ): Promise<Bindings[]> {
     const query = this.getQuery(input);
     try {
-      const { result: bindingsStream } = await retry(
-        this.queryEngine.queryBindings.bind(this.queryEngine)
-      )(query, {
+      const bindingsStream = await this.queryEngine.queryBindings(query, {
         sources: [this.endpoint],
-        lenient: true,
+        httpRetryCount: maxRetries ?? config.env.QUERY_MAX_RETRIES,
+        httpRetryDelay: waitMilliseconds ?? config.env.QUERY_MAX_RETRIES,
       });
       if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint, query);
       return bindingsStream.toArray();
@@ -299,18 +315,22 @@ export class TemplatedSelect<
    * @param input Handlebars input
    * @returns An array of objects
    */
-  async records(input: T): Promise<U[]> {
+  async records(
+    input: T,
+    maxRetries: number | undefined = undefined,
+    waitMilliseconds: number | undefined = undefined
+  ): Promise<U[]> {
     const query = this.getQuery(input);
     const bindingsStream = await (async () => {
       try {
-        const bindings = await retry(
-          this.queryEngine.queryBindings.bind(this.queryEngine)
-        )(query, {
+        const bindings = await this.queryEngine.queryBindings(query, {
           sources: [this.endpoint],
           lenient: true,
+          httpRetryCount: maxRetries ?? config.env.QUERY_MAX_RETRIES,
+          httpRetryDelay: waitMilliseconds ?? config.env.QUERY_MAX_RETRIES,
         });
         if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint, query);
-        return bindings.result;
+        return bindings;
       } catch (e) {
         logQuery(this.endpoint, query, false);
         logger.error(`Last query logged failed`);
@@ -335,18 +355,23 @@ export class TemplatedSelect<
    * @param input Handlebars input
    * @returns An array of objects
    */
-  async objects(uriKey: string, input: T): Promise<U[]> {
+  async objects(
+    uriKey: string,
+    input: T,
+    maxRetries: number | undefined = undefined,
+    waitMilliseconds: number | undefined = undefined
+  ): Promise<U[]> {
     const query = this.getQuery(input);
     const bindingsStream = await (async () => {
       try {
-        const bindings = await retry(
-          this.queryEngine.queryBindings.bind(this.queryEngine)
-        )(query, {
+        const bindings = await this.queryEngine.queryBindings(query, {
           sources: [this.endpoint],
           lenient: true,
+          httpRetryCount: maxRetries ?? config.env.QUERY_MAX_RETRIES,
+          httpRetryDelay: waitMilliseconds ?? config.env.QUERY_MAX_RETRIES,
         });
         if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint, query);
-        return bindings.result;
+        return bindings;
       } catch (e) {
         logQuery(this.endpoint, query, false);
         logger.error(`Last query logged failed`);
@@ -410,22 +435,20 @@ export class TemplatedSelect<
    */
   async result(
     input: T,
-    retries: undefined | number = undefined,
+    maxRetries: undefined | number = undefined,
     waitMilliseconds: undefined | number = undefined
   ): Promise<U> {
     const query = this.getQuery(input);
     const bindingsStream = await (async () => {
       try {
-        const bindings = await retry(
-          this.queryEngine.queryBindings.bind(this.queryEngine),
-          retries,
-          waitMilliseconds
-        )(query, {
+        const bindings = await this.queryEngine.queryBindings(query, {
           sources: [this.endpoint],
           lenient: true,
+          httpRetryCount: maxRetries ?? config.env.QUERY_MAX_RETRIES,
+          httpRetryDelay: waitMilliseconds ?? config.env.QUERY_MAX_RETRIES,
         });
         if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint, query);
-        return bindings.result;
+        return bindings;
       } catch (e) {
         logQuery(this.endpoint, query, false);
         logger.error(`Last query logged failed`);
