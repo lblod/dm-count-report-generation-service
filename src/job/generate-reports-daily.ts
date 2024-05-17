@@ -69,7 +69,7 @@ function getQueries(queryEngine: QueryEngine, endpoint: string) {
 
 export const generateReportsDaily: TaskFunction = async (
   progress,
-  day: DateOnly | undefined
+  day: DateOnly | undefined = undefined
 ) => {
   const defaultedDay = day ?? DateOnly.yesterday();
   progress.update(
@@ -187,7 +187,7 @@ export const generateReportsDaily: TaskFunction = async (
           reportUri,
           reportGraphUri: config.env.REPORT_GRAPH_URI,
           adminUnitUri: adminUnit.uri,
-          prefLabel: `Count report for governing body '${goveringBody.label}' on ${defaultedDay}`,
+          prefLabel: `Count report for governing body of class '${goveringBody.classLabel}' on ${defaultedDay} for admin unit '${adminUnit.label}'`,
           day: defaultedDay,
           counts: [
             {

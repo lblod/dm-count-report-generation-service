@@ -20,7 +20,7 @@ type OrganisationsAndGovBodies = {
     id: string;
     govBodies: {
       uri: string;
-      label: string;
+      classLabel: string;
     }[];
   }[];
 };
@@ -109,7 +109,7 @@ async function getOrgResouces(
       govBodies: govBodies.map((record) => {
         return {
           uri: record.goveringBodyUri,
-          label: record.label,
+          classLabel: record.classLabel,
         };
       }),
     });

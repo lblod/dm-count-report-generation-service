@@ -71,7 +71,7 @@ export const dmEnums = [
   JobStatus,
   DayOfWeek,
   DataMonitoringFunction,
-];
+] as const;
 
 const allUris = {
   ...TaskStatus,

@@ -110,7 +110,7 @@ function stripAndLower(input: string): string {
 
 export const getHarvestingTimestampDaily: TaskFunction = async (
   progress,
-  day: DateOnly | undefined
+  day: DateOnly | undefined = undefined
 ) => {
   const defaultedDay = day ?? DateOnly.yesterday();
   progress.update(

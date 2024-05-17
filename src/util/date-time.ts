@@ -43,6 +43,7 @@ export const TIME_ANY_NOTATION_REGEX = RegExp(
 
 const zeroPad = (num: number, places: number): string =>
   String(num).padStart(places, "0");
+
 export const utcOffset = now().utcOffset();
 export const utcOffsetHours =
   utcOffset < 0
@@ -76,7 +77,7 @@ export class DateOnly {
   get year() {
     return this._year;
   }
-  private _month: number;
+  private _month: number; // January is 1
   get month() {
     return this._month;
   }
@@ -104,14 +105,14 @@ export class DateOnly {
         return dayjs()
           .tz(DEFAULT_TIMEZONE, true)
           .set("year", parseInt(match[1])!)
-          .set("month", parseInt(match[2])!)
-          .set("day", parseInt(match[3])!)
+          .set("month", parseInt(match[2])! - 1)
+          .set("D", parseInt(match[3])!)
           .set("h", 0)
           .set("m", 0)
           .set("s", 0)
           .set("ms", 0);
       } else if (args.length === 1 && dayjs.isDayjs(args[0])) {
-        return dayjs(args[0])
+        return args[0]
           .tz(DEFAULT_TIMEZONE, true)
           .set("h", 0)
           .set("m", 0)
@@ -129,8 +130,8 @@ export class DateOnly {
         return dayjs()
           .tz(DEFAULT_TIMEZONE, true)
           .set("year", args[0])
-          .set("month", args[1])
-          .set("day", args[2])
+          .set("month", args[1] - 1)
+          .set("D", args[2])
           .set("h", 0)
           .set("m", 0)
           .set("s", 0)
@@ -142,8 +143,8 @@ export class DateOnly {
       }
     })();
     this._year = this.localStartOfDay.get("year");
-    this._month = this.localStartOfDay.get("month");
-    this._day = this.localStartOfDay.get("day");
+    this._month = this.localStartOfDay.get("month") + 1; // Dayjs months are 0 based
+    this._day = this.localStartOfDay.get("D");
     this._localEndOfDay = this._localStartOfDay.add(1, "day");
   }
 
@@ -162,7 +163,7 @@ export class DateOnly {
     return dayjs()
       .tz(DEFAULT_TIMEZONE)
       .set("year", this.year)
-      .set("month", this.month)
+      .set("month", this.month - 1)
       .set("day", this.day)
       .set("h", time.hour)
       .set("m", time.minute)
@@ -331,8 +332,8 @@ export class TimeOnly {
     return dayjs()
       .tz(DEFAULT_TIMEZONE)
       .set("year", day.year)
-      .set("month", day.month)
-      .set("day", day.day)
+      .set("month", day.month - 1)
+      .set("D", day.day)
       .set("h", this.hour)
       .set("m", this.minute)
       .set("s", this.second)

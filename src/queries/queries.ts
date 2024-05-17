@@ -82,17 +82,20 @@ export type GetGoveringBodiesInput = {
 
 export type GetGoveringBodiesOutput = {
   goveringBodyUri: string;
-  label: string;
+  goveringBodyClassUri: string;
+  classLabel: string;
 };
 
 export const getGoverningBodiesOfAdminUnitTemplate = Handlebars.compile(
   `\
 {{prefixes}}
-SELECT ?goveringBodyUri ?label WHERE {
+SELECT ?goveringBodyUri WHERE {
   GRAPH <{{graphUri}}> {
     ?goveringBodyUri a besluit:Bestuursorgaan;
       besluit:bestuurt <{{adminitrativeUnitUri}}>;
-      skos:prefLabel ?label.
+      org:classification ?goveringBodyClassUri.
+    ?governingBodyClassUri a skos:Concept;
+      skos:prefLabel ?classLabel.
   }
 }
 `,
