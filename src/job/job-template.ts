@@ -20,6 +20,7 @@ import { v4 as uuidv4 } from "uuid";
 import { createJob as createJob } from "./job.js";
 import { delay, retry } from "../util/util.js";
 import { logger } from "../logger.js";
+import Handlebars from "handlebars";
 
 export type UpdateJobTemplateStatusInput = {
   prefixes: string;
@@ -80,8 +81,8 @@ INSERT {
       adms:status {{toJobTemplateStatusLiteral status}};
       dct:created {{toDateTimeLiteral createdAt}};
       dct:modified {{toDateTimeLiteral createdAt}};
-      datamonitoring:description "{{description}}";
-      datamonitoring:jobType {{toJobTemplateTypeLiteral jobType}};
+      datamonitoring:description "{{escape description}}";
+      datamonitoring:jobType {{toJobTemplateTypeLiteral jobTemplateType}};
       datamonitoring:jobParameters [
         datamonitoring:timeOfInvocation {{toTimeLiteral timeOfInvocation}};
         datamonitoring:function {{toDatamonitoringFunctionLiteral datamonitoringFunction}};
@@ -261,10 +262,10 @@ INSERT {
     <{{newJobTemplateUri}}> a cogs:Job, datamonitoring:DatamonitoringTemplateJob;
       mu:uuid "{{uuid}}";
       dct:creator <https://codifly.be/ns/resources/job-creator/dm-count-report-generation-service>;
-      adms:status {{toJobStatusLiteral status}};
+      adms:status {{toJobTemplateStatusLiteral status}};
       dct:created {{toDateTimeLiteral createdAt}};
       dct:modified {{toDateTimeLiteral createdAt}};
-      datamonitoring:description "{{description}}";
+      datamonitoring:description "{{escape description}}";
       datamonitoring:jobType {{toJobTemplateTypeLiteral jobTemplateType}};
       datamonitoring:jobParameters [
         datamonitoring:function {{toDatamonitoringFunctionLiteral datamonitoringFunction}};

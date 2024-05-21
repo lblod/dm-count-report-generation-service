@@ -18,7 +18,7 @@ import { TimeOnly } from "../util/date-time.js";
 import { logger } from "../logger.js";
 
 const showJobTemplatesTemplate = Handlebars.compile(
-  fs.readFileSync("./templates/show-jobs.hbs", { encoding: "utf-8" })
+  fs.readFileSync("./templates/show-job-templates.hbs", { encoding: "utf-8" })
 );
 
 const showJobTemplate = Handlebars.compile(
@@ -92,8 +92,8 @@ export const showJobTemplates: RequestHandler = (_, res) => {
     }
   }
   const html = showJobTemplatesTemplate({
-    title: "Current jobs for counting service",
-    jobs: output,
+    title: "Current Job templates for counting service",
+    jobTemplates: output,
     periodicValue: JobTemplateType.PERIODIC,
     restValue: JobTemplateType.REST_INVOKED,
   });

@@ -66,7 +66,7 @@ export function setupDebugEndpoints(app: Express) {
     deleteAllJobs
   );
 
-  addDebugEndpoint(app, "GET", "/jobs", emptySchema, showJobTemplates);
+  addDebugEndpoint(app, "GET", "/job-templates", emptySchema, showJobTemplates);
 
   addDebugEndpoint(app, "GET", "/start/:urlPath", emptySchema, startRestJob);
 

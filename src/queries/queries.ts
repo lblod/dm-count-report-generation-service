@@ -298,7 +298,7 @@ INSERT {
       datamonitoring:day {{toDateLiteral day}};
       datamonitoring:targetAdminitrativeUnit <{{adminUnitUri}}>;
       datamonitoring:targetGoverningBody <{{govBodyUri}}>;
-      skos:prefLabel "{{prefLabel}}";
+      skos:prefLabel "{{escape prefLabel}}";
       mu:uuid "{{uuid}}";
       datamonitoring:istest "true"^^xsd:boolean;
       datamonitoring:counts
@@ -307,7 +307,7 @@ INSERT {
           a datamonitoring:Count;
           datamonitoring:targetClass <{{this.classUri}}>;
           datamonitoring:count {{this.count}};
-          skos:prefLabel "{{prefLabel}}";
+          skos:prefLabel "{{escape this.prefLabel}}";
         ]{{#unless @last}},{{/unless}}
      {{/each}}
   }
@@ -336,7 +336,7 @@ export const writeAdminUnitCountReportTemplate = Handlebars.compile(
 INSERT {
   GRAPH <{{reportGraphUri}}> {
     <{{reportUri}}> a datamonitoring:AdminUnitCountReport;
-      skos:prefLabel "{{prefLabel}}";
+      skos:prefLabel "{{escape prefLabel}}";
       datamonitoring:targetAdminitrativeUnit <{{adminUnitUri}}>;
       datamonitoring:createdAt {{toDateTimeLiteral createdAt}};
       datamonitoring:day {{toDateLiteral day}};

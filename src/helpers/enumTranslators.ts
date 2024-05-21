@@ -21,7 +21,9 @@ function createToSparqlLiteralHelper(
       )
     )
       throw new Error(
-        `${funcName} only takes one of: ${Object.values(enumObject).join(",")}`
+        `${funcName} only takes one of: ${Object.values(enumObject).join(
+          ","
+        )}. Received ${enumValue}`
       );
     return `<${enumValue}>`;
   });

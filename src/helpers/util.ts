@@ -26,3 +26,11 @@ Handlebars.registerHelper("rel", function (path: string) {
   if (config.env.ROOT_URL_PATH === "/") return path;
   return `${config.env.ROOT_URL_PATH}${path}`;
 });
+
+Handlebars.registerHelper("escape", function (input: string) {
+  if (typeof input !== "string")
+    throw new Error(
+      `'escape' takes one parameter which must be a string. Got "${input}".`
+    );
+  return input.replace(/(["'])/g, "\\$1");
+});

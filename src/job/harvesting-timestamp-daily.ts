@@ -74,7 +74,7 @@ INSERT {
   GRAPH <{{reportGraphUri}}> {
     <{{reportUri}}> a datamonitoring:LastHarvestingExecutionReport;
       datamonitoring:day {{toDateLiteral day}};
-      skos:prefLabel "{{prefLabel}}";
+      skos:prefLabel "{{escape prefLabel}}";
       datamonitoring:createdAt {{toDateTimeLiteral createdAt}};
       mu:uuid "{{uuid}}";
       datamonitoring:adminUnitLastExecutionRecords
@@ -82,7 +82,7 @@ INSERT {
         [
           a datamonitoring:LastHarvestingExecutionRecord;
           datamonitoring:targetAdminitrativeUnit <{{this.organisationUri}}>;
-          skos:prefLabel "Last execution of harvesting job for organisation '{{this.organisationLabel}}'";
+          skos:prefLabel "Last execution of harvesting job for organisation \'{{escape this.organisationLabel}}\'";
           datamonitoring:lastExecutionTime {{toDateTimeLiteral this.lastExecutionTimestamp}};
         ]{{#unless @last}},{{/unless}}
       {{/each}}

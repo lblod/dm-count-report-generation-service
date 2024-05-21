@@ -21,6 +21,7 @@ import { JOB_FUNCTIONS } from "./job-functions-map.js";
 import { JobTemplate } from "./job-template.js";
 import { v4 as uuidv4 } from "uuid";
 import { DateTime, now } from "../util/date-time.js";
+import Handlebars from "handlebars";
 
 export type JobFunction = (
   progress: JobProgress,
@@ -54,7 +55,7 @@ INSERT {
       task:operation {{toDatamonitoringFunctionLiteral datamonitoringFunction}};
       dct:isPartOf <{{jobTemplateUri}}>;
       datamonitoring:function {{toDatamonitoringFunctionLiteral datamonitoringFunction}};
-      datamonitoring:description "{{description}}";
+      datamonitoring:description "{{escape description}}";
       datamonitoring:jobType {{toJobTypeLiteral jobType}}.
   }
 } WHERE {
@@ -117,7 +118,7 @@ DELETE {
 WHERE {
   GRAPH <{{jobGraphUri}}> {
     ?jobUri a cogs:Job;
-      adms:status {{(toJobStatusLiteral "BUSY")}};
+      adms:status <https://codifly.be/ns/resources/status/busy>;
       ?p ?o.
   }
 }
