@@ -1,3 +1,5 @@
+import { JobProgress } from "./job/job.js";
+
 export type IsEmpty<T> = T extends [] ? true : false;
 
 export type HasOneElement<T extends any[]> = T["length"] extends 1
@@ -13,26 +15,26 @@ export type JsonSerializable =
   | { [key: string]: JsonSerializable }
   | undefined;
 
-export enum TaskStatus {
+export enum JobStatus {
   BUSY = "https://codifly.be/ns/resources/status/busy",
   NOT_STARTED = "https://codifly.be/ns/resources/status/not-started",
   FINISHED = "https://codifly.be/ns/resources/status/finished",
   ERROR = "https://codifly.be/ns/resources/status/failed",
 }
 
-export enum JobStatus {
+export enum JobTemplateStatus {
   ACTIVE = "https://codifly.be/ns/resources/status/active",
   NOT_STARTED = "https://codifly.be/ns/resources/status/not-started",
   FINISHED = "https://codifly.be/ns/resources/status/finished",
   INACTIVE = "https://codifly.be/ns/resources/status/inactive",
 }
 
-export enum TaskType {
+export enum JobType {
   SERIAL = "https://codifly.be/ns/resources/task-type/serial",
   PARALLEL = "https://codifly.be/ns/resources/task-type/parallel",
 }
 
-export enum JobType {
+export enum JobTemplateType {
   PERIODIC = "https://codifly.be/ns/resources/job-type/periodic",
   REST_INVOKED = "https://codifly.be/ns/resources/job-type/rest-invoked",
 }
@@ -58,26 +60,26 @@ export enum DataMonitoringFunction {
 }
 
 export type DmEnum =
-  | TaskType
-  | TaskStatus
+  | JobType
   | JobStatus
+  | JobTemplateStatus
   | DayOfWeek
   | DataMonitoringFunction;
 
 export const dmEnums = [
-  TaskStatus,
-  TaskType,
-  JobType,
   JobStatus,
+  JobType,
+  JobTemplateType,
+  JobTemplateStatus,
   DayOfWeek,
   DataMonitoringFunction,
 ] as const;
 
 const allUris = {
-  ...TaskStatus,
-  ...TaskType,
-  ...JobType,
   ...JobStatus,
+  ...JobType,
+  ...JobTemplateType,
+  ...JobTemplateStatus,
   ...DayOfWeek,
   ...DataMonitoringFunction,
 } as const;

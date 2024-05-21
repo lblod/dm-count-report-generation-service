@@ -3,8 +3,8 @@ import { config } from "./configuration.js";
 import winston from "winston";
 import { DateOnly, TimeOnly } from "./util/date-time.js";
 import dayjs from "dayjs";
+import { JobTemplate } from "./job/job-template.js";
 import { Job } from "./job/job.js";
-import { Task } from "./job/task.js";
 
 const winstonLogger = winston.createLogger({
   level: config.env.LOG_LEVEL,
@@ -28,8 +28,8 @@ export function replacer(_key: string, value: any): JsonSerializable {
     if (value instanceof DateOnly) return value.toString();
     if (value instanceof TimeOnly) return value.toString();
     if (dayjs.isDayjs(value)) return value.format();
-    if (value instanceof Job) return value.toString();
-    if (value instanceof Task) return "Task instance";
+    if (value instanceof JobTemplate) return value.toString();
+    if (value instanceof Job) return "Task instance";
   }
   return value;
 }

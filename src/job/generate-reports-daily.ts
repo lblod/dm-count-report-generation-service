@@ -19,7 +19,6 @@ import {
   TemplatedInsert,
   TemplatedSelect,
 } from "../queries/templated-query.js";
-import { TaskFunction } from "./task.js";
 import { getOrgResoucesCached } from "./get-org-data.js";
 import { queryEngine } from "../queries/query-engine.js";
 import { config } from "../configuration.js";
@@ -27,6 +26,7 @@ import { duration } from "../util/util.js";
 import { PREFIXES } from "../local-constants.js";
 import { DateOnly, now } from "../util/date-time.js";
 import { v4 as uuidv4 } from "uuid";
+import { JobFunction } from "./job.js";
 
 function getQueries(queryEngine: QueryEngine, endpoint: string) {
   const countSessionsQuery = new TemplatedSelect<
@@ -67,7 +67,7 @@ function getQueries(queryEngine: QueryEngine, endpoint: string) {
   };
 }
 
-export const generateReportsDaily: TaskFunction = async (
+export const generateReportsDaily: JobFunction = async (
   progress,
   day: DateOnly | undefined = undefined
 ) => {

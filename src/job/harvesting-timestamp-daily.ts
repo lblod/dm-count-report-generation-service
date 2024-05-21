@@ -5,13 +5,13 @@ import {
   TemplatedInsert,
   TemplatedSelect,
 } from "../queries/templated-query.js";
-import { TaskFunction } from "./task.js";
 import { getOrgResoucesCached } from "./get-org-data.js";
 import { queryEngine } from "../queries/query-engine.js";
 import { config } from "../configuration.js";
 import { PREFIXES } from "../local-constants.js";
 import { duration } from "../util/util.js";
 import { v4 as uuidv4 } from "uuid";
+import { JobFunction } from "./job.js";
 
 type GetLastModifiedInput = {
   prefixes: string;
@@ -110,7 +110,7 @@ function stripAndLower(input: string): string {
   return input.toLowerCase().replace(STRIP_REGEX, "");
 }
 
-export const getHarvestingTimestampDaily: TaskFunction = async (
+export const getHarvestingTimestampDaily: JobFunction = async (
   progress,
   day: DateOnly | undefined = undefined
 ) => {

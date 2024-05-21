@@ -1,13 +1,17 @@
 import { Request, RequestHandler, Response } from "express";
 import fs from "node:fs";
 import Handlebars from "handlebars";
-import { PeriodicJob, RestJob, getJobs } from "../job/job.js";
-import { getTasks } from "../job/task.js";
+import {
+  PeriodicJobTemplate,
+  RestJobTemplate,
+  getJobTemplates,
+} from "../job/job-template.js";
+import { getJobs } from "../job/job.js";
 import {
   DataMonitoringFunction,
   DayOfWeek,
-  JobStatus,
-  JobType,
+  JobTemplateStatus,
+  JobTemplateType,
   getEnumStringFromUri,
 } from "../types.js";
 import { TimeOnly } from "../util/date-time.js";
@@ -29,15 +33,15 @@ type RestJobInfo = {
   restPath: string;
 };
 
-type JobRecord<T extends JobType> = {
+type JobRecord<T extends JobTemplateType> = {
   uri: string;
   jobType: T;
   uuid: string;
-  status: JobStatus;
+  status: JobTemplateStatus;
   datamonitoringFunction: DataMonitoringFunction;
-  information: T extends JobType.PERIODIC
+  information: T extends JobTemplateType.PERIODIC
     ? PeriodicJobInfo
-    : T extends JobType.REST_INVOKED
+    : T extends JobTemplateType.REST_INVOKED
     ? RestJobInfo
     : undefined;
 };
@@ -52,35 +56,35 @@ function printInvocationInformation(
 }
 
 export const showJobs: RequestHandler = (_, res) => {
-  const jobs = getJobs();
+  const jobs = getJobTemplates();
 
-  const output: JobRecord<JobType>[] = [];
+  const output: JobRecord<JobTemplateType>[] = [];
   for (const job of jobs) {
-    switch (job.jobType) {
-      case JobType.PERIODIC:
+    switch (job.jobTemplateType) {
+      case JobTemplateType.PERIODIC:
         output.push({
           uri: job.uri,
-          jobType: JobType.PERIODIC,
+          jobType: JobTemplateType.PERIODIC,
           uuid: job.uuid,
           status: job.status,
           datamonitoringFunction: job.datamonitoringFunction,
           information: {
             timeOfInvocationInformation: printInvocationInformation(
-              (job as PeriodicJob).timeOfInvocation,
-              (job as PeriodicJob).daysOfInvocation
+              (job as PeriodicJobTemplate).timeOfInvocation,
+              (job as PeriodicJobTemplate).daysOfInvocation
             ),
           },
         });
         break;
-      case JobType.REST_INVOKED: {
+      case JobTemplateType.REST_INVOKED: {
         output.push({
           uri: job.uri,
-          jobType: JobType.REST_INVOKED,
+          jobType: JobTemplateType.REST_INVOKED,
           uuid: job.uuid,
           status: job.status,
           datamonitoringFunction: job.datamonitoringFunction,
           information: {
-            restPath: (job as RestJob)._restPath,
+            restPath: (job as RestJobTemplate)._restPath,
           },
         });
         break;
@@ -92,8 +96,8 @@ export const showJobs: RequestHandler = (_, res) => {
   const html = showJobsTemplate({
     title: "Current jobs for counting service",
     jobs: output,
-    periodicValue: JobType.PERIODIC,
-    restValue: JobType.REST_INVOKED,
+    periodicValue: JobTemplateType.PERIODIC,
+    restValue: JobTemplateType.REST_INVOKED,
   });
   res.send(html);
 };
@@ -101,9 +105,9 @@ export const showJobs: RequestHandler = (_, res) => {
 export async function startTask(req: Request, res: Response): Promise<void> {
   if (!req.params.restPath) throw new Error("Params not present.");
   const restPath = req.params.restPath;
-  const restJobs = getJobs().filter(
-    (j) => j.jobType === JobType.REST_INVOKED
-  ) as RestJob[];
+  const restJobs = getJobTemplates().filter(
+    (j) => j.jobTemplateType === JobTemplateType.REST_INVOKED
+  ) as RestJobTemplate[];
   const job = restJobs.find((j) => j.restPath === restPath);
   if (!job)
     throw new Error(
@@ -113,7 +117,7 @@ export async function startTask(req: Request, res: Response): Promise<void> {
     );
   // Check if a task is already running for this job
   const task = await (async () => {
-    const testTask = getTasks().find((t) => t.jobUri === job.uri);
+    const testTask = getJobs().find((t) => t.jobTemplateUri === job.uri);
     if (!testTask) {
       // If no task is found then start it
       // Invoking should never take long

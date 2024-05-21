@@ -9,18 +9,18 @@ import {
   testQueryTemplate,
 } from "./queries/queries.js";
 import {
-  createPeriodicJob,
-  createRestJob,
+  createPeriodicJobTemplate,
+  createRestJobTemplate,
   deleteAllJobs,
-  getJobs,
-  loadJobs,
-  setJobCreeationDefaults,
-} from "./job/job.js";
-import { deleteBusyTasks, setTaskCreationDefaults } from "./job/task.js";
+  getJobTemplates,
+  loadTemplateJobs,
+  setJobTemplateCreeationDefaults,
+} from "./job/job-template.js";
+import { deleteBusyJobs, setJobCreationDefaults } from "./job/job.js";
 import {
   DataMonitoringFunction,
-  JobStatus,
-  JobType,
+  JobTemplateStatus,
+  JobTemplateType,
   getEnumStringFromUri,
 } from "./types.js";
 import { setupDebugEndpoints } from "./debug-endpoints/endpoints.js";
@@ -66,16 +66,16 @@ async function startupProcedure() {
   logger.info("CHECK PASSED: All endpoints can be queried.");
   // initialise stuff
   // Jobs
-  setJobCreeationDefaults(queryEngine, config.env.REPORT_ENDPOINT);
-  await loadJobs();
-  logger.info(`CHECK PASSED: Jobs loaded. ${getJobs().length} found.`);
+  setJobTemplateCreeationDefaults(queryEngine, config.env.REPORT_ENDPOINT);
+  await loadTemplateJobs();
+  logger.info(`CHECK PASSED: Jobs loaded. ${getJobTemplates().length} found.`);
   // For all invocation times provided in the config file; check if a periodic job is present and create one if necassary
   for (const [func, invocationInfo] of Object.entries(
     config.file.periodicFunctionInvocationTimes
   )) {
-    const job = getJobs().find(
+    const job = getJobTemplates().find(
       (j) =>
-        j.jobType === JobType.PERIODIC &&
+        j.jobTemplateType === JobTemplateType.PERIODIC &&
         j.datamonitoringFunction === (func as DataMonitoringFunction)
     );
     if (job) {
@@ -92,18 +92,18 @@ async function startupProcedure() {
           false
         )} does not exist yet. Config file is read.`
       );
-      await createPeriodicJob(
+      await createPeriodicJobTemplate(
         func as DataMonitoringFunction,
         invocationInfo.time,
         invocationInfo.days,
-        JobStatus.ACTIVE
+        JobTemplateStatus.ACTIVE
       );
     }
   }
   if (!config.env.DISABLE_DEBUG_ENDPOINT) {
     // If debug mode is activated this microservicie is supposed to have a job for debugging
-    const restInvokedJobs = getJobs().filter(
-      (job) => job.jobType === JobType.REST_INVOKED
+    const restInvokedJobs = getJobTemplates().filter(
+      (job) => job.jobTemplateType === JobTemplateType.REST_INVOKED
     );
     const recreate = await (async () => {
       switch (restInvokedJobs.length) {
@@ -114,7 +114,7 @@ async function startupProcedure() {
           logger.warn(
             `Only one rest job was found and that is very strange. There should be two. Deleting all rest jobs and recreating them`
           );
-          await deleteAllJobs([JobType.REST_INVOKED]);
+          await deleteAllJobs([JobTemplateType.REST_INVOKED]);
           return true;
         default:
           logger.info(`Debug jobs exist in the database. OK.`);
@@ -122,21 +122,21 @@ async function startupProcedure() {
       }
     })();
     if (recreate) {
-      await createRestJob(
+      await createRestJobTemplate(
         DataMonitoringFunction.COUNT_RESOURCES,
         "start-count-report",
-        JobStatus.ACTIVE
+        JobTemplateStatus.ACTIVE
       );
-      await createRestJob(
+      await createRestJobTemplate(
         DataMonitoringFunction.CHECK_HARVESTING_EXECUTION_TIME,
         "start-harvesting-exec-time-report",
-        JobStatus.ACTIVE
+        JobTemplateStatus.ACTIVE
       );
     }
   }
   // Tasks
-  setTaskCreationDefaults(queryEngine, config.env.REPORT_ENDPOINT);
-  await deleteBusyTasks();
+  setJobCreationDefaults(queryEngine, config.env.REPORT_ENDPOINT);
+  await deleteBusyJobs();
   logger.info("Made sure there are no busy tasks");
   initCron();
   // await loadTasks();

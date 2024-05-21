@@ -10,9 +10,9 @@ import {
   debugHtmlRenderMiddleware,
 } from "./middleware.js";
 import Handlebars from "handlebars";
-import { deleteAllJobs } from "../job/job.js";
+import { deleteAllJobs } from "../job/job-template.js";
 import { showJobs, startTask } from "./functions.js";
-import { getTasks } from "../job/task.js";
+import { getJobs } from "../job/job.js";
 import { logger } from "../logger.js";
 import { now } from "../util/date-time.js";
 
@@ -75,7 +75,7 @@ export function setupDebugEndpoints(app: Express) {
       const uuid = req.params.uuid;
       if (!uuid) throw new Error("Uuid URL parameter not present");
       // Find task
-      const task = getTasks().find((t) => t.uuid === uuid);
+      const task = getJobs().find((t) => t.uuid === uuid);
       if (!task) throw new Error("No running task with this UUID found.");
 
       // Generate event listeners in a record

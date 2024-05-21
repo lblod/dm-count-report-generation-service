@@ -1,59 +1,328 @@
 import { QueryEngine } from "@comunica/query-sparql";
-import { config } from "../configuration.js";
-import { TimeOnly, now } from "../util/date-time.js";
 import { PREFIXES } from "../local-constants.js";
-import {
-  DeleteAllJobsInput,
-  GetJobsInput,
-  GetPeriodicJobsOutput,
-  GetRestJobsOutput,
-  UpdateJobStatusInput,
-  WriteNewPeriodicJobInput,
-  WriteNewRestJobInput,
-  deleteAllJobsTemplate,
-  getPeriodicJobsTemplate,
-  getRestJobsTemplate,
-  insertPeriodicJobTemplate,
-  insertRestJobTemplate,
-  updateJobStatusTemplate,
-} from "../queries/queries.js";
+import { logger } from "../logger.js";
 import {
   TemplatedInsert,
-  TemplatedSelect,
   TemplatedUpdate,
 } from "../queries/templated-query.js";
 import {
-  DataMonitoringFunction,
-  DayOfWeek,
+  LogLevel,
+  ProgressMessage,
   JobStatus,
   JobType,
-  TaskStatus,
-  TaskType,
+  UpdateMessage,
   getEnumStringFromUri,
+  DataMonitoringFunction,
 } from "../types.js";
+import { EventEmitter } from "node:events";
+import { config } from "../configuration.js";
+import { longDuration } from "../util/util.js";
+import { JOB_FUNCTIONS } from "./job-functions-map.js";
+import { JobTemplate } from "./job-template.js";
 import { v4 as uuidv4 } from "uuid";
-import { createTask } from "./task.js";
-import { delay, retry } from "../util/util.js";
-import { logger } from "../logger.js";
+import { DateTime, now } from "../util/date-time.js";
+
+export type JobFunction = (
+  progress: JobProgress,
+  ...args: any[]
+) => Promise<void>;
+
+export type WriteNewJobInput = {
+  prefixes: string;
+  jobGraphUri: string;
+  jobUri: string;
+  uuid: string;
+  status: JobStatus;
+  createdAt: DateTime;
+  description: string;
+  jobType: JobType;
+  datamonitoringFunction: DataMonitoringFunction;
+  jobTemplateUri: string;
+};
+
+export const insertJobTemplate = Handlebars.compile(
+  `\
+{{prefixes}}
+INSERT {
+  GRAPH <{{jobGraphUri}}> {
+    <{{jobUri}}> a cogs:Job, datamonitoring:DatamonitoringJob;
+      mu:uuid "{{uuid}}";
+      dct:creator <https://codifly.be/ns/resources/task-creator/dm-count-report-generation-service>;
+      adms:status {{toJobStatusLiteral status}};
+      dct:created {{toDateTimeLiteral createdAt}};
+      dct:modified {{toDateTimeLiteral createdAt}};
+      task:operation {{toDatamonitoringFunctionLiteral datamonitoringFunction}};
+      dct:isPartOf <{{jobTemplateUri}}>;
+      datamonitoring:function {{toDatamonitoringFunctionLiteral datamonitoringFunction}};
+      datamonitoring:description "{{description}}";
+      datamonitoring:jobType {{toJobTypeLiteral jobType}}.
+  }
+} WHERE {
+
+}
+`,
+  { noEscape: true }
+);
+
+export type GetJobsInput = {
+  prefixes: string;
+  jobGraphUri: string;
+  jobStatuses: JobStatus[];
+};
+
+export type GetJobsOutput = {
+  jobUri: string;
+  uuid: string;
+  status: JobStatus;
+  datamonitoringFunction: DataMonitoringFunction;
+  jobType: JobType;
+  jobTemplateUri: string;
+};
+
+export const getJobTemplate = Handlebars.compile(
+  `\
+{{prefixes}}
+SELECT * WHERE {
+  GRAPH <{{jobGraphUri}}> {
+    ?jobUri a cogs:Job, datamonitoring:DatamonitoringJob;
+      mu:uuid ?uuid;
+      datamonitoring:function ?datamonitoringFunction;
+      datamonitoring:taskType ?jobType;
+      dct:isPartOf: ?jobTemplateUri.
+    {{#each jobStatuses}}
+    {
+      ?jobUri adms:status {{toJobStatusLiteral this}}.
+    }
+    {{#unless @last}}UNION{{/unless}}
+    {{/each}}
+  }
+}
+`,
+  { noEscape: true }
+);
+
+export type DeleteBusyJobsInput = {
+  prefixes: string;
+  jobGraphUri: string;
+};
+
+export const deleteBusyJobsTemplate = Handlebars.compile(
+  `\
+{{prefixes}}
+DELETE {
+  GRAPH <{{jobGraphUri}}> {
+    ?jobUri ?p ?o.
+  }
+}
+WHERE {
+  GRAPH <{{jobGraphUri}}> {
+    ?jobUri a cogs:Job;
+      adms:status {{(toJobStatusLiteral "BUSY")}};
+      ?p ?o.
+  }
+}
+`,
+  { noEscape: true }
+);
+
+export type UpdateJobStatusInput = {
+  prefixes: string;
+  jobGraphUri: string;
+  jobUri: string;
+  status: JobStatus;
+  modifiedAt: DateTime;
+};
+
+export const updateJobStatusTemplate = Handlebars.compile(
+  `\
+{{prefixes}}
+DELETE {
+  GRAPH <{{jobGraphUri}}> {
+    <{{jobUri}}
+      adms:status ?status;
+      dct:modified ?modified.
+  }
+} INSERT {
+  GRAPH <{{jobGraphUri}}> {
+    <{{jobUri}}>
+      adms:status {{toTaskStatusLiteral status}};
+      dct:modified {{toDateTimeLiteral modifiedAt}}.
+  }
+} WHERE {
+  GRAPH <{{jobGraphUri}}> {
+    <{{jobUri}}> a cogs:Job,datamonitoring:DatamonitoringJob;
+      adms:status ?status;
+      dct:modified ?modified.
+  }
+}
+`,
+  { noEscape: true }
+);
+
+/**
+ * This classes instances are passed to the invoked job function. Inside of the function body the process
+ * can be used to inform listeners about the progress and about updates.
+ * At least it can be used as a log function in the job function.
+ * This class it not meant to be instantiated. It's instances are only used within a job.
+ * TODO refactor so this cannot be instantiated. Anonymous class in Job (static)?
+ */
+export class JobProgress {
+  private _job: Job;
+  private _logLevel: LogLevel;
+  private _eventEmitter: EventEmitter;
+
+  get eventEmitter() {
+    return this._eventEmitter;
+  }
+
+  constructor(job: Job, logLevel: LogLevel = "info") {
+    this._job = job;
+    this._logLevel = logLevel;
+    this._eventEmitter = new EventEmitter();
+  }
+
+  /**
+   * Update listeners about the state of the process
+   * @param message The message
+   */
+  update(message: string) {
+    logger.log(
+      this._logLevel,
+      `TASK UPDATE ${getEnumStringFromUri(
+        this._job.datamonitoringFunction,
+        false
+      )}: ${message}`
+    );
+    const updateMessage: UpdateMessage = {
+      timestamp: now().format(),
+      message,
+    };
+    this._eventEmitter.emit(`update`, updateMessage);
+  }
+
+  /**
+   * Update listeners about progression
+   * @param done # Actions completed
+   * @param total # Total actions needed doing
+   * @param lastDurationMilliseconds # The duration of the last action
+   * @param subProcessIdentifier  # Optional string to identify a subprocess of which you report the progress
+   */
+  progress(
+    done: number,
+    total: number,
+    lastDurationMilliseconds: number | null | undefined = undefined,
+    subProcessIdentifier: string | undefined = undefined
+  ) {
+    logger.log(
+      this._logLevel,
+      `${
+        subProcessIdentifier ? `(${subProcessIdentifier}) ` : ``
+      }Progress update ${done}/${total} (${Math.round(
+        (done / total) * 100.0
+      )}%) ${lastDurationMilliseconds ? ` ${lastDurationMilliseconds} ms` : ``}`
+    );
+    const progressMessage: ProgressMessage = {
+      done,
+      total,
+      lastDurationMilliseconds,
+      subProcessIdentifier,
+    };
+    this._eventEmitter.emit(`progress`, progressMessage);
+  }
+
+  /**
+   * Call this at the very end of the job function. It updates the satus of the job and tells listeners the show is over.
+   * @param result The end result of the function if applicable. Type checking will be added in the future.
+   */
+  async return(result: any) {
+    logger.log(
+      this._logLevel,
+      `Status change of task ${this._job.uuid} to Finished`
+    );
+    await this._job.updateStatus(JobStatus.FINISHED);
+    const statusMessage = {
+      done: true,
+      failed: false,
+      result,
+    };
+    this._eventEmitter.emit(`status`, statusMessage);
+  }
+
+  /**
+   * Call this when an error occurs. It updates the status of the job and tells listeners it has errored out
+   * If there is no error handling the job instance should call this for you.
+   * @param error
+   */
+  async error(error: object | number | string | boolean | Error) {
+    logger.log(
+      this._logLevel,
+      `Status change of task ${this._job.uuid} to Error`
+    );
+    await this._job.updateStatus(JobStatus.ERROR);
+    const statusMessage = {
+      done: true,
+      failed: true,
+      error,
+    };
+    this._eventEmitter.emit(`status`, statusMessage);
+  }
+
+  /**
+   * Should be called only once per job and never by the user. Job instances call this.
+   */
+  async start() {
+    logger.log(
+      this._logLevel,
+      `Status change of task ${this._job.uuid} to Busy`
+    );
+    await this._job.updateStatus(JobStatus.BUSY);
+    const statusMessage = {
+      done: false,
+      failed: false,
+    };
+    this._eventEmitter.emit(`status`, statusMessage);
+  }
+}
 
 export class Job {
-  _updateStatusQuery: TemplatedInsert<UpdateJobStatusInput>;
-  _graphUri: string;
-  _jobType: JobType;
-  _uuid: string;
-  _status: JobStatus;
-  get status() {
-    return this._status;
+  private _progress: JobProgress;
+  private _insertQuery: TemplatedInsert<WriteNewJobInput>;
+  private _updateStatusQuery: TemplatedInsert<UpdateJobStatusInput>;
+  private _graphUri: string;
+  private _jobTemplate: JobTemplate;
+  private _jobType: JobType;
+  private _uuid: string;
+  private _status: JobStatus;
+  private _promises: Promise<any>[] = [];
+  private _createdAt: DateTime;
+  private _modifiedAt: DateTime;
+
+  get createdAt() {
+    return this._createdAt;
   }
-  _datamonitoringFunction: DataMonitoringFunction;
-  get datamonitoringFunction() {
-    return this._datamonitoringFunction;
+  get modifiedAt() {
+    return this._modifiedAt;
+  }
+  get status(): JobStatus {
+    return this._status;
   }
   get uuid() {
     return this._uuid;
   }
-  get jobType() {
+  get taskType() {
     return this._jobType;
+  }
+
+  get datamonitoringFunction() {
+    return this._jobTemplate.datamonitoringFunction;
+  }
+
+  get jobTemplateUri() {
+    return this._jobTemplate.uri;
+  }
+
+  get eventEmitter() {
+    return this._progress.eventEmitter;
   }
 
   constructor(
@@ -63,8 +332,16 @@ export class Job {
     graphUri: string,
     uuid: string,
     initialStatus: JobStatus,
-    datamonitoringFunction: DataMonitoringFunction
+    job: JobTemplate
   ) {
+    if (jobType === JobType.PARALLEL) {
+      throw new Error("Parallel type tasks not supported yet");
+    }
+    this._insertQuery = new TemplatedInsert<WriteNewJobInput>(
+      queryEngine,
+      endpoint,
+      insertJobTemplate
+    );
     this._updateStatusQuery = new TemplatedInsert<UpdateJobStatusInput>(
       queryEngine,
       endpoint,
@@ -72,86 +349,48 @@ export class Job {
     );
     this._jobType = jobType;
     this._graphUri = graphUri;
+    this._jobTemplate = job;
     this._uuid = uuid;
     this._status = initialStatus;
-    this._datamonitoringFunction = datamonitoringFunction;
+    this._progress = new JobProgress(this, "verbose");
+    const n = now();
+    this._createdAt = n;
+    this._modifiedAt = n;
   }
 
   get uri() {
     return `http://codifly.be/namespaces/job/${this._uuid}`;
   }
 
+  async execute(...args: any[]) {
+    // TODO. Support parallel tasks later
+    if (this._promises.length) {
+      throw new Error("Already executing. Parallel tasks not supported yet.");
+    }
+    if (this._jobType === JobType.PARALLEL)
+      throw new Error(`Parallel tasks not supported yet`);
+
+    await this._progress.start();
+    // We do not await. We keep the promise because this is a very, very long running task.
+    const promise = longDuration(
+      JOB_FUNCTIONS[this.datamonitoringFunction],
+      "verbose"
+    )(this._progress, ...args);
+    this._promises.push(promise);
+  }
+
   async updateStatus(status: JobStatus) {
+    if (this.status === status) return;
+    const n = now();
     await this._updateStatusQuery.execute({
       prefixes: PREFIXES,
-      modifiedAt: now(),
+      modifiedAt: n,
       status,
-      jobGraphUri: this._graphUri,
+      jobGraphUri: config.env.JOB_GRAPH_URI,
       jobUri: this.uri,
     });
     this._status = status;
-  }
-
-  async invoke(...args: any[]) {
-    const task = await createTask(this, TaskType.SERIAL, TaskStatus.BUSY);
-    logger.debug(
-      `Invoking job with uri ${this.uri}. Created task ${
-        task.uri
-      } with function ${getEnumStringFromUri(
-        task.datamonitoringFunction,
-        false
-      )}`
-    );
-    // We wait with the invocation for rest tasks for a second because we want the process page to load first so the user does not miss any debug messages.
-    if (this.jobType === JobType.REST_INVOKED) await delay(1000);
-    await task.execute(...args);
-    return task;
-  }
-
-  toString() {
-    return `JOB(${this.uri}) with status: ${getEnumStringFromUri(
-      this.status,
-      false
-    )} and type ${getEnumStringFromUri(this.jobType, false)}`;
-  }
-}
-
-export class PeriodicJob extends Job {
-  _insertQuery: TemplatedInsert<WriteNewPeriodicJobInput>;
-  _timeOfInvocation: TimeOnly;
-  get timeOfInvocation() {
-    return this._timeOfInvocation;
-  }
-  _daysOfInvocation: DayOfWeek[];
-  get daysOfInvocation() {
-    return this._daysOfInvocation;
-  }
-  constructor(
-    queryEngine: QueryEngine,
-    endpoint: string,
-    graphUri: string,
-    uuid: string,
-    initialStatus: JobStatus,
-    datamonitoringFunction: DataMonitoringFunction,
-    timeOfInvocation: TimeOnly,
-    daysOfInvocation: DayOfWeek[]
-  ) {
-    super(
-      queryEngine,
-      endpoint,
-      JobType.PERIODIC,
-      graphUri,
-      uuid,
-      initialStatus,
-      datamonitoringFunction
-    );
-    this._timeOfInvocation = timeOfInvocation;
-    this._daysOfInvocation = daysOfInvocation;
-    this._insertQuery = new TemplatedInsert<WriteNewPeriodicJobInput>(
-      queryEngine,
-      endpoint,
-      insertPeriodicJobTemplate
-    );
+    this._modifiedAt = n;
   }
 
   async _createNewResource() {
@@ -159,74 +398,14 @@ export class PeriodicJob extends Job {
       prefixes: PREFIXES,
       uuid: this._uuid,
       jobGraphUri: this._graphUri,
-      newJobUri: this.uri,
+      jobUri: this.uri,
       status: this._status,
-      createdAt: now(),
-      description: `Job created by dm-count-report-generation-service`,
-      jobType: JobType.PERIODIC,
-      timeOfInvocation: this._timeOfInvocation,
-      daysOfInvocation: this._daysOfInvocation,
-      datamonitoringFunction: this._datamonitoringFunction,
+      createdAt: this._createdAt,
+      description: `Job created by dm-count-report-generation-service of job template with uri "${this.jobTemplateUri}".`,
+      jobType: this._jobType,
+      jobTemplateUri: this.jobTemplateUri,
+      datamonitoringFunction: this.datamonitoringFunction,
     });
-  }
-  override toString(): string {
-    return `${super.toString()}\n\tPeriodic job with invocation on: ${this.timeOfInvocation.toString()} on ${this.daysOfInvocation
-      .map((day) => getEnumStringFromUri(day, true))
-      .join(", ")}`;
-  }
-}
-
-export class RestJob extends Job {
-  _insertQuery: TemplatedInsert<WriteNewRestJobInput>;
-  _restPath: string;
-  get restPath() {
-    return this._restPath;
-  }
-  constructor(
-    queryEngine: QueryEngine,
-    endpoint: string,
-    graphUri: string,
-    uuid: string,
-    initialStatus: JobStatus,
-    datamonitoringFunction: DataMonitoringFunction,
-    restPath: string
-  ) {
-    super(
-      queryEngine,
-      endpoint,
-      JobType.REST_INVOKED,
-      graphUri,
-      uuid,
-      initialStatus,
-      datamonitoringFunction
-    );
-    (this._restPath = restPath),
-      (this._insertQuery = new TemplatedInsert<WriteNewRestJobInput>(
-        queryEngine,
-        endpoint,
-        insertRestJobTemplate
-      ));
-  }
-
-  async _createNewResource() {
-    await this._insertQuery.execute({
-      prefixes: PREFIXES,
-      uuid: this._uuid,
-      jobGraphUri: this._graphUri,
-      newJobUri: this.uri,
-      status: this._status,
-      createdAt: now(),
-      description: `Job created by dm-count-report-generation-service`,
-      jobType: JobType.REST_INVOKED,
-      restPath: this._restPath,
-      datamonitoringFunction: this._datamonitoringFunction,
-    });
-  }
-
-  override toString(): string {
-    return `${super.toString()}\n\tRest job with activated by HTTP using path "/${
-      this.restPath
-    }"`;
   }
 }
 
@@ -239,14 +418,10 @@ let defaults: DefaultJobCreationSettings | undefined = undefined;
 
 const jobs = new Map<string, Job>();
 
-/**
- * Gets you a deep copy of the jobs array. Modifying it is no use. Use the other methods in the module to manipulate jobs
- * @returns An array of jobs
- */
 export function getJobs(): Job[] {
   if (!defaults)
     throw new Error(
-      `Defaults have not been set. Call 'setJobCreeationDefaults' first from the job module.`
+      `Defaults have not been set. Call 'setTaskCreeationDefaults' first from the task module.`
     );
   return [...jobs.values()];
 }
@@ -255,7 +430,7 @@ export function getJob(uri: string): Job | undefined {
   return jobs.get(uri);
 }
 
-export function setJobCreeationDefaults(
+export function setJobCreationDefaults(
   queryEngine: QueryEngine,
   endpoint: string
 ) {
@@ -265,133 +440,42 @@ export function setJobCreeationDefaults(
   };
 }
 
-export async function createPeriodicJob(
-  datamonitoringFunction: DataMonitoringFunction,
-  timeOfInvocation: TimeOnly,
-  daysOfInvocation: DayOfWeek[],
+export async function createJob(
+  jobTemplate: JobTemplate,
+  jobType: JobType.SERIAL,
   initialStatus = JobStatus.NOT_STARTED
-): Promise<PeriodicJob> {
+): Promise<Job> {
   if (!defaults)
     throw new Error(
-      `Defaults have not been set. Call 'setJobCreeationDefaults' first from the job module.`
+      `Defaults have not been set. Call 'setTaskCreeationDefaults' first from the task module.`
     );
-  const newJob = new PeriodicJob(
+  const newJob = new Job(
     defaults.queryEngine,
     defaults.endpoint,
+    jobType,
     config.env.JOB_GRAPH_URI,
     uuidv4(),
     initialStatus,
-    datamonitoringFunction,
-    timeOfInvocation,
-    daysOfInvocation
-  );
-  await newJob._createNewResource();
-  jobs.set(newJob.uri, newJob);
-  return newJob;
-}
-export async function createRestJob(
-  datamonitoringFunction: DataMonitoringFunction,
-  restPath: string,
-  initialStatus = JobStatus.NOT_STARTED
-): Promise<RestJob> {
-  if (!defaults)
-    throw new Error(
-      `Defaults have not been set. Call 'setJobCreeationDefaults' first from the job module.`
-    );
-  const newJob = new RestJob(
-    defaults.queryEngine,
-    defaults.endpoint,
-    config.env.JOB_GRAPH_URI,
-    uuidv4(),
-    initialStatus,
-    datamonitoringFunction,
-    restPath
+    jobTemplate
   );
   await newJob._createNewResource();
   jobs.set(newJob.uri, newJob);
   return newJob;
 }
 
-export async function loadJobs() {
+// TODO: Make sure we don't delete a job with an async function running
+export async function deleteBusyJobs() {
   if (!defaults)
     throw new Error(
       `Defaults have not been set. Call 'setJobCreeationDefaults' first from the job module.`
     );
-  const getPeriodicJobsQuery = new TemplatedSelect<
-    GetJobsInput,
-    GetPeriodicJobsOutput
-  >(defaults.queryEngine, defaults.endpoint, getPeriodicJobsTemplate);
-  const getRestJobsQuery = new TemplatedSelect<GetJobsInput, GetRestJobsOutput>(
+  const deleteBusyJobsQuery = new TemplatedUpdate<DeleteBusyJobsInput>(
     defaults.queryEngine,
     defaults.endpoint,
-    getRestJobsTemplate
+    deleteBusyJobsTemplate
   );
-  const periodicJobRecords = await getPeriodicJobsQuery.objects("jobUri", {
+  await deleteBusyJobsQuery.execute({
     prefixes: PREFIXES,
     jobGraphUri: config.env.JOB_GRAPH_URI,
   });
-  for (const record of periodicJobRecords) {
-    const newJob = new PeriodicJob(
-      defaults.queryEngine,
-      defaults.endpoint,
-      config.env.JOB_GRAPH_URI,
-      record.uuid,
-      record.status,
-      record.datamonitoringFunction,
-      record.timeOfInvocation,
-      record.daysOfInvocation
-    );
-    jobs.set(newJob.uri, newJob);
-  }
-  const restJobRecords = await retry(
-    getRestJobsQuery.objects.bind(getRestJobsQuery)
-  )("jobUri", {
-    prefixes: PREFIXES,
-    jobGraphUri: config.env.JOB_GRAPH_URI,
-  });
-  for (const record of restJobRecords.result) {
-    const newJob = new RestJob(
-      defaults.queryEngine,
-      defaults.endpoint,
-      config.env.JOB_GRAPH_URI,
-      record.uuid,
-      record.status,
-      record.datamonitoringFunction,
-      record.restPath
-    );
-    jobs.set(newJob.uri, newJob);
-  }
-}
-
-export async function deleteAllJobs(
-  jobTypes: JobType[] | undefined | Record<string, never> = undefined // The empty object it to make this function compatible as a debug endpoint function with no query parameters
-) {
-  if (!defaults)
-    throw new Error(
-      `Defaults have not been set. Call 'setJobCreeationDefaults' first from the job module.`
-    );
-  const noParams =
-    !jobTypes ||
-    (typeof jobTypes === "object" && Object.keys(jobTypes).length === 0);
-
-  const defaultedJobTypes = noParams ? [] : (jobTypes as JobType[]);
-
-  const deleteAllJobsQuery = new TemplatedUpdate<DeleteAllJobsInput>(
-    defaults.queryEngine,
-    defaults.endpoint,
-    deleteAllJobsTemplate
-  );
-  await deleteAllJobsQuery.execute({
-    prefixes: PREFIXES,
-    jobGraphUri: config.env.JOB_GRAPH_URI,
-    jobTypes: defaultedJobTypes,
-  });
-  if (defaultedJobTypes.length === 0) {
-    jobs.clear(); // Remove all jobs? Release everything.
-    return;
-  }
-  // In specific cases remove the references directly
-  for (const [uri, job] of jobs.entries()) {
-    if (defaultedJobTypes.includes(job.jobType)) jobs.delete(uri);
-  }
 }

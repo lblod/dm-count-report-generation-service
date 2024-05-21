@@ -1,10 +1,10 @@
 import {
   DataMonitoringFunction,
   DayOfWeek,
+  JobTemplateStatus,
+  JobTemplateType,
   JobStatus,
   JobType,
-  TaskStatus,
-  TaskType,
   getEnumStringFromUri,
 } from "../types.js";
 import Handlebars from "handlebars";
@@ -33,10 +33,10 @@ Handlebars.registerHelper("printUriEnum", function (enumValue: unknown) {
   return getEnumStringFromUri(enumValue, false);
 });
 
-createToSparqlLiteralHelper("toTaskStatusLiteral", TaskStatus);
-createToSparqlLiteralHelper("toTaskTypeLiteral", TaskType);
 createToSparqlLiteralHelper("toJobStatusLiteral", JobStatus);
 createToSparqlLiteralHelper("toJobTypeLiteral", JobType);
+createToSparqlLiteralHelper("toJobTemplateStatusLiteral", JobTemplateStatus);
+createToSparqlLiteralHelper("toJobTemplateTypeLiteral", JobTemplateType);
 createToSparqlLiteralHelper("toDayOfWeekLiteral", DayOfWeek);
 createToSparqlLiteralHelper(
   "toDatamonitoringFunctionLiteral",
