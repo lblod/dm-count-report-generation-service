@@ -9,13 +9,13 @@
 
 <body>
   <h1>{{title}}</h1>
-  <p>Task created:
+  <p>Job created:
   <pre>{{toDateTimeString createdAt}}</pre>
   </p>
-  <p>Task modified:
+  <p>Job modified:
   <pre>{{toDateTimeString modifiedAt}}</pre>
   </p>
-  <p>Task status:
+  <p>Job status:
   <pre>{{printUriEnum status}}</pre>
   </p>
   <p>Task function:
@@ -87,7 +87,7 @@
       logElement.appendChild(par);
       return;
     }
-    console.warn(`Received werid server side event:${JSON.stringify(event)}`);
+    console.warn(`Received weird server side event:${JSON.stringify(event)}`);
   }
 </script>
 
