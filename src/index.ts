@@ -58,15 +58,15 @@ async function startupProcedure() {
       logger.verbose(`\tEndpoint ${endpoint} passed.`);
     } catch (e) {
       logger.error(
-        `The service cannot start because query failed on endpoint "${endpoint}"`
+        `The service cannot start because query failed on endpoint "${endpoint}" a  after 10 retries and a total wait time of 5 minutes.`
       );
       throw e; // Re throw. Node process is killed.
     }
   }
   logger.info("CHECK PASSED: All endpoints can be queried.");
   // initialise stuff
-  // Jobs
-  setJobTemplateCreeationDefaults(queryEngine, config.env.REPORT_ENDPOINT);
+  // Job templates
+  setJobTemplateCreeationDefaults(queryEngine, config.env.REPORT_ENDPOINT); // Always needs to be called. Created in case we 'd want to use a different query engine for jobs in the future.
   await loadTemplateJobs();
   logger.info(`CHECK PASSED: Jobs loaded. ${getJobTemplates().length} found.`);
   // For all invocation times provided in the config file; check if a periodic job is present and create one if necassary
@@ -90,7 +90,7 @@ async function startupProcedure() {
         `Job for function ${getEnumStringFromUri(
           func,
           false
-        )} does not exist yet. Config file is read.`
+        )} does not exist yet. Config file is used to create the job.`
       );
       await createPeriodicJobTemplate(
         func as DataMonitoringFunction,
@@ -101,7 +101,7 @@ async function startupProcedure() {
     }
   }
   if (!config.env.DISABLE_DEBUG_ENDPOINT) {
-    // If debug mode is activated this microservicie is supposed to have a job for debugging
+    // If debug mode is activated this microservicie is supposed to have a jobTemplate for debugging each function
     const restInvokedJobs = getJobTemplates().filter(
       (job) => job.jobTemplateType === JobTemplateType.REST_INVOKED
     );
@@ -134,23 +134,11 @@ async function startupProcedure() {
       );
     }
   }
-  // Tasks
+  // Jobs
   setJobCreationDefaults(queryEngine, config.env.REPORT_ENDPOINT);
   await deleteBusyJobs();
   logger.info("Made sure there are no busy tasks");
   initCron();
-  // await loadTasks();
-  // logger.info(`CHECK PASSED: Tasks loaded. ${getTasks().length} found.`);
-  // If any of the tasks loaded is still busy this means that the service was not properly closed last time.
-  // Any tasks with status active will be deleted and a warning will be printed
-  // for (const task of getTasks()) {
-  //   if (task.status === TaskStatus.BUSY) {
-  //     logger.warn(
-  //       `Ecountered task with URI "${task.uri}" with status BUSY when the service is starting. Because tasks can only be BUSY when the service is running this indicates that the service did not shut down properly before. It will be deleted.`
-  //     );
-  //     await deleteTask(task);
-  //   }
-  // }
 }
 
 async function shutDownProcedure() {

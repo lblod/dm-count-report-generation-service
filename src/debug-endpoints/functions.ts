@@ -1,4 +1,4 @@
-import { Request, RequestHandler, Response } from "express";
+import { NextFunction, Request, RequestHandler, Response } from "express";
 import fs from "node:fs";
 import Handlebars from "handlebars";
 import {
@@ -17,32 +17,32 @@ import {
 import { TimeOnly } from "../util/date-time.js";
 import { logger } from "../logger.js";
 
-const showJobsTemplate = Handlebars.compile(
+const showJobTemplatesTemplate = Handlebars.compile(
   fs.readFileSync("./templates/show-jobs.hbs", { encoding: "utf-8" })
 );
 
-const showTaskTemplate = Handlebars.compile(
-  fs.readFileSync("./templates/task.hbs", { encoding: "utf-8" })
+const showJobTemplate = Handlebars.compile(
+  fs.readFileSync("./templates/job.hbs", { encoding: "utf-8" })
 );
 
-type PeriodicJobInfo = {
+type PeriodicJobTemplateInfo = {
   timeOfInvocationInformation: string;
 };
 
-type RestJobInfo = {
-  restPath: string;
+type RestJobTemplateInfo = {
+  urlPath: string;
 };
 
-type JobRecord<T extends JobTemplateType> = {
+type JobTemplateRecord<T extends JobTemplateType> = {
   uri: string;
-  jobType: T;
+  jobTemplateType: T;
   uuid: string;
   status: JobTemplateStatus;
   datamonitoringFunction: DataMonitoringFunction;
   information: T extends JobTemplateType.PERIODIC
-    ? PeriodicJobInfo
+    ? PeriodicJobTemplateInfo
     : T extends JobTemplateType.REST_INVOKED
-    ? RestJobInfo
+    ? RestJobTemplateInfo
     : undefined;
 };
 
@@ -55,36 +55,34 @@ function printInvocationInformation(
     .join(", ")}`;
 }
 
-export const showJobs: RequestHandler = (_, res) => {
-  const jobs = getJobTemplates();
-
-  const output: JobRecord<JobTemplateType>[] = [];
-  for (const job of jobs) {
-    switch (job.jobTemplateType) {
+export const showJobTemplates: RequestHandler = (_, res) => {
+  const output: JobTemplateRecord<JobTemplateType>[] = [];
+  for (const jobTemplate of getJobTemplates()) {
+    switch (jobTemplate.jobTemplateType) {
       case JobTemplateType.PERIODIC:
         output.push({
-          uri: job.uri,
-          jobType: JobTemplateType.PERIODIC,
-          uuid: job.uuid,
-          status: job.status,
-          datamonitoringFunction: job.datamonitoringFunction,
+          uri: jobTemplate.uri,
+          jobTemplateType: JobTemplateType.PERIODIC,
+          uuid: jobTemplate.uuid,
+          status: jobTemplate.status,
+          datamonitoringFunction: jobTemplate.datamonitoringFunction,
           information: {
             timeOfInvocationInformation: printInvocationInformation(
-              (job as PeriodicJobTemplate).timeOfInvocation,
-              (job as PeriodicJobTemplate).daysOfInvocation
+              (jobTemplate as PeriodicJobTemplate).timeOfInvocation,
+              (jobTemplate as PeriodicJobTemplate).daysOfInvocation
             ),
           },
         });
         break;
       case JobTemplateType.REST_INVOKED: {
         output.push({
-          uri: job.uri,
-          jobType: JobTemplateType.REST_INVOKED,
-          uuid: job.uuid,
-          status: job.status,
-          datamonitoringFunction: job.datamonitoringFunction,
+          uri: jobTemplate.uri,
+          jobTemplateType: JobTemplateType.REST_INVOKED,
+          uuid: jobTemplate.uuid,
+          status: jobTemplate.status,
+          datamonitoringFunction: jobTemplate.datamonitoringFunction,
           information: {
-            restPath: (job as RestJobTemplate)._restPath,
+            urlPath: (jobTemplate as RestJobTemplate)._urlPath,
           },
         });
         break;
@@ -93,7 +91,7 @@ export const showJobs: RequestHandler = (_, res) => {
         throw new Error("Impossible enum value");
     }
   }
-  const html = showJobsTemplate({
+  const html = showJobTemplatesTemplate({
     title: "Current jobs for counting service",
     jobs: output,
     periodicValue: JobTemplateType.PERIODIC,
@@ -102,46 +100,55 @@ export const showJobs: RequestHandler = (_, res) => {
   res.send(html);
 };
 
-export async function startTask(req: Request, res: Response): Promise<void> {
-  if (!req.params.restPath) throw new Error("Params not present.");
-  const restPath = req.params.restPath;
+export async function startRestJob(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  if (!req.params.urlPath) throw new Error("Params not present.");
+  const urlPath = req.params.urlPath;
   const restJobs = getJobTemplates().filter(
     (j) => j.jobTemplateType === JobTemplateType.REST_INVOKED
   ) as RestJobTemplate[];
-  const job = restJobs.find((j) => j.restPath === restPath);
-  if (!job)
-    throw new Error(
-      `No Rest job with the path found. path was "${restPath}" available. Supported paths are: ${restJobs
-        .map((j) => `"${j.restPath}"`)
+  const restJobTemplate = restJobs.find((j) => j.urlPath === urlPath);
+  if (!restJobTemplate) {
+    const e = new Error(
+      `No Rest job with the path found. path was "${urlPath}" available. Supported paths are: ${restJobs
+        .map((j) => `"${j.urlPath}"`)
         .join(",")}`
     );
-  // Check if a task is already running for this job
-  const task = await (async () => {
-    const testTask = getJobs().find((t) => t.jobTemplateUri === job.uri);
-    if (!testTask) {
+    next(e);
+    return;
+  }
+
+  // Check if a job is already running for this jobtemplate
+  const job = await (async () => {
+    const testJob = getJobs().find(
+      (t) => t.jobTemplateUri === restJobTemplate.uri
+    );
+    if (!testJob) {
       // If no task is found then start it
       // Invoking should never take long
       logger.debug(
-        `Invoking from REST path ${restPath} a job "${
-          job.uri
+        `Invoking from REST path ${urlPath} a job "${
+          restJobTemplate.uri
         }" with datamonitoring function ${getEnumStringFromUri(
-          job.datamonitoringFunction,
+          restJobTemplate.datamonitoringFunction,
           false
         )}. `
       );
-      return await job.invoke();
+      return await restJobTemplate.invoke(); // If not exists invoke a new one
     }
-    return testTask;
+    return testJob; // If exists return the existing one
   })();
-  // invoke returns fast. Actual task is running in the background
 
-  const html = showTaskTemplate({
-    title: `Task with uri ${task.uri}`,
-    createdAt: task.createdAt,
-    modifiedAt: task.modifiedAt,
-    status: task.status,
-    function: task.datamonitoringFunction,
-    uuid: task.uuid,
+  const html = showJobTemplate({
+    title: `Job with uri ${job.uri}`,
+    createdAt: job.createdAt,
+    modifiedAt: job.modifiedAt,
+    status: job.status,
+    function: job.datamonitoringFunction,
+    uuid: job.uuid,
   });
   res.send(html);
 }

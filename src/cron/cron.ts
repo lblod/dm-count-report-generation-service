@@ -9,24 +9,22 @@ export function initCron() {
     const start = now();
     start.set("s", 0); // Cron is guaranteerd not to trigger before the moment.
     start.set("ms", 0);
-    const end = start.add(1, "m");
+    const end = start.add(1, "minute");
     // Start is now at the exact minute 0 of the hour; end is one minute after that
 
     const periodic = getJobTemplates().filter(
       (j) => j.jobTemplateType === JobTemplateType.PERIODIC
-    );
-    for (const job of periodic) {
-      const invocationTimeToday = (
-        job as PeriodicJobTemplate
-      ).timeOfInvocation.toDayJs(DateOnly.today()); // Default value is 00:00+02:00 DD/MM/YYYY
+    ) as PeriodicJobTemplate[];
+    for (const jobTemplate of periodic) {
+      const invocationTimeToday = jobTemplate.timeOfInvocation.toDayJs(
+        DateOnly.today()
+      ); // Default value is 00:00+02:00 DD/MM/YYYY
       if (
-        (job as PeriodicJobTemplate).daysOfInvocation.includes(
-          DateOnly.todayDayOfWeek()
-        ) &&
-        inHalfOpenInterval(invocationTimeToday, start, end)
+        jobTemplate.daysOfInvocation.includes(DateOnly.todayDayOfWeek()) && // If this day is in the list of invocation days
+        inHalfOpenInterval(invocationTimeToday, start, end) // If this moment is within the time window around the invocation time
       ) {
         // Invoke the job
-        (job as PeriodicJobTemplate).invoke(DateOnly.today()); // No await
+        jobTemplate.invoke(DateOnly.today()); // No await we do nothing with the promise. The job template manages execution. This function returns immediately.
       }
     }
   });

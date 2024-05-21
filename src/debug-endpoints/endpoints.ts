@@ -11,7 +11,7 @@ import {
 } from "./middleware.js";
 import Handlebars from "handlebars";
 import { deleteAllJobs } from "../job/job-template.js";
-import { showJobs, startTask } from "./functions.js";
+import { showJobTemplates, startRestJob } from "./functions.js";
 import { getJobs } from "../job/job.js";
 import { logger } from "../logger.js";
 import { now } from "../util/date-time.js";
@@ -66,9 +66,9 @@ export function setupDebugEndpoints(app: Express) {
     deleteAllJobs
   );
 
-  addDebugEndpoint(app, "GET", "/jobs", emptySchema, showJobs);
+  addDebugEndpoint(app, "GET", "/jobs", emptySchema, showJobTemplates);
 
-  addDebugEndpoint(app, "GET", "/start/:restPath", emptySchema, startTask);
+  addDebugEndpoint(app, "GET", "/start/:urlPath", emptySchema, startRestJob);
 
   app.get("/progress/:uuid", [
     (req: Request, res: Response): void => {

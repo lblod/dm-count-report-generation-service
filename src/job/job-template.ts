@@ -249,7 +249,7 @@ export type WriteNewRestJobTemplateInput = {
   createdAt: DateTime;
   description: string;
   jobTemplateType: JobTemplateType.REST_INVOKED;
-  restPath: string;
+  urlPath: string;
   datamonitoringFunction: DataMonitoringFunction;
 };
 
@@ -268,7 +268,7 @@ INSERT {
       datamonitoring:jobType {{toJobTemplateTypeLiteral jobTemplateType}};
       datamonitoring:jobParameters [
         datamonitoring:function {{toDatamonitoringFunctionLiteral datamonitoringFunction}};
-        datamonitoring:restPath "{{restPath}}";
+        datamonitoring:urlPath "{{urlPath}}";
       ].
   }
 } WHERE {
@@ -280,9 +280,9 @@ INSERT {
 
 export class RestJobTemplate extends JobTemplate {
   _insertQuery: TemplatedInsert<WriteNewRestJobTemplateInput>;
-  _restPath: string;
-  get restPath() {
-    return this._restPath;
+  _urlPath: string;
+  get urlPath() {
+    return this._urlPath;
   }
   constructor(
     queryEngine: QueryEngine,
@@ -291,7 +291,7 @@ export class RestJobTemplate extends JobTemplate {
     uuid: string,
     initialStatus: JobTemplateStatus,
     datamonitoringFunction: DataMonitoringFunction,
-    restPath: string
+    urlPath: string
   ) {
     super(
       queryEngine,
@@ -302,7 +302,7 @@ export class RestJobTemplate extends JobTemplate {
       initialStatus,
       datamonitoringFunction
     );
-    (this._restPath = restPath),
+    (this._urlPath = urlPath),
       (this._insertQuery = new TemplatedInsert<WriteNewRestJobTemplateInput>(
         queryEngine,
         endpoint,
@@ -320,14 +320,14 @@ export class RestJobTemplate extends JobTemplate {
       createdAt: now(),
       description: `Job created by dm-count-report-generation-service`,
       jobTemplateType: JobTemplateType.REST_INVOKED,
-      restPath: this._restPath,
+      urlPath: this._urlPath,
       datamonitoringFunction: this._datamonitoringFunction,
     });
   }
 
   override toString(): string {
     return `${super.toString()}\n\tRest job with activated by HTTP using path "/${
-      this.restPath
+      this.urlPath
     }"`;
   }
 }
@@ -416,7 +416,7 @@ export async function createPeriodicJobTemplate(
 
 export async function createRestJobTemplate(
   datamonitoringFunction: DataMonitoringFunction,
-  restPath: string,
+  urlPath: string,
   initialStatus = JobTemplateStatus.NOT_STARTED
 ): Promise<RestJobTemplate> {
   if (!defaults)
@@ -430,7 +430,7 @@ export async function createRestJobTemplate(
     uuidv4(),
     initialStatus,
     datamonitoringFunction,
-    restPath
+    urlPath
   );
   await newJob._createNewResource();
   jobTemplates.set(newJob.uri, newJob);
@@ -459,7 +459,7 @@ export type GetPeriodicJobTemplatesOutput = GetJobTemplatesOutput & {
 };
 
 export type GetRestJobTemplatesOutput = GetJobTemplatesOutput & {
-  restPath: string;
+  urlPath: string;
 };
 
 const getPeriodicJobTemplatesTemplate = Handlebars.compile(
@@ -499,7 +499,7 @@ SELECT * WHERE {
       datamonitoring:jobType ?jobType;
       datamonitoring:jobParameters [
         datamonitoring:function ?datamonitoringFunction;
-        datamonitoring:restPath ?restPath;
+        datamonitoring:urlPath ?urlPath;
       ].
 
   }
@@ -555,7 +555,7 @@ export async function loadTemplateJobs() {
       record.uuid,
       record.status,
       record.datamonitoringFunction,
-      record.restPath
+      record.urlPath
     );
     jobTemplates.set(newJob.uri, newJob);
   }
