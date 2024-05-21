@@ -149,6 +149,10 @@ const dmReportGenerationServiceEnvSchema = z.object({
   DUMP_FILES_LOCATION: z.string().optional(),
   QUERY_MAX_RETRIES: z.number().int().min(0).max(10).optional(),
   QUERY_WAIT_TIME_ON_FAIL: z.number().int().min(0).max(60_000).optional(),
+  URI_PREFIX_REPORT: z
+    .string()
+    .regex(/^.+[/#]$/)
+    .optional(),
   ROOT_URL_PATH: z
     .string()
     .regex(/(\/[a-z\-/0-9]*)/)
@@ -204,6 +208,8 @@ const defaultEnv = {
   QUERY_MAX_RETRIES: 3,
   QUERY_WAIT_TIME_ON_FAIL: 1000,
   ROOT_URL_PATH: "/counting-service",
+  URI_PREFIX_REPORT:
+    "http://lblod.data.gift/vocabularies/datamonitoring/countReport/",
 };
 
 const envResult = dmReportGenerationServiceEnvSchema.safeParse(process.env);

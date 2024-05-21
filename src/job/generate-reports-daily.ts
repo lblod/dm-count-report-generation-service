@@ -176,7 +176,8 @@ export const generateReportsDaily: TaskFunction = async (
           noFilterForDebug: config.env.NO_TIME_FILTER,
         });
 
-        const reportUri = `http://lblod.data.gift/vocabularies/datamonitoring/countReport/${uuidv4()}`;
+        const uuid = uuidv4();
+        const reportUri = `${config.env.URI_PREFIX_REPORT}${uuid}`;
         governingBodyReportUriList.push(reportUri);
 
         // Write govering body report
@@ -189,6 +190,7 @@ export const generateReportsDaily: TaskFunction = async (
           adminUnitUri: adminUnit.uri,
           prefLabel: `Count report for governing body of class '${goveringBody.classLabel}' on ${defaultedDay} for admin unit '${adminUnit.label}'`,
           day: defaultedDay,
+          uuid,
           counts: [
             {
               classUri: `http://data.vlaanderen.be/ns/besluit#Zitting`,
@@ -214,6 +216,7 @@ export const generateReportsDaily: TaskFunction = async (
         });
       }
       // Write admin unit report
+      const uuid = uuidv4();
       await performInsert(
         "AdminUnitCountReport",
         writeAdminUnitCountReportQuery,
@@ -222,7 +225,8 @@ export const generateReportsDaily: TaskFunction = async (
           reportGraphUri: config.env.REPORT_GRAPH_URI,
           adminUnitUri: adminUnit.uri,
           prefLabel: `Count report for admin unit '${adminUnit.label}' on ${defaultedDay}`,
-          reportUri: `http://lblod.data.gift/vocabularies/datamonitoring/countReport/${uuidv4()}`,
+          reportUri: `${config.env.URI_PREFIX_REPORT}${uuid}`,
+          uuid,
           createdAt: now(),
           day: defaultedDay,
           reportUris: governingBodyReportUriList,

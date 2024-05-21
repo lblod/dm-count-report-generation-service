@@ -62,6 +62,7 @@ type InsertLastExecutedReportInput = {
   day: DateOnly;
   prefLabel: string;
   createdAt: DateTime;
+  uuid: string;
   times: HarvestingTimeStampResult[];
 };
 
@@ -75,6 +76,7 @@ INSERT {
       datamonitoring:day {{toDateLiteral day}};
       skos:prefLabel "{{prefLabel}}";
       datamonitoring:createdAt {{toDateTimeLiteral createdAt}};
+      mu:uuid "{{uuid}}";
       datamonitoring:adminUnitLastExecutionRecords
       {{#each times}}
         [
@@ -182,7 +184,8 @@ export const getHarvestingTimestampDaily: TaskFunction = async (
       config.env.REPORT_ENDPOINT,
       insertLastExecutedReportTemplate
     );
-  const reportUri = `http://lblod.data.gift/vocabularies/datamonitoring/lastHarvestingExecutionReport/${uuidv4()}`;
+  const uuid = uuidv4();
+  const reportUri = `${config.env.URI_PREFIX_REPORT}${uuid}`;
   const result = await duration(
     insertLastExecutedReportTimeQuery.execute.bind(
       insertLastExecutedReportTimeQuery
@@ -195,6 +198,7 @@ export const getHarvestingTimestampDaily: TaskFunction = async (
     reportUri,
     createdAt: now(),
     times: output,
+    uuid,
   });
   progress.progress(++queries, queryCount, result.durationMilliseconds);
   progress.update(`All reports written for execution times.`);

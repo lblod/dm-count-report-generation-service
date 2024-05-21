@@ -69,8 +69,9 @@ const dayOfWeekMap = [
  * This immutable class models a date and a date only. This is NOT a timestamp.
  * A date only can be used to model something like a birthday. But the acutual time where your birthday starts will depend on the time zone.
  * Most days have 24 hours. Some days have 23 and other 25 depending if a daylight savings time change has occurred or not.
- * This report revices considers 'days' a lot. And using date object to model them is messy. Because of this this class was written
- * It uses Dayjs under the hood and its instances are immutable
+ * This report revices considers 'days' a lot. And using date or dayjs object to model them is messy. Because of this this class was written
+ * It uses Dayjs under the hood.
+ * WARNING: Dayjs month nr's are zero based (january id 0) and in this case the objects are one based (january is 1)
  */
 export class DateOnly {
   private _year: number;
@@ -150,7 +151,7 @@ export class DateOnly {
 
   // ISO compatible toString method
   toString(): string {
-    return `${this._year}-${this._month}-${this._day}`;
+    return `${this._year}-${zeroPad(this._month, 2)}-${zeroPad(this._day, 2)}`;
   }
 
   toDateRdfLiteral(fullDataTypeUri = false): string {
@@ -196,7 +197,7 @@ const timeNumberSchema = z.object({
 
 /**
  * This immutable class models a time of the day and a time of the day only. This is NOT a timestamp.
- * A time only can be used to model something like a a moment every day.
+ * A time only can be used to model something like a a moment every day. Unlike a DatOnly the timezone does matter in this case
  * This report revices considers 'time' a lot. And using date object to model them is messy. Because of this this class was written
  * It uses Dayjs under the hood and its instances are immutable.
  * When converting to Dayjs in combination with a DateOnly it will output a timestamp in the default timezone.

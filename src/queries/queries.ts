@@ -82,20 +82,20 @@ export type GetGoveringBodiesInput = {
 
 export type GetGoveringBodiesOutput = {
   goveringBodyUri: string;
-  goveringBodyClassUri: string;
   classLabel: string;
 };
 
 export const getGoverningBodiesOfAdminUnitTemplate = Handlebars.compile(
   `\
 {{prefixes}}
-SELECT ?goveringBodyUri WHERE {
+SELECT ?goveringBodyUri ?classLabel WHERE {
   GRAPH <{{graphUri}}> {
     ?goveringBodyUri a besluit:Bestuursorgaan;
       besluit:bestuurt <{{adminitrativeUnitUri}}>;
-      org:classification ?goveringBodyClassUri.
-    ?governingBodyClassUri a skos:Concept;
-      skos:prefLabel ?classLabel.
+      org:classification [
+        a skos:Concept;
+        skos:prefLabel ?classLabel;
+      ].
   }
 }
 `,
@@ -288,6 +288,7 @@ export type WriteReportInput = {
   govBodyUri: string;
   adminUnitUri: string;
   prefLabel: string;
+  uuid: string;
   counts: {
     classUri: string;
     count: number;
@@ -306,6 +307,7 @@ INSERT {
       datamonitoring:targetAdminitrativeUnit <{{adminUnitUri}}>;
       datamonitoring:targetGoverningBody <{{govBodyUri}}>;
       skos:prefLabel "{{prefLabel}}";
+      mu:uuid "{{uuid}}";
       datamonitoring:istest "true"^^xsd:boolean;
       datamonitoring:counts
       {{#each counts}}
@@ -332,6 +334,7 @@ export type WriteAdminUnitReportInput = {
   createdAt: DateTime;
   adminUnitUri: string;
   day: DateOnly;
+  uuid: string;
   reportUris: string[];
 };
 
@@ -345,6 +348,7 @@ INSERT {
       datamonitoring:targetAdminitrativeUnit <{{adminUnitUri}}>;
       datamonitoring:createdAt {{toDateTimeLiteral createdAt}};
       datamonitoring:day {{toDateLiteral day}};
+      mu:uuid "{{uuid}}";
       datamonitoring:istest "true"^^xsd:boolean
       {{#if (listPopulated reportUris)}}
       ;
