@@ -1,5 +1,4 @@
-
-#Build stage
+# Build stage
 FROM node:iron-alpine AS build
 
 WORKDIR /app

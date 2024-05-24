@@ -157,7 +157,7 @@ export class JobTemplate {
    * @returns A reference to the newly created job instance
    */
   async invoke(...args: any[]) {
-    const job = await createJob(this, JobType.SERIAL, JobStatus.BUSY);
+    const job = await createJob(this, JobType.SERIAL, JobStatus.NOT_STARTED);
     logger.debug(
       `Invoking job with uri ${this.uri}. Created job ${
         job.uri
@@ -169,7 +169,7 @@ export class JobTemplate {
     // We wait with the invocation for rest jobs for a second because we want the process page to load first so the user does not miss any debug messages.
     if (this.jobTemplateType === JobTemplateType.REST_INVOKED)
       await delay(1000);
-    await job.execute(...args); // Todo. Replace by adding to the queue. Use listener.
+    await job.execute(...args); // Returns immediately
     return job;
   }
 

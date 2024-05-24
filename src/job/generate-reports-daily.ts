@@ -180,6 +180,8 @@ export const generateReportsDaily: JobFunction = async (
         const reportUri = `${config.env.URI_PREFIX_REPORT}${uuid}`;
         governingBodyReportUriList.push(reportUri);
 
+        const uuids = Array(4).fill(null).map(uuidv4);
+
         // Write govering body report
         await performInsert("GoverningBodyCountReport", writeCountReportQuery, {
           prefixes: PREFIXES,
@@ -193,21 +195,29 @@ export const generateReportsDaily: JobFunction = async (
           uuid,
           counts: [
             {
+              countUri: `${config.env.URI_PREFIX_REPORT}${uuids[0]}`,
+              uuid: uuids[0],
               classUri: `http://data.vlaanderen.be/ns/besluit#Zitting`,
               count: sessionsResult.count,
               prefLabel: `Count of 'Zitting'`,
             },
             {
+              countUri: `${config.env.URI_PREFIX_REPORT}${uuids[1]}`,
+              uuid: uuids[1],
               classUri: `http://data.vlaanderen.be/ns/besluit#Agendapunt`,
               count: agendaItemResult.count,
               prefLabel: `Count of 'Agendapunt'`,
             },
             {
+              countUri: `${config.env.URI_PREFIX_REPORT}${uuids[2]}`,
+              uuid: uuids[2],
               classUri: `http://data.vlaanderen.be/ns/besluit#Besluit`,
               count: resolutionResult.count,
               prefLabel: `Count of 'Besluit'`,
             },
             {
+              countUri: `${config.env.URI_PREFIX_REPORT}${uuids[3]}`,
+              uuid: uuids[3],
               classUri: `http://data.vlaanderen.be/ns/besluit#Stemming`,
               count: voteResult.count,
               prefLabel: `Count of 'Stemming'`,

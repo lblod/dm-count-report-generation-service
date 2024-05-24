@@ -1,5 +1,3 @@
-import { JobProgress } from "./job/job.js";
-
 export type IsEmpty<T> = T extends [] ? true : false;
 
 export type HasOneElement<T extends any[]> = T["length"] extends 1
@@ -57,6 +55,7 @@ export function stringToDayOfWeek(input: string): DayOfWeek | undefined {
 export enum DataMonitoringFunction {
   COUNT_RESOURCES = "https://codifly.be/ns/resources/dm-function/count-resources",
   CHECK_HARVESTING_EXECUTION_TIME = "https://codifly.be/ns/resources/dm-function/check-harvesting-execution-time",
+  DUMMY = "https://codifly.be/ns/resources/dm-function/dummy",
 }
 
 export type DmEnum =

@@ -149,6 +149,7 @@ const dmReportGenerationServiceEnvSchema = z.object({
   DUMP_FILES_LOCATION: z.string().optional(),
   QUERY_MAX_RETRIES: z.number().int().min(0).max(10).optional(),
   QUERY_WAIT_TIME_ON_FAIL: z.number().int().min(0).max(60_000).optional(),
+  ADD_DUMMY_REST_JOB_TEMPLATE: envBooleanSchema.optional(),
   URI_PREFIX_REPORT: z
     .string()
     .regex(/^.+[/#]$/)
@@ -193,7 +194,7 @@ export type DmReportGenerationServiceConfig = {
 
 const defaultEnv = {
   DISABLE_DEBUG_ENDPOINT: false,
-  REPORT_GRAPH_URI: "http://mu.semte.ch/graphs/dm-reports",
+  REPORT_GRAPH_URI: "http://mu.semte.ch/graphs/public",
   JOB_GRAPH_URI: "http://mu.semte.ch/graphs/job",
   ADMIN_UNIT_GRAPH_URI: "http://mu.semte.ch/graphs/public",
   CONFIG_FILE_LOCATION: "/config",
@@ -210,6 +211,7 @@ const defaultEnv = {
   ROOT_URL_PATH: "/counting-service",
   URI_PREFIX_REPORT:
     "http://lblod.data.gift/vocabularies/datamonitoring/countReport/",
+  ADD_DUMMY_REST_JOB_TEMPLATE: false,
 };
 
 const envResult = dmReportGenerationServiceEnvSchema.safeParse(process.env);

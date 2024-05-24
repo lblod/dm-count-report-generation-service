@@ -24,7 +24,7 @@ function extendError(original: any, extendMessage: string): Error {
   return error;
 }
 
-type DurationResult<R> = {
+export type DurationResult<R> = {
   result: R;
   durationSeconds: number;
 };
@@ -61,7 +61,7 @@ export function longDuration<F extends (...args: any[]) => Promise<any>>(
   };
 }
 
-type TimeResult<R> = {
+export type TimeResult<R> = {
   result: R;
   durationMilliseconds: number;
 };
@@ -87,7 +87,7 @@ export function duration<F extends (...args: any[]) => Promise<any>>(
   };
 }
 
-type RetryResult<R> = {
+export type RetryResult<R> = {
   result: R;
   retries: number;
 };

@@ -1,6 +1,5 @@
 import { QueryEngine } from "@comunica/query-sparql";
 import { PREFIXES } from "../local-constants.js";
-import { logger } from "../logger.js";
 import {
   TemplatedInsert,
   TemplatedUpdate,
@@ -16,12 +15,14 @@ import {
 } from "../types.js";
 import { EventEmitter } from "node:events";
 import { config } from "../configuration.js";
-import { longDuration } from "../util/util.js";
-import { JOB_FUNCTIONS } from "./job-functions-map.js";
 import { JobTemplate } from "./job-template.js";
 import { v4 as uuidv4 } from "uuid";
 import { DateTime, now } from "../util/date-time.js";
 import Handlebars from "handlebars";
+import winston from "winston";
+import { Writable } from "node:stream";
+import { addToQueue } from "./execution-queue.js";
+import { logger } from "../logger.js";
 
 export type JobFunction = (
   progress: JobProgress,
@@ -139,14 +140,14 @@ export const updateJobStatusTemplate = Handlebars.compile(
 {{prefixes}}
 DELETE {
   GRAPH <{{jobGraphUri}}> {
-    <{{jobUri}}
+    <{{jobUri}}>
       adms:status ?status;
       dct:modified ?modified.
   }
 } INSERT {
   GRAPH <{{jobGraphUri}}> {
     <{{jobUri}}>
-      adms:status {{toTaskStatusLiteral status}};
+      adms:status {{toJobStatusLiteral status}};
       dct:modified {{toDateTimeLiteral modifiedAt}}.
   }
 } WHERE {
@@ -160,6 +161,10 @@ DELETE {
   { noEscape: true }
 );
 
+type InfoObject = {
+  level: winston.LoggerOptions["level"];
+};
+
 /**
  * This classes instances are passed to the invoked job function. Inside of the function body the process
  * can be used to inform listeners about the progress and about updates.
@@ -171,6 +176,14 @@ export class JobProgress {
   private _job: Job;
   private _logLevel: LogLevel;
   private _eventEmitter: EventEmitter;
+  private _logger: winston.Logger;
+  _logBuffer: InfoObject[];
+  _done: number | undefined = undefined;
+  _total: number | undefined = undefined;
+
+  get logger() {
+    return this._logger;
+  }
 
   get eventEmitter() {
     return this._eventEmitter;
@@ -180,6 +193,27 @@ export class JobProgress {
     this._job = job;
     this._logLevel = logLevel;
     this._eventEmitter = new EventEmitter();
+    const newLogBuffer: InfoObject[] = [];
+    const newLogWriteStream = new Writable({
+      objectMode: true,
+      write(winstonObject: InfoObject) {
+        newLogBuffer.push(winstonObject);
+      },
+    });
+    this._logger = winston.createLogger({
+      level: config.env.LOG_LEVEL,
+      format: winston.format.combine(
+        winston.format.cli(),
+        winston.format.label({ label: `JOB(${this._job.uuid})` })
+      ),
+      transports: [
+        new winston.transports.Console(),
+        new winston.transports.Stream({
+          stream: newLogWriteStream,
+        }),
+      ],
+    });
+    this._logBuffer = newLogBuffer;
   }
 
   /**
@@ -187,7 +221,7 @@ export class JobProgress {
    * @param message The message
    */
   update(message: string) {
-    logger.log(
+    this.logger.log(
       this._logLevel,
       `TASK UPDATE ${getEnumStringFromUri(
         this._job.datamonitoringFunction,
@@ -214,7 +248,9 @@ export class JobProgress {
     lastDurationMilliseconds: number | null | undefined = undefined,
     subProcessIdentifier: string | undefined = undefined
   ) {
-    logger.log(
+    this._done = done;
+    this._total = total;
+    this.logger.log(
       this._logLevel,
       `${
         subProcessIdentifier ? `(${subProcessIdentifier}) ` : ``
@@ -236,7 +272,7 @@ export class JobProgress {
    * @param result The end result of the function if applicable. Type checking will be added in the future.
    */
   async return(result: any) {
-    logger.log(
+    this.logger.log(
       this._logLevel,
       `Status change of task ${this._job.uuid} to Finished`
     );
@@ -255,7 +291,7 @@ export class JobProgress {
    * @param error
    */
   async error(error: object | number | string | boolean | Error) {
-    logger.log(
+    this.logger.log(
       this._logLevel,
       `Status change of task ${this._job.uuid} to Error`
     );
@@ -272,7 +308,7 @@ export class JobProgress {
    * Should be called only once per job and never by the user. Job instances call this.
    */
   async start() {
-    logger.log(
+    this.logger.log(
       this._logLevel,
       `Status change of task ${this._job.uuid} to Busy`
     );
@@ -286,7 +322,7 @@ export class JobProgress {
 }
 
 export class Job {
-  private _progress: JobProgress;
+  _progress: JobProgress;
   private _insertQuery: TemplatedInsert<WriteNewJobInput>;
   private _updateStatusQuery: TemplatedInsert<UpdateJobStatusInput>;
   private _graphUri: string;
@@ -294,7 +330,6 @@ export class Job {
   private _jobType: JobType;
   private _uuid: string;
   private _status: JobStatus;
-  private _promises: Promise<any>[] = [];
   private _createdAt: DateTime;
   private _modifiedAt: DateTime;
 
@@ -324,6 +359,14 @@ export class Job {
 
   get eventEmitter() {
     return this._progress.eventEmitter;
+  }
+
+  get progressTotal() {
+    return this._progress._total;
+  }
+
+  get progressDone() {
+    return this._progress._done;
   }
 
   constructor(
@@ -363,21 +406,26 @@ export class Job {
     return `http://codifly.be/namespaces/job/${this._uuid}`;
   }
 
+  logs() {
+    return [...this._progress._logBuffer];
+  }
+
+  logsAsStrings() {
+    return this._progress._logBuffer.map((ob) => JSON.stringify(ob)); // TODO. Use cli formatting
+  }
+
   async execute(...args: any[]) {
-    // TODO. Support parallel tasks later
-    if (this._promises.length) {
-      throw new Error("Already executing. Parallel tasks not supported yet.");
-    }
     if (this._jobType === JobType.PARALLEL)
       throw new Error(`Parallel tasks not supported yet`);
+    if (this.status === JobStatus.NOT_STARTED)
+      throw new Error("Job already started or finished.");
 
-    await this._progress.start();
-    // We do not await. We keep the promise because this is a very, very long running task.
-    const promise = longDuration(
-      JOB_FUNCTIONS[this.datamonitoringFunction],
-      "verbose"
-    )(this._progress, ...args);
-    this._promises.push(promise);
+    const waiting = addToQueue(this, ...args); // Returns immediately and gives the number of tasks waiting in the queue
+    const message = waiting
+      ? `Job queued with uuid "${this.uuid}". ${waiting} jobs in the queue before this one.`
+      : `Job queued with uuid "${this.uuid}" queued. No jobs in the queue. Executing directly.`;
+    this._progress.update(message);
+    logger.info(message);
   }
 
   async updateStatus(status: JobStatus) {

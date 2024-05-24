@@ -6,7 +6,6 @@ import {
   RestJobTemplate,
   getJobTemplates,
 } from "../job/job-template.js";
-import { getJobs } from "../job/job.js";
 import {
   DataMonitoringFunction,
   DayOfWeek,
@@ -15,10 +14,15 @@ import {
   getEnumStringFromUri,
 } from "../types.js";
 import { TimeOnly } from "../util/date-time.js";
-import { logger } from "../logger.js";
+import { getQueue } from "../job/execution-queue.js";
+import { getJobs } from "../job/job.js";
 
 const showJobTemplatesTemplate = Handlebars.compile(
   fs.readFileSync("./templates/show-job-templates.hbs", { encoding: "utf-8" })
+);
+
+const showQueueTemplate = Handlebars.compile(
+  fs.readFileSync("./templates/queue.hbs", { encoding: "utf-8" })
 );
 
 const showJobTemplate = Handlebars.compile(
@@ -100,55 +104,49 @@ export const showJobTemplates: RequestHandler = (_, res) => {
   res.send(html);
 };
 
-export async function startRestJob(
+export async function showQueue(
+  _req: Request,
+  res: Response,
+  _next: NextFunction
+): Promise<void> {
+  const queue = getQueue();
+  const html = showQueueTemplate({
+    title: "Current jobs in queue",
+    queue,
+  });
+  res.send(html);
+}
+
+export async function showProgress(
   req: Request,
   res: Response,
   next: NextFunction
-): Promise<void> {
-  if (!req.params.urlPath) throw new Error("Params not present.");
-  const urlPath = req.params.urlPath;
-  const restJobs = getJobTemplates().filter(
-    (j) => j.jobTemplateType === JobTemplateType.REST_INVOKED
-  ) as RestJobTemplate[];
-  const restJobTemplate = restJobs.find((j) => j.urlPath === urlPath);
-  if (!restJobTemplate) {
+) {
+  const uuid = req.params.uuid;
+  if (!uuid) {
     const e = new Error(
-      `No Rest job with the path found. path was "${urlPath}" available. Supported paths are: ${restJobs
-        .map((j) => `"${j.urlPath}"`)
-        .join(",")}`
+      `UUID URL parameter not present. Correct URL looks like /progress/<uuid>. Got "${req.params.uuid}"`
     );
     next(e);
     return;
   }
-
-  // Check if a job is already running for this jobtemplate
-  const job = await (async () => {
-    const testJob = getJobs().find(
-      (t) => t.jobTemplateUri === restJobTemplate.uri
-    );
-    if (!testJob) {
-      // If no task is found then start it
-      // Invoking should never take long
-      logger.debug(
-        `Invoking from REST path ${urlPath} a job "${
-          restJobTemplate.uri
-        }" with datamonitoring function ${getEnumStringFromUri(
-          restJobTemplate.datamonitoringFunction,
-          false
-        )}. `
-      );
-      return await restJobTemplate.invoke(); // If not exists invoke a new one
-    }
-    return testJob; // If exists return the existing one
-  })();
+  const job = getJobs().find((j) => j.uuid === uuid);
+  if (!job) {
+    const e = new Error(`Job with uuid "${uuid}" does not exist`);
+    next(e);
+    return;
+  }
 
   const html = showJobTemplate({
-    title: `Job with uri ${job.uri}`,
+    title: `Progress of job ${job.uri}`,
     createdAt: job.createdAt,
     modifiedAt: job.modifiedAt,
     status: job.status,
     function: job.datamonitoringFunction,
-    uuid: job.uuid,
+    done: job.progressDone ?? 0,
+    total: job.progressTotal ?? 0,
+    log: job.logsAsStrings(),
   });
+
   res.send(html);
 }

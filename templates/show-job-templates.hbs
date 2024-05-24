@@ -15,6 +15,7 @@
 <body>
   <h1>{{title}}</h1>
   <p>Current Job templates:</p>
+  <p><a href="{{rel '/queue'}}">Queue</a></p>
   <ul>
     {{#each jobTemplates}}
     <li>
@@ -38,8 +39,9 @@
         </li>
         {{/if}}
         {{#if (eq this.jobTemplateType @root.restValue)}}
-        <li>REST path (click to launch a job): <a
-            href="{{rel '/start'}}/{{this.information.urlPath}}">/start/{{this.information.urlPath}}</a>
+        <li>REST path (click to start a new REST job based on the template):
+          <pre><a
+            href="{{rel '/start'}}/{{this.information.urlPath}}">/start/{{this.information.urlPath}}</a></pre>
         </li>
         {{/if}}
       </ul>

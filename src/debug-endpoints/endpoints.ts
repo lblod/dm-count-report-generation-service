@@ -10,8 +10,12 @@ import {
   debugHtmlRenderMiddleware,
 } from "./middleware.js";
 import Handlebars from "handlebars";
-import { deleteAllJobs } from "../job/job-template.js";
-import { showJobTemplates, startRestJob } from "./functions.js";
+import {
+  RestJobTemplate,
+  deleteAllJobs,
+  getJobTemplates,
+} from "../job/job-template.js";
+import { showJobTemplates, showQueue } from "./functions.js";
 import { getJobs } from "../job/job.js";
 import { logger } from "../logger.js";
 import { now } from "../util/date-time.js";
@@ -46,6 +50,7 @@ async function storeDump(query: z.infer<typeof storeDumpQuerySchema>) {
 }
 
 export function setupDebugEndpoints(app: Express) {
+  // SIMPLE ENDPOINTS. INVOKE ANY FUNCTION
   app.get("/debug", (_, res) => res.send(debugIndexHtml));
 
   addSimpleDebugEndpoint(app, "GET", "/dump", storeDumpQuerySchema, storeDump);
@@ -66,9 +71,30 @@ export function setupDebugEndpoints(app: Express) {
     deleteAllJobs
   );
 
-  addDebugEndpoint(app, "GET", "/job-templates", emptySchema, showJobTemplates);
+  addSimpleDebugEndpoint(
+    app,
+    "GET",
+    "/start/:urlPath",
+    emptySchema,
+    async (_, params) => {
+      const urlPath = params?.urlPath;
+      if (!urlPath)
+        throw new Error(`Url parameter path needs to be present. Not found. `);
+      const jobTemplate = getJobTemplates().find((jt) => {
+        return jt instanceof RestJobTemplate && jt.urlPath === urlPath;
+      });
 
-  addDebugEndpoint(app, "GET", "/start/:urlPath", emptySchema, startRestJob);
+      if (!jobTemplate)
+        throw new Error(`Job template with url path "${urlPath}" not found`);
+      const job = await jobTemplate.invoke();
+      return `Job with uuid "${job.uuid}" started successfully. To check progress surf to ${config.env.ROOT_URL_PATH}start/${job.uuid}.`;
+    }
+  );
+
+  // COMPLEX ENDPOINTS. INVOKE EXPRESS REQUEST HANDLER (imported from functions.ts)
+
+  addDebugEndpoint(app, "GET", "/job-templates", emptySchema, showJobTemplates);
+  addDebugEndpoint(app, "GET", "/queue", emptySchema, showQueue);
 
   app.get("/progress/:uuid", [
     (req: Request, res: Response): void => {

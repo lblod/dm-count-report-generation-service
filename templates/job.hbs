@@ -18,21 +18,25 @@
   <p>Job status:
   <pre>{{printUriEnum status}}</pre>
   </p>
-  <p>Task function:
+  <p>Job function:
   <pre>{{printUriEnum function}}</pre>
   </p>
   <label for="progress">Procedure progress:</label>
-  <progress id="progress" value="0" max="100"> 32% </progress>
+  <progress id="progress" value="{{done}}" max="{{total}}"></progress>
   <div style="width: 800px;">
     <canvas id="graph"></canvas>
   </div>
   <hr>
   <div id="log">
-
+    {{#each log}}
+    <p>
+    <pre>{{this}}</pre>
+    </p>
+    {{/each}}
   </div>
 </body>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
-<script>
+<!--<script>
   const performanceChart = new Chart(
     document.getElementById('graph'),
     {
@@ -89,6 +93,6 @@
     }
     console.warn(`Received weird server side event:${JSON.stringify(event)}`);
   }
-</script>
+</script>-->
 
 </html>

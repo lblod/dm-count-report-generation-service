@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{title}}</title>
+  <style>
+    li>pre {
+      display: inline-block;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>{{title}}</h1>
+  <p>Tot invoke a job template go to <a href="{{rel '/job-templates'}}">/job-templates</a></p>
+  <p>Current Job queue:</p>
+  {{#if (listPopulated queue)}}
+  <ol>
+    {{#each queue}}
+    <li>
+      <h3>URI: &lt;{{this.jobUri}}&gt;</h3>
+      <ul>
+        <li>uuid:
+          <pre>{{this.uuid}}</pre>
+        </li>
+        <li>status:
+          <pre>{{printUriEnum this.status}} </pre>
+        </li>
+        <li>function:
+          <pre>{{printUriEnum this.function}}</pre>
+        </li>
+        {{#if this.executing}}
+        <li>executing:
+          <pre>true</pre>
+        </li>
+        <p>Click to see progress:<a href="{{rel '/progress'}}/{{this.uuid}}">/progress/{{this.uuid}}</a></p>
+        {{else}}
+        <li>executing:
+          <pre>false</pre>
+        </li>
+        {{/if}}
+      </ul>
+    </li>
+    {{/each}}
+  </ol>
+  {{else}}
+  <p>No jobs in the queue at the moment. <a href="javascript:window.location.reload(true)">Reload page</a></p>
+  {{/if}}
+
+</body>
+
+</html>

@@ -68,7 +68,9 @@ async function startupProcedure() {
   // Job templates
   setJobTemplateCreeationDefaults(queryEngine, config.env.REPORT_ENDPOINT); // Always needs to be called. Created in case we 'd want to use a different query engine for jobs in the future.
   await loadTemplateJobs();
-  logger.info(`CHECK PASSED: Jobs loaded. ${getJobTemplates().length} found.`);
+  logger.info(
+    `CHECK PASSED: Job templates loaded. ${getJobTemplates().length} found.`
+  );
   // For all invocation times provided in the config file; check if a periodic job is present and create one if necassary
   for (const [func, invocationInfo] of Object.entries(
     config.file.periodicFunctionInvocationTimes
@@ -83,7 +85,7 @@ async function startupProcedure() {
         `Job for function ${getEnumStringFromUri(
           func,
           false
-        )} already exists. Config file ignored.`
+        )} already exists. Config file ignored. Update the jobs using delta's (not implemented yet).`
       );
     } else {
       logger.info(
@@ -132,6 +134,28 @@ async function startupProcedure() {
         "start-harvesting-exec-time-report",
         JobTemplateStatus.ACTIVE
       );
+    }
+    // Create a dummy job if env requests it and it does not exist yet
+    const debugJobExists = getJobTemplates().find(
+      (jt) => jt.datamonitoringFunction === DataMonitoringFunction.DUMMY
+    );
+    if (config.env.ADD_DUMMY_REST_JOB_TEMPLATE) {
+      if (debugJobExists) {
+        logger.info(
+          `Specific dummy debug job was required by env vars and exists already. No operation.`
+        );
+      } else {
+        logger.info(
+          `Specific dummy debug job was required by env vars and does not exist. Creating it.`
+        );
+        await createRestJobTemplate(
+          DataMonitoringFunction.DUMMY,
+          "dummy-job",
+          JobTemplateStatus.ACTIVE
+        );
+      }
+    } else {
+      logger.verbose(`No debug job required by env-vars.`);
     }
   }
   // Jobs

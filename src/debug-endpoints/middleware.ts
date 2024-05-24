@@ -197,7 +197,10 @@ export function addSimpleDebugEndpoint(
   method: HttpMethod,
   path: string,
   querySchema: ZodSchema<any, any>,
-  functionToExecute: (query: z.infer<typeof querySchema>) => Promise<any>
+  functionToExecute: (
+    query: z.infer<typeof querySchema>,
+    params: undefined | Record<string, string>
+  ) => Promise<any>
 ) {
   const middlewares = [
     getZodQueryValidationMiddleware(querySchema),
@@ -210,7 +213,7 @@ export function addSimpleDebugEndpoint(
       try {
         const { durationMilliseconds, result } = await duration(
           functionToExecute
-        )(req.query);
+        )(req.query, req.params);
         // Send result
         res.locals.result = {
           success: true,

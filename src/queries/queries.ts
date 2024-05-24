@@ -282,9 +282,11 @@ export type WriteReportInput = {
   prefLabel: string;
   uuid: string;
   counts: {
+    countUri: string;
     classUri: string;
     count: number;
     prefLabel: string;
+    uuid: string;
   }[];
 };
 
@@ -302,14 +304,15 @@ INSERT {
       mu:uuid "{{uuid}}";
       datamonitoring:istest "true"^^xsd:boolean;
       datamonitoring:counts
-      {{#each counts}}
-        [
-          a datamonitoring:Count;
-          datamonitoring:targetClass <{{this.classUri}}>;
-          datamonitoring:count {{this.count}};
-          skos:prefLabel "{{escape this.prefLabel}}";
-        ]{{#unless @last}},{{/unless}}
-     {{/each}}
+        {{#each counts}}<{{this.countUri}}>{{#unless @last}},{{/unless}}{{/each}}.
+
+    {{#each counts}}
+    <{{this.countUri}}> a datamonitoring:Count;
+      mu:uuid "{{this.uuid}}";
+      datamonitoring:targetClass <{{this.classUri}}>;
+      skos:prefLabel "{{escape this.prefLabel}}";
+      datamonitoring:count "{{this.count}}"^^xsd:integer.
+    {{/each counts}}
   }
 } WHERE {
 

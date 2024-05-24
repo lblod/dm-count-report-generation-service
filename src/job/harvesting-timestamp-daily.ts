@@ -50,6 +50,8 @@ GROUP BY ?scheduledJobUri ?title
 );
 
 type HarvestingTimeStampResult = {
+  resultUri: string;
+  uuid: string;
   organisationUri: string;
   organisationLabel: string;
   lastExecutionTimestamp: DateTime;
@@ -78,14 +80,16 @@ INSERT {
       datamonitoring:createdAt {{toDateTimeLiteral createdAt}};
       mu:uuid "{{uuid}}";
       datamonitoring:adminUnitLastExecutionRecords
-      {{#each times}}
-        [
-          a datamonitoring:LastHarvestingExecutionRecord;
-          datamonitoring:targetAdminitrativeUnit <{{this.organisationUri}}>;
-          skos:prefLabel "Last execution of harvesting job for organisation \'{{escape this.organisationLabel}}\'";
-          datamonitoring:lastExecutionTime {{toDateTimeLiteral this.lastExecutionTimestamp}};
-        ]{{#unless @last}},{{/unless}}
-      {{/each}}
+        {{#each times}}<{{this.resultUri}}>{{#unless @last}},{{/unless}}{{/each}}.
+
+    {{#each times}}
+    <{{this.resultUri}}>
+      a datamonitoring:LastHarvestingExecutionRecord;
+      mu:uuid "{{this.uuid}}";
+      datamonitoring:targetAdminitrativeUnit <{{this.organisationUri}}>;
+      skos:prefLabel "Last execution of harvesting job for organisation \\'{{escape this.organisationLabel}}\\'";
+      datamonitoring:lastExecutionTime {{toDateTimeLiteral this.lastExecutionTimestamp}}.
+    {{/each}}
   }
 } WHERE {
 
@@ -156,7 +160,10 @@ export const getHarvestingTimestampDaily: JobFunction = async (
       notFound.push(org.uri);
       continue;
     }
+    const uuid = uuidv4();
     output.push({
+      resultUri: `${config.env.URI_PREFIX_REPORT}${uuid}`,
+      uuid,
       organisationUri: org.uri,
       organisationLabel: org.label,
       lastExecutionTimestamp: record.lastModified,
