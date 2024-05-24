@@ -177,7 +177,7 @@ export const generateReportsDaily: JobFunction = async (
         });
 
         const uuid = uuidv4();
-        const reportUri = `${config.env.URI_PREFIX_REPORT}${uuid}`;
+        const reportUri = `${config.env.URI_PREFIX_RESOURCES}count-report/gov-body/${uuid}`;
         governingBodyReportUriList.push(reportUri);
 
         const uuids = Array(4).fill(null).map(uuidv4);
@@ -195,28 +195,28 @@ export const generateReportsDaily: JobFunction = async (
           uuid,
           counts: [
             {
-              countUri: `${config.env.URI_PREFIX_REPORT}${uuids[0]}`,
+              countUri: `${config.env.URI_PREFIX_RESOURCES}count-report/count/${uuids[0]}`,
               uuid: uuids[0],
               classUri: `http://data.vlaanderen.be/ns/besluit#Zitting`,
               count: sessionsResult.count,
               prefLabel: `Count of 'Zitting'`,
             },
             {
-              countUri: `${config.env.URI_PREFIX_REPORT}${uuids[1]}`,
+              countUri: `${config.env.URI_PREFIX_RESOURCES}count-report/count/${uuids[1]}`,
               uuid: uuids[1],
               classUri: `http://data.vlaanderen.be/ns/besluit#Agendapunt`,
               count: agendaItemResult.count,
               prefLabel: `Count of 'Agendapunt'`,
             },
             {
-              countUri: `${config.env.URI_PREFIX_REPORT}${uuids[2]}`,
+              countUri: `${config.env.URI_PREFIX_RESOURCES}count-report/count/${uuids[2]}`,
               uuid: uuids[2],
               classUri: `http://data.vlaanderen.be/ns/besluit#Besluit`,
               count: resolutionResult.count,
               prefLabel: `Count of 'Besluit'`,
             },
             {
-              countUri: `${config.env.URI_PREFIX_REPORT}${uuids[3]}`,
+              countUri: `${config.env.URI_PREFIX_RESOURCES}count-report/count/${uuids[3]}`,
               uuid: uuids[3],
               classUri: `http://data.vlaanderen.be/ns/besluit#Stemming`,
               count: voteResult.count,
@@ -235,7 +235,7 @@ export const generateReportsDaily: JobFunction = async (
           reportGraphUri: config.env.REPORT_GRAPH_URI,
           adminUnitUri: adminUnit.uri,
           prefLabel: `Count report for admin unit '${adminUnit.label}' on ${defaultedDay}`,
-          reportUri: `${config.env.URI_PREFIX_REPORT}${uuid}`,
+          reportUri: `${config.env.URI_PREFIX_RESOURCES}/count-report/admin-unit/${uuid}`,
           uuid,
           createdAt: now(),
           day: defaultedDay,

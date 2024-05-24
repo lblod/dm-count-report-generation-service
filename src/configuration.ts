@@ -150,14 +150,23 @@ const dmReportGenerationServiceEnvSchema = z.object({
   QUERY_MAX_RETRIES: z.number().int().min(0).max(10).optional(),
   QUERY_WAIT_TIME_ON_FAIL: z.number().int().min(0).max(60_000).optional(),
   ADD_DUMMY_REST_JOB_TEMPLATE: envBooleanSchema.optional(),
-  URI_PREFIX_REPORT: z
+  URI_PREFIX_RESOURCES: z
     .string()
-    .regex(/^.+[/#]$/)
+    .regex(/^.+[/#]$/, {
+      message: "Make sure the string ends in a slash or a #.",
+    })
+    .optional(),
+  URI_PREFIX_NAMESPACES: z
+    .string()
+    .regex(/^.+[/#]$/, {
+      message: "Make sure the string ends in a slash or a #.",
+    })
     .optional(),
   ROOT_URL_PATH: z
     .string()
     .regex(/(\/[a-z\-/0-9]*)/)
     .optional(),
+  SKIP_ENDPOINT_CHECK: envBooleanSchema.optional(),
 });
 
 export type DmReportGenerationServiceConfigFile = z.infer<
@@ -209,9 +218,10 @@ const defaultEnv = {
   QUERY_MAX_RETRIES: 3,
   QUERY_WAIT_TIME_ON_FAIL: 1000,
   ROOT_URL_PATH: "/counting-service",
-  URI_PREFIX_REPORT:
-    "http://lblod.data.gift/vocabularies/datamonitoring/countReport/",
+  URI_PREFIX_RESOURCES: "http://codifly.be/resources/",
+  URI_PREFIX_NAMESPACES: "http://codifly.be/namespaces/",
   ADD_DUMMY_REST_JOB_TEMPLATE: false,
+  SKIP_ENDPOINT_CHECK: false,
 };
 
 const envResult = dmReportGenerationServiceEnvSchema.safeParse(process.env);

@@ -31,39 +31,43 @@ async function startupProcedure() {
   logger.info(
     "CHECK PASSED: Configuration is validated successfully. Both config file and env variables. Checking endpoints..."
   );
-  // Check all endpoints
-  const endpoints = new Set([
-    config.env.ADMIN_UNIT_ENDPOINT,
-    config.env.REPORT_ENDPOINT,
-    ...config.file.endpoints.map((value) => value.url),
-  ]);
-  logger.verbose(
-    `Testing SPARQL endpoints (${[...endpoints].join(
-      ","
-    )}) to see if they are up. Will retry 10 times and wait for 30 seconds after each try for each endpoint.`
-  );
-  for (const endpoint of endpoints) {
-    const testQuery = new TemplatedSelect<TestQueryInput, TestQueryOutput>(
-      queryEngine,
-      endpoint,
-      testQueryTemplate
+  if (!config.env.SKIP_ENDPOINT_CHECK) {
+    // Check all endpoints
+    const endpoints = new Set([
+      config.env.ADMIN_UNIT_ENDPOINT,
+      config.env.REPORT_ENDPOINT,
+      ...config.file.endpoints.map((value) => value.url),
+    ]);
+    logger.verbose(
+      `Testing SPARQL endpoints (${[...endpoints].join(
+        ","
+      )}) to see if they are up. Will retry 10 times and wait for 30 seconds after each try for each endpoint.`
     );
-    try {
-      // Try lots of times because the database might not be up yet
-      const result = await testQuery.result({}, 10, 30_000);
-      if (result.result !== 2)
-        throw new Error(
-          `The endpoint "${endpoint}" does not know that 1+1=2. Might want to look into that.`
-        );
-      logger.verbose(`\tEndpoint ${endpoint} passed.`);
-    } catch (e) {
-      logger.error(
-        `The service cannot start because query failed on endpoint "${endpoint}" a  after 10 retries and a total wait time of 5 minutes.`
+    for (const endpoint of endpoints) {
+      const testQuery = new TemplatedSelect<TestQueryInput, TestQueryOutput>(
+        queryEngine,
+        endpoint,
+        testQueryTemplate
       );
-      throw e; // Re throw. Node process is killed.
+      try {
+        // Try lots of times because the database might not be up yet
+        const result = await testQuery.result({}, 10, 30_000);
+        if (result.result !== 2)
+          throw new Error(
+            `The endpoint "${endpoint}" does not know that 1+1=2. Might want to look into that.`
+          );
+        logger.verbose(`\tEndpoint ${endpoint} passed.`);
+      } catch (e) {
+        logger.error(
+          `The service cannot start because query failed on endpoint "${endpoint}" a  after 10 retries and a total wait time of 5 minutes.`
+        );
+        throw e; // Re throw. Node process is killed.
+      }
     }
+    logger.info("CHECK PASSED: All endpoints can be queried.");
+  } else {
+    logger.warn("ENDPOINT CHECK SKIPPED. Due to env var setting.");
   }
-  logger.info("CHECK PASSED: All endpoints can be queried.");
   // initialise stuff
   // Job templates
   setJobTemplateCreeationDefaults(queryEngine, config.env.REPORT_ENDPOINT); // Always needs to be called. Created in case we 'd want to use a different query engine for jobs in the future.

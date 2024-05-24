@@ -31,6 +31,7 @@ export type JobFunction = (
 
 export type WriteNewJobInput = {
   prefixes: string;
+  resourcesUriPrefix: string;
   jobGraphUri: string;
   jobUri: string;
   uuid: string;
@@ -49,7 +50,7 @@ INSERT {
   GRAPH <{{jobGraphUri}}> {
     <{{jobUri}}> a cogs:Job, datamonitoring:DatamonitoringJob;
       mu:uuid "{{uuid}}";
-      dct:creator <https://codifly.be/ns/resources/task-creator/dm-count-report-generation-service>;
+      dct:creator <{{resourcesUriPrefix}}job-creator/dm-count-report-generation-service>;
       adms:status {{toJobStatusLiteral status}};
       dct:created {{toDateTimeLiteral createdAt}};
       dct:modified {{toDateTimeLiteral createdAt}};
@@ -119,7 +120,7 @@ DELETE {
 WHERE {
   GRAPH <{{jobGraphUri}}> {
     ?jobUri a cogs:Job;
-      adms:status <https://codifly.be/ns/resources/status/busy>;
+      adms:status {{toJobStatusLiteral "BUSY"}};
       ?p ?o.
   }
 }
@@ -403,7 +404,7 @@ export class Job {
   }
 
   get uri() {
-    return `http://codifly.be/namespaces/job/${this._uuid}`;
+    return `${config.env.URI_PREFIX_RESOURCES}job/${this._uuid}`;
   }
 
   logs() {
@@ -445,6 +446,7 @@ export class Job {
   async _createNewResource() {
     await this._insertQuery.execute({
       prefixes: PREFIXES,
+      resourcesUriPrefix: config.env.URI_PREFIX_RESOURCES,
       uuid: this._uuid,
       jobGraphUri: this._graphUri,
       jobUri: this.uri,

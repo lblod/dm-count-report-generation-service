@@ -58,6 +58,7 @@ DELETE {
 
 export type WriteNewPeriodicJobTemplateInput = {
   prefixes: string;
+  resourcesUriPrefix: string;
   jobGraphUri: string;
   uuid: string;
   newJobTemplateUri: string;
@@ -65,6 +66,8 @@ export type WriteNewPeriodicJobTemplateInput = {
   createdAt: DateTime;
   description: string;
   jobTemplateType: JobTemplateType.PERIODIC;
+  jobParametersUri: string;
+  jobParametersUuid: string;
   datamonitoringFunction: DataMonitoringFunction;
   timeOfInvocation: TimeOnly;
   daysOfInvocation: DayOfWeek[];
@@ -77,17 +80,20 @@ INSERT {
   GRAPH <{{jobGraphUri}}> {
     <{{newJobTemplateUri}}> a cogs:Job, datamonitoring:DatamonitoringTemplateJob;
       mu:uuid "{{uuid}}";
-      dct:creator <https://codifly.be/ns/resources/job-creator/dm-count-report-generation-service>;
+      dct:creator <{{resourcesUriPrefix}}job-creator/dm-count-report-generation-service>;
       adms:status {{toJobTemplateStatusLiteral status}};
       dct:created {{toDateTimeLiteral createdAt}};
       dct:modified {{toDateTimeLiteral createdAt}};
       datamonitoring:description "{{escape description}}";
       datamonitoring:jobType {{toJobTemplateTypeLiteral jobTemplateType}};
-      datamonitoring:jobParameters [
+      datamonitoring:jobParameters <{{jobParametersUri}}>.
+
+      <{{jobParametersUri}}> a datamonitoring:PeriodicJobTemplateParameters;
+        mu:uuid "{{jobParametersUuid}}"
         datamonitoring:timeOfInvocation {{toTimeLiteral timeOfInvocation}};
         datamonitoring:function {{toDatamonitoringFunctionLiteral datamonitoringFunction}};
-        datamonitoring:daysOfInvocation {{#each daysOfInvocation}}{{toDayOfWeekLiteral this}}{{#unless @last}},{{/unless}}{{/each}};
-      ].
+        datamonitoring:daysOfInvocation
+          {{#each daysOfInvocation}}{{toDayOfWeekLiteral this}}{{#unless @last}},{{/unless}}{{/each}}.
   }
 } WHERE {
 
@@ -138,7 +144,7 @@ export class JobTemplate {
   }
 
   get uri() {
-    return `http://codifly.be/namespaces/job/${this._uuid}`;
+    return `${config.env.URI_PREFIX_RESOURCES}job-template/${this._uuid}`;
   }
 
   async updateStatus(status: JobTemplateStatus) {
@@ -220,8 +226,10 @@ export class PeriodicJobTemplate extends JobTemplate {
   }
 
   async _createNewResource() {
+    const uuid = uuidv4();
     await this._insertQuery.execute({
       prefixes: PREFIXES,
+      resourcesUriPrefix: config.env.URI_PREFIX_RESOURCES,
       uuid: this._uuid,
       jobGraphUri: this._graphUri,
       newJobTemplateUri: this.uri,
@@ -229,6 +237,8 @@ export class PeriodicJobTemplate extends JobTemplate {
       createdAt: now(),
       description: `Job created by dm-count-report-generation-service`,
       jobTemplateType: JobTemplateType.PERIODIC,
+      jobParametersUri: `${config.env.URI_PREFIX_RESOURCES}job-parameters/${uuid}`,
+      jobParametersUuid: uuid,
       timeOfInvocation: this._timeOfInvocation,
       daysOfInvocation: this._daysOfInvocation,
       datamonitoringFunction: this._datamonitoringFunction,
@@ -243,6 +253,7 @@ export class PeriodicJobTemplate extends JobTemplate {
 
 export type WriteNewRestJobTemplateInput = {
   prefixes: string;
+  resourcesUriPrefix: string;
   jobGraphUri: string;
   uuid: string;
   newJobTemplateUri: string;
@@ -250,6 +261,8 @@ export type WriteNewRestJobTemplateInput = {
   createdAt: DateTime;
   description: string;
   jobTemplateType: JobTemplateType.REST_INVOKED;
+  jobParametersUri: string;
+  jobParametersUuid: string;
   urlPath: string;
   datamonitoringFunction: DataMonitoringFunction;
 };
@@ -261,16 +274,18 @@ INSERT {
   GRAPH <{{jobGraphUri}}> {
     <{{newJobTemplateUri}}> a cogs:Job, datamonitoring:DatamonitoringTemplateJob;
       mu:uuid "{{uuid}}";
-      dct:creator <https://codifly.be/ns/resources/job-creator/dm-count-report-generation-service>;
+      dct:creator <{{resourcesUriPrefix}}job-creator/dm-count-report-generation-service>;
       adms:status {{toJobTemplateStatusLiteral status}};
       dct:created {{toDateTimeLiteral createdAt}};
       dct:modified {{toDateTimeLiteral createdAt}};
       datamonitoring:description "{{escape description}}";
       datamonitoring:jobType {{toJobTemplateTypeLiteral jobTemplateType}};
-      datamonitoring:jobParameters [
+      datamonitoring:jobParameters <{{jobParametersUri}}>.
+
+      <{{jobParametersUri}}> a datamonitoring:restJobTemplateParameters;
+        mu:uuid "{{jobParametersUuid}}";
         datamonitoring:function {{toDatamonitoringFunctionLiteral datamonitoringFunction}};
-        datamonitoring:urlPath "{{urlPath}}";
-      ].
+        datamonitoring:urlPath "{{urlPath}}".
   }
 } WHERE {
 
@@ -312,8 +327,10 @@ export class RestJobTemplate extends JobTemplate {
   }
 
   async _createNewResource() {
+    const uuid = uuidv4();
     await this._insertQuery.execute({
       prefixes: PREFIXES,
+      resourcesUriPrefix: config.env.URI_PREFIX_RESOURCES,
       uuid: this._uuid,
       jobGraphUri: this._graphUri,
       newJobTemplateUri: this.uri,
@@ -321,6 +338,8 @@ export class RestJobTemplate extends JobTemplate {
       createdAt: now(),
       description: `Job created by dm-count-report-generation-service`,
       jobTemplateType: JobTemplateType.REST_INVOKED,
+      jobParametersUri: `${config.env.URI_PREFIX_RESOURCES}job-parameters/${uuid}`,
+      jobParametersUuid: uuid,
       urlPath: this._urlPath,
       datamonitoringFunction: this._datamonitoringFunction,
     });

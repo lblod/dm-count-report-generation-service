@@ -13,38 +13,40 @@ export type JsonSerializable =
   | { [key: string]: JsonSerializable }
   | undefined;
 
+//TODO Make uri prefixes reliant on the configuration
+
 export enum JobStatus {
-  BUSY = "https://codifly.be/ns/resources/status/busy",
-  NOT_STARTED = "https://codifly.be/ns/resources/status/not-started",
-  FINISHED = "https://codifly.be/ns/resources/status/finished",
-  ERROR = "https://codifly.be/ns/resources/status/failed",
+  BUSY = `https://codifly.be/ns/resources/status/busy`,
+  NOT_STARTED = `https://codifly.be/ns/resources/status/not-started`,
+  FINISHED = `https://codifly.be/ns/resources/status/finished`,
+  ERROR = `https://codifly.be/ns/resources/status/failed`,
 }
 
 export enum JobTemplateStatus {
-  ACTIVE = "https://codifly.be/ns/resources/status/active",
-  NOT_STARTED = "https://codifly.be/ns/resources/status/not-started",
-  FINISHED = "https://codifly.be/ns/resources/status/finished",
-  INACTIVE = "https://codifly.be/ns/resources/status/inactive",
+  ACTIVE = `https://codifly.be/ns/resources/status/active`,
+  NOT_STARTED = `https://codifly.be/ns/resources/status/not-started`,
+  FINISHED = `https://codifly.be/ns/resources/status/finished`,
+  INACTIVE = `https://codifly.be/ns/resources/status/inactive`,
 }
 
 export enum JobType {
-  SERIAL = "https://codifly.be/ns/resources/task-type/serial",
-  PARALLEL = "https://codifly.be/ns/resources/task-type/parallel",
+  SERIAL = `https://codifly.be/ns/resources/task-type/serial`,
+  PARALLEL = `https://codifly.be/ns/resources/task-type/parallel`,
 }
 
 export enum JobTemplateType {
-  PERIODIC = "https://codifly.be/ns/resources/job-type/periodic",
-  REST_INVOKED = "https://codifly.be/ns/resources/job-type/rest-invoked",
+  PERIODIC = `https://codifly.be/ns/resources/job-type/periodic`,
+  REST_INVOKED = `https://codifly.be/ns/resources/job-type/rest-invoked`,
 }
 
 export enum DayOfWeek {
-  MONDAY = "http://www.w3.org/2006/time#Monday",
-  TUESDAY = "http://www.w3.org/2006/time#Tuesday",
-  WEDNESDAY = "http://www.w3.org/2006/time#Wednesday",
-  THURSDAY = "http://www.w3.org/2006/time#Thursday",
-  FRIDAY = "http://www.w3.org/2006/time#Friday",
-  SATURDAY = "http://www.w3.org/2006/time#Saturday",
-  SUNDAY = "http://www.w3.org/2006/time#Sunday",
+  MONDAY = `http://www.w3.org/2006/time#Monday`,
+  TUESDAY = `http://www.w3.org/2006/time#Tuesday`,
+  WEDNESDAY = `http://www.w3.org/2006/time#Wednesday`,
+  THURSDAY = `http://www.w3.org/2006/time#Thursday`,
+  FRIDAY = `http://www.w3.org/2006/time#Friday`,
+  SATURDAY = `http://www.w3.org/2006/time#Saturday`,
+  SUNDAY = `http://www.w3.org/2006/time#Sunday`,
 }
 
 export function stringToDayOfWeek(input: string): DayOfWeek | undefined {
@@ -53,9 +55,9 @@ export function stringToDayOfWeek(input: string): DayOfWeek | undefined {
 }
 
 export enum DataMonitoringFunction {
-  COUNT_RESOURCES = "https://codifly.be/ns/resources/dm-function/count-resources",
-  CHECK_HARVESTING_EXECUTION_TIME = "https://codifly.be/ns/resources/dm-function/check-harvesting-execution-time",
-  DUMMY = "https://codifly.be/ns/resources/dm-function/dummy",
+  COUNT_RESOURCES = `https://codifly.be/ns/resources/dm-function/count-resources`,
+  CHECK_HARVESTING_EXECUTION_TIME = `https://codifly.be/ns/resources/dm-function/check-harvesting-execution-time`,
+  DUMMY = `https://codifly.be/ns/resources/dm-function/dummy`,
 }
 
 export type DmEnum =
