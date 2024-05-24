@@ -9,6 +9,7 @@ type ExecutionInformation = {
 };
 
 const queue: ExecutionInformation[] = [];
+let current: ExecutionInformation | null = null;
 
 export function getQueue() {
   return queue.map((info) => {
@@ -20,6 +21,10 @@ export function getQueue() {
       function: info.job.datamonitoringFunction,
     };
   });
+}
+
+export function getCurrent(): Job | null {
+  return current ? current.job : null;
 }
 
 function removeFromQueue(item: ExecutionInformation) {
@@ -61,8 +66,10 @@ async function loop() {
   const last = queue[queue.length - 1];
   // Check if there are new functions that need to be executed.
   if (last.promise !== null) return; // already executing
+  if (current) return; // Something is already executing
   // There is a job in the queue that needs executing
-  // So execute it.
+  // So execute it and make it current
+  current = last;
   const func = JOB_FUNCTIONS[last.job.datamonitoringFunction];
   await last.job._progress.start();
   last.promise = longDuration(func)(last.job._progress, ...last.args); // Promise !== null so it is designated as executing
@@ -73,6 +80,7 @@ async function loop() {
       );
       last.job._progress.return(durationResult.result).then(() => {
         removeFromQueue(last);
+        current = null;
         loop();
       });
     })
@@ -80,6 +88,7 @@ async function loop() {
       // The function failed.
       last.job._progress.error(e).then(() => {
         removeFromQueue(last);
+        current = null;
         loop();
       });
     });

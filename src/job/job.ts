@@ -418,7 +418,7 @@ export class Job {
   async execute(...args: any[]) {
     if (this._jobType === JobType.PARALLEL)
       throw new Error(`Parallel tasks not supported yet`);
-    if (this.status === JobStatus.NOT_STARTED)
+    if (this.status !== JobStatus.NOT_STARTED)
       throw new Error("Job already started or finished.");
 
     const waiting = addToQueue(this, ...args); // Returns immediately and gives the number of tasks waiting in the queue

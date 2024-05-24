@@ -14,18 +14,17 @@ function createToSparqlLiteralHelper(
   enumObject: Record<string, string>
 ) {
   Handlebars.registerHelper(funcName, function (enumValue: unknown) {
-    if (
-      !(
-        typeof enumValue === "string" &&
-        Object.values(enumObject).includes(enumValue)
-      )
-    )
-      throw new Error(
-        `${funcName} only takes one of: ${Object.values(enumObject).join(
-          ","
-        )}. Received ${enumValue}`
-      );
-    return `<${enumValue}>`;
+    if (typeof enumValue !== "string")
+      throw `${funcName} ony takes one string as an argument.`;
+    for (const [key, value] of Object.entries(enumObject)) {
+      if (key === enumValue) return `<${enumObject[enumValue]}>`;
+      if (value === enumValue) return `<${enumValue}>`;
+    }
+    throw new Error(
+      `${funcName} only takes one of: ${Object.values(enumObject).join(
+        ","
+      )} or ${Object.keys(enumObject).join(",")}. Received "${enumValue}".`
+    );
   });
 }
 
