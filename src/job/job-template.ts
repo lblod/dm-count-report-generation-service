@@ -89,7 +89,7 @@ INSERT {
       datamonitoring:jobParameters <{{jobParametersUri}}>.
 
       <{{jobParametersUri}}> a datamonitoring:PeriodicJobTemplateParameters;
-        mu:uuid "{{jobParametersUuid}}"
+        mu:uuid "{{jobParametersUuid}}";
         datamonitoring:timeOfInvocation {{toTimeLiteral timeOfInvocation}};
         datamonitoring:function {{toDatamonitoringFunctionLiteral datamonitoringFunction}};
         datamonitoring:daysOfInvocation

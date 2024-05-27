@@ -267,7 +267,7 @@ export class JobProgress {
    * @param result The end result of the function if applicable. Type checking will be added in the future.
    */
   async return(result: any) {
-    const message = `Status change of task ${this._job.uuid} to Finished`;
+    const message = `Status change of job ${this._job.uuid} to Finished`;
     this.logger.log(this._logLevel, message);
     await this._job.updateStatus(JobStatus.FINISHED);
     const statusMessage = {
@@ -286,7 +286,7 @@ export class JobProgress {
    * @param error
    */
   async error(error: object | number | string | boolean | Error) {
-    const message = `Status change of task ${this._job.uuid} to Error`;
+    const message = `Status change of job ${this._job.uuid} to Error`;
     this.logger.log(this._logLevel, message);
     await this._job.updateStatus(JobStatus.ERROR);
     const statusMessage = {
@@ -303,7 +303,7 @@ export class JobProgress {
    * Should be called only once per job and never by the user. Job instances call this.
    */
   async start() {
-    const message = `Status change of task ${this._job.uuid} to Busy`;
+    const message = `Status change of job ${this._job.uuid} to Busy`;
     this.logger.log(this._logLevel, message);
     await this._job.updateStatus(JobStatus.BUSY);
     const statusMessage = {
