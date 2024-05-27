@@ -9,6 +9,8 @@
 
 <body>
   <h1>{{title}}</h1>
+  <p>Back to <a href="{{rel " /debug"}}">Debug</a></p>
+  <p>Back to <a href="{{rel " /job-templates"}}">Job templates</a></p>
   <p>Job created:
   <pre>{{toDateTimeString createdAt}}</pre>
   </p>
@@ -36,7 +38,7 @@
   </div>
 </body>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
-<!--<script>
+<script>
   const performanceChart = new Chart(
     document.getElementById('graph'),
     {
@@ -59,7 +61,7 @@
   const logElement = document.getElementById('log');
 
   let counter = 0;
-  const eventSource = new EventSource("{{rel '/progress'}}/{{uuid}}");
+  const eventSource = new EventSource("{{rel '/event-stream'}}/{{uuid}}");
   eventSource.onmessage = function (event) {
     console.log('event received', event);
     const eventObject = JSON.parse(event.data);
@@ -85,6 +87,8 @@
     }
     if ('status' in eventObject) {
       const par = document.createElement('p');
+      par.style.color = "red";
+      par.style.fontWeight = "bold";
       const pre = document.createElement('pre');
       pre.textContent = "STATUS CHANGE:" + JSON.stringify({ done: eventObject.status.done, failed: eventObject.status.failed });
       par.appendChild(pre);
@@ -93,6 +97,6 @@
     }
     console.warn(`Received weird server side event:${JSON.stringify(event)}`);
   }
-</script>-->
+</script>
 
 </html>

@@ -19,7 +19,11 @@
   </p>
   <p>Duration: {{duration}} milliseconds</p>
   <hr>
+  {{#if preformatted}}
   <pre>{{result}}</pre>
+  {{else}}
+  {{{result}}}
+  {{/if}}
 </body>
 
 </html>

@@ -63,13 +63,17 @@ export function debugHtmlRenderMiddleware(
   req: express.Request,
   res: express.Response
 ) {
+  // When the result is an object then we send the JSON strinified version and set the preformatted flag to true.
+  const result = res.locals.result.result;
+  const preformatted = typeof result === "object";
   res.appendHeader("content-type", "text/html");
   const html = debugResultTemplate({
     title: "Result of function invocation - Success",
     method: req.method + " " + req.originalUrl,
     query: JSON.stringify(req.query),
     duration: res.locals.result.durationMilliseconds,
-    result: JSON.stringify(res.locals.result.result, undefined, 3),
+    result: preformatted ? JSON.stringify(result, undefined, 3) : result,
+    preformatted,
   });
   res.send(html);
 }

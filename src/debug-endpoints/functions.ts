@@ -146,6 +146,7 @@ export async function showProgress(
     done: job.progressDone ?? 0,
     total: job.progressTotal ?? 0,
     log: job.logsAsStrings(),
+    uuid: job.uuid,
   });
 
   res.send(html);

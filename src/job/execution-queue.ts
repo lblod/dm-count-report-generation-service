@@ -65,8 +65,8 @@ async function loop() {
   if (!queue.length) return;
   const last = queue[queue.length - 1];
   // Check if there are new functions that need to be executed.
-  if (last.promise !== null) return; // already executing
-  if (current) return; // Something is already executing
+  if (last.promise !== null) return; // last one already executing stop
+  if (current) return; // Something is already executing stop
   // There is a job in the queue that needs executing
   // So execute it and make it current
   current = last;
@@ -81,7 +81,7 @@ async function loop() {
       last.job._progress.return(durationResult.result).then(() => {
         removeFromQueue(last);
         current = null;
-        loop();
+        setInterval(loop, 0); // Execute next job or stop, break function stack
       });
     })
     .catch((e) => {
@@ -89,7 +89,7 @@ async function loop() {
       last.job._progress.error(e).then(() => {
         removeFromQueue(last);
         current = null;
-        loop();
+        setInterval(loop, 0); // Execute next job or stop, break function stack
       });
     });
 }

@@ -162,7 +162,7 @@ export const getHarvestingTimestampDaily: JobFunction = async (
     }
     const uuid = uuidv4();
     output.push({
-      resultUri: `${config.env.URI_PREFIX_REPORT}${uuid}`,
+      resultUri: `${config.env.URI_PREFIX_RESOURCES}harvest-time-report/result/${uuid}`,
       uuid,
       organisationUri: org.uri,
       organisationLabel: org.label,
@@ -192,7 +192,7 @@ export const getHarvestingTimestampDaily: JobFunction = async (
       insertLastExecutedReportTemplate
     );
   const uuid = uuidv4();
-  const reportUri = `${config.env.URI_PREFIX_REPORT}${uuid}`;
+  const reportUri = `${config.env.URI_PREFIX_RESOURCES}harvest-time-report/${uuid}`;
   const result = await duration(
     insertLastExecutedReportTimeQuery.execute.bind(
       insertLastExecutedReportTimeQuery

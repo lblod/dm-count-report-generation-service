@@ -6,7 +6,7 @@ export const dummyFunction: JobFunction = async (
   numOperations: number | undefined,
   operationDurationSeconds: number | undefined
 ) => {
-  const defaultedNumOperations = numOperations ?? 10;
+  const defaultedNumOperations = numOperations ?? 100;
   const defaultedOperationDurationSeconds = operationDurationSeconds ?? 1;
   progress.update(
     `Dummy function invoked with ${defaultedNumOperations} operations. Each operation will take ${defaultedOperationDurationSeconds} seconds. Original arguments were ${numOperations} and ${operationDurationSeconds}.`

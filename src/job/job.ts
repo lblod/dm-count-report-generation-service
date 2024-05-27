@@ -20,7 +20,6 @@ import { v4 as uuidv4 } from "uuid";
 import { DateTime, now } from "../util/date-time.js";
 import Handlebars from "handlebars";
 import winston from "winston";
-import { Writable } from "node:stream";
 import { addToQueue } from "./execution-queue.js";
 import { logger } from "../logger.js";
 
@@ -162,10 +161,6 @@ DELETE {
   { noEscape: true }
 );
 
-type InfoObject = {
-  level: winston.LoggerOptions["level"];
-};
-
 /**
  * This classes instances are passed to the invoked job function. Inside of the function body the process
  * can be used to inform listeners about the progress and about updates.
@@ -178,7 +173,7 @@ export class JobProgress {
   private _logLevel: LogLevel;
   private _eventEmitter: EventEmitter;
   private _logger: winston.Logger;
-  _logBuffer: InfoObject[];
+  _logBuffer: { timestamp: DateTime; message: string }[];
   _done: number | undefined = undefined;
   _total: number | undefined = undefined;
 
@@ -194,27 +189,20 @@ export class JobProgress {
     this._job = job;
     this._logLevel = logLevel;
     this._eventEmitter = new EventEmitter();
-    const newLogBuffer: InfoObject[] = [];
-    const newLogWriteStream = new Writable({
-      objectMode: true,
-      write(winstonObject: InfoObject) {
-        newLogBuffer.push(winstonObject);
-      },
-    });
+    const newLogBuffer: { timestamp: DateTime; message: string }[] = [];
     this._logger = winston.createLogger({
       level: config.env.LOG_LEVEL,
-      format: winston.format.combine(
-        winston.format.cli(),
-        winston.format.label({ label: `JOB(${this._job.uuid})` })
-      ),
-      transports: [
-        new winston.transports.Console(),
-        new winston.transports.Stream({
-          stream: newLogWriteStream,
-        }),
-      ],
+      format: winston.format.combine(winston.format.cli()),
+      transports: [new winston.transports.Console()],
     });
     this._logBuffer = newLogBuffer;
+  }
+
+  private addToLogBuffer(message: string) {
+    this._logBuffer.push({
+      timestamp: now(),
+      message,
+    });
   }
 
   /**
@@ -224,7 +212,7 @@ export class JobProgress {
   update(message: string) {
     this.logger.log(
       this._logLevel,
-      `TASK UPDATE ${getEnumStringFromUri(
+      `JOB UPDATE ${getEnumStringFromUri(
         this._job.datamonitoringFunction,
         false
       )}: ${message}`
@@ -233,6 +221,7 @@ export class JobProgress {
       timestamp: now().format(),
       message,
     };
+    this.addToLogBuffer(message);
     this._eventEmitter.emit(`update`, updateMessage);
   }
 
@@ -251,14 +240,19 @@ export class JobProgress {
   ) {
     this._done = done;
     this._total = total;
+    const logMessage = `${done}/${total} (${Math.round(
+      (done / total) * 100.0
+    )}%) ${lastDurationMilliseconds ? ` ${lastDurationMilliseconds} ms` : ``}`;
     this.logger.log(
       this._logLevel,
-      `${
-        subProcessIdentifier ? `(${subProcessIdentifier}) ` : ``
-      }Progress update ${done}/${total} (${Math.round(
-        (done / total) * 100.0
-      )}%) ${lastDurationMilliseconds ? ` ${lastDurationMilliseconds} ms` : ``}`
+      `JOB PROGRESS ${getEnumStringFromUri(
+        this._job.datamonitoringFunction,
+        false
+      )}: ${logMessage}`
     );
+
+    this.addToLogBuffer(logMessage);
+    this._eventEmitter.emit(`update`, logMessage);
     const progressMessage: ProgressMessage = {
       done,
       total,
@@ -273,17 +267,17 @@ export class JobProgress {
    * @param result The end result of the function if applicable. Type checking will be added in the future.
    */
   async return(result: any) {
-    this.logger.log(
-      this._logLevel,
-      `Status change of task ${this._job.uuid} to Finished`
-    );
+    const message = `Status change of task ${this._job.uuid} to Finished`;
+    this.logger.log(this._logLevel, message);
     await this._job.updateStatus(JobStatus.FINISHED);
     const statusMessage = {
       done: true,
       failed: false,
       result,
     };
+    this.addToLogBuffer(message);
     this._eventEmitter.emit(`status`, statusMessage);
+    this._eventEmitter.emit(`update`, message);
   }
 
   /**
@@ -292,33 +286,33 @@ export class JobProgress {
    * @param error
    */
   async error(error: object | number | string | boolean | Error) {
-    this.logger.log(
-      this._logLevel,
-      `Status change of task ${this._job.uuid} to Error`
-    );
+    const message = `Status change of task ${this._job.uuid} to Error`;
+    this.logger.log(this._logLevel, message);
     await this._job.updateStatus(JobStatus.ERROR);
     const statusMessage = {
       done: true,
       failed: true,
       error,
     };
+    this.addToLogBuffer(message);
     this._eventEmitter.emit(`status`, statusMessage);
+    this._eventEmitter.emit(`update`, message);
   }
 
   /**
    * Should be called only once per job and never by the user. Job instances call this.
    */
   async start() {
-    this.logger.log(
-      this._logLevel,
-      `Status change of task ${this._job.uuid} to Busy`
-    );
+    const message = `Status change of task ${this._job.uuid} to Busy`;
+    this.logger.log(this._logLevel, message);
     await this._job.updateStatus(JobStatus.BUSY);
     const statusMessage = {
       done: false,
       failed: false,
     };
+    this.addToLogBuffer(message);
     this._eventEmitter.emit(`status`, statusMessage);
+    this._eventEmitter.emit(`update`, message);
   }
 }
 
@@ -408,11 +402,13 @@ export class Job {
   }
 
   logs() {
-    return [...this._progress._logBuffer];
+    return this.logsAsStrings().join("\n");
   }
 
   logsAsStrings() {
-    return this._progress._logBuffer.map((ob) => JSON.stringify(ob)); // TODO. Use cli formatting
+    return this._progress._logBuffer.map(
+      (r) => `${r.timestamp.format()}: ${r.message}`
+    );
   }
 
   async execute(...args: any[]) {
