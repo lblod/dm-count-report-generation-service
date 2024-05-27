@@ -73,8 +73,8 @@
       par.appendChild(pre);
       logElement.appendChild(par);
       return;
-    }
-    if ('progress' in eventObject) {
+
+    } else if ('progress' in eventObject) {
       const { done, total, lastDurationMilliseconds, subProcessIdentifier } = eventObject.progress;
       const progressElement = document.getElementById('progress');
       progressElement.setAttribute('value', done);
@@ -84,8 +84,8 @@
       performanceChart.data.datasets[0].data.push(lastDurationMilliseconds);
       performanceChart.update('none');
       return;
-    }
-    if ('status' in eventObject) {
+
+    } else if ('status' in eventObject) {
       const par = document.createElement('p');
       par.style.color = "red";
       par.style.fontWeight = "bold";
@@ -94,8 +94,10 @@
       par.appendChild(pre);
       logElement.appendChild(par);
       return;
+
+    } else {
+      console.warn(`Received weird server side event:${JSON.stringify(event)}`);
     }
-    console.warn(`Received weird server side event:${JSON.stringify(event)}`);
   }
 </script>
 
