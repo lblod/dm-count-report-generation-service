@@ -18,7 +18,7 @@ import {
   getJobTemplates,
 } from "../job/job-template.js";
 import { showJobTemplates, showProgress, showQueue } from "./functions.js";
-import { getJobs } from "../job/job.js";
+import { deleteJobs, getJobs } from "../job/job.js";
 import { logger } from "../logger.js";
 import { now } from "../util/date-time.js";
 import { JobStatus } from "../types.js";
@@ -150,6 +150,11 @@ export function setupDebugEndpoints(app: Express) {
       return `Template job successfully deleted`;
     }
   );
+
+  addSimpleDebugEndpoint(app, "GET", "/clean-jobs", emptySchema, async () => {
+    await deleteJobs([JobStatus.ERROR, JobStatus.FINISHED]);
+    return `Jobs with status error and finished removed from the database`;
+  });
 
   // COMPLEX ENDPOINTS. INVOKE EXPRESS REQUEST HANDLER (imported from functions.ts)
 

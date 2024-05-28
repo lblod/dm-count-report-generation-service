@@ -57,6 +57,11 @@
       <pre>uuid</pre>. Just pass the uuid of the job template and it'll be removed.</p>
     </li>
     <li>
+      <p><a href="{{rel '/clean-jobs'}}">/clean-jobs</a></p>
+      <p>Removes jobs from the database with status finished or error to save some space.</p>
+      <p>In the future a date filter will be added.</p>
+    </li>
+    <li>
       <p><a href="{{rel '/queue'}}">/queue</a></p>
       <p>Page showing all of the jobs in the execution queue (only for serial jobs, parallel jobs not supported yet.)
       </p>

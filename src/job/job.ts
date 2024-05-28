@@ -491,10 +491,15 @@ export async function deleteJobs(jobStatuses: JobStatus[] | null = null) {
     throw new Error(
       `Defaults have not been set. Call 'setJobCreeationDefaults' first from the job module.`
     );
+  if ((jobStatuses && jobStatuses.includes(JobStatus.BUSY)) || !jobStatuses)
+    logger.warn(
+      "Removing BUSY tasks at runtime. Be careful. They may still be running."
+    );
   if (jobStatuses === null) {
+    // We purge everything
     jobs.clear();
   } else {
-    for (const job of jobs.values()) jobs.delete(job.uri);
+    for (const job of jobs.values()) jobs.delete(job.uri); // Make sure that whatever we kill the reference is released.
   }
   const deleteJobsQuery = new TemplatedUpdate<DeleteJobsInput>(
     defaults.queryEngine,
