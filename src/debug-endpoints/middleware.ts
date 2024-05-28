@@ -6,21 +6,20 @@ import Handlebars from "handlebars";
 import { duration } from "../util/util.js";
 import { logger } from "../logger.js";
 
+// Load templates
+
 const debugResultTemplate = Handlebars.compile(
   fs.readFileSync("./templates/debug-output.hbs", { encoding: "utf-8" })
 );
 const errorResultTemplate = Handlebars.compile(
   fs.readFileSync("./templates/error-output.hbs", { encoding: "utf-8" })
 );
-// const progressTemplate = Handlebars.compile(
-//   fs.readFileSync("./templates/progress-output.hbs", { encoding: "utf-8" })
-// );
 
 /**
- * Function to make express middleware that validates the query parameters according to a zod schema
+ * Function to generate express middleware that validates the query parameters according to a zod schema
  * Invalid query parameters will cause express to continue with error handling middleware
- * @param querySchema Zod scheme with which to validate the quer parameters
- * @returns an express middleware
+ * @param querySchema Zod schema with which to validate the query parameters
+ * @returns an express middleware which validates the query parameters
  */
 export function getZodQueryValidationMiddleware(
   querySchema: ZodSchema<any, any>
@@ -189,7 +188,7 @@ export function addDebugEndpoint(
 }
 
 /**
- * Function that adds a debug endpoint for testing a specific function
+ * Function that adds a debug endpoint for testing a specific function that outputs any value
  * @param app Express app
  * @param method  HTTP method
  * @param path URL path

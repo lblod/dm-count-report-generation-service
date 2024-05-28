@@ -66,15 +66,15 @@ const envIntegerSchema = z
     return integer;
   })
   .pipe(z.number().int());
-const uriSchema = z
+export const uriSchema = z
   .string()
   .url()
   .or(z.string().regex(RESOURCE_CLASS_SHORT_URI_REGEX));
-const invocationTimeSchema = z
+export const invocationTimeSchema = z
   .string()
   .regex(TIME_ANY_NOTATION_REGEX)
   .transform((x) => new TimeOnly(x));
-const invocationDaysSchema = z
+export const invocationDaysSchema = z
   .string()
   .transform((x, ctx) => {
     const result = x.split(",").map((str) => stringToDayOfWeek(str));
@@ -90,7 +90,7 @@ const invocationDaysSchema = z
     return [...new Set(result)]; // Remove duplicate days if present
   })
   .pipe(z.array(z.nativeEnum(DayOfWeek)));
-const datamonitoringFunctionSchema = z
+export const datamonitoringFunctionSchema = z
   .string()
   .transform((x, ctx) => {
     if (!Object.keys(DataMonitoringFunction).includes(x)) {

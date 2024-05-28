@@ -125,6 +125,12 @@ async function getOrgResouces(
   return result;
 }
 
+/**
+ * This is the main function of the module. It perform SPARQL queries to get a data structure containing all of the admin units and their associated governing bodies.
+ * Because this can take a while a cache is used in order to prevent querying the admin unit endpoint constantly.
+ * @param queryEngine
+ * @returns The datastructure of type OrganisationsAndGovBodies
+ */
 export async function getOrgResoucesCached(
   queryEngine: QueryEngine
 ): Promise<OrganisationsAndGovBodies> {

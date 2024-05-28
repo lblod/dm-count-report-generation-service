@@ -114,6 +114,11 @@ function stripAndLower(input: string): string {
   return input.toLowerCase().replace(STRIP_REGEX, "");
 }
 
+/**
+ * Job function checking the last time the harvester harvested any linked data associated with the a specific admin unit
+ * @param progress Default progress object passed to any job function
+ * @param day The day of the year this job needs to take into account. The report only takes into account the published resources of a single day. Default value is yesterday.
+ */
 export const getHarvestingTimestampDaily: JobFunction = async (
   progress,
   day: DateOnly | undefined = undefined

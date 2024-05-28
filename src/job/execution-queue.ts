@@ -11,6 +11,10 @@ type ExecutionInformation = {
 const queue: ExecutionInformation[] = [];
 let current: ExecutionInformation | null = null;
 
+/**
+ * Get a list modeling the queue of tasks. No references to the actual queue.
+ * @returns A data structure with information about the execution queue.
+ */
 export function getQueue() {
   return queue.map((info) => {
     return {
@@ -23,6 +27,10 @@ export function getQueue() {
   });
 }
 
+/**
+ * If a job is executing this function will return a reference to it. If not it will return null.
+ * @returns The current job or null
+ */
 export function getCurrent(): Job | null {
   return current ? current.job : null;
 }
@@ -38,11 +46,11 @@ function removeFromQueue(item: ExecutionInformation) {
 }
 
 /**
- * Add a now to the exeuctuion queue. return how many jobs are waiting in front of it.
+ * Add a now to the execution queue. Return how many jobs are waiting in front of it.
  * Returns immediately
- * @param job
- * @param args
- * @returns
+ * @param job The job to add
+ * @param args The arguments passed to the job when it starts
+ * @returns The amount of jobs waiting in line before this one executes. 0 means executing immediately.
  */
 export function addToQueue(job: Job, ...args: any[]): number {
   const check = queue.find((i) => {

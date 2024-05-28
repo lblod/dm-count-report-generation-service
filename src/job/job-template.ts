@@ -102,23 +102,56 @@ INSERT {
   { noEscape: true }
 );
 
+type DeleteJobTemplateInput = {
+  prefixes: string;
+  jobGraphUri: string;
+  uri: string;
+};
+
+const deleteJobTemplateInput = Handlebars.compile(
+  `\
+{{prefixes}}
+DELETE {
+  GRAPH <{{jobGraphUri}}> {
+    <{{uri}}> ?p ?o.
+    ?paramRes ?pp ?po.
+  }
+} WHERE {
+  GRAPH <{{jobGraphUri}}> {
+    <{{uri}}> datamonitoring:jobParameters ?paramRes.
+  }
+}
+`,
+  { noEscape: true }
+);
+
 export class JobTemplate {
   _updateStatusQuery: TemplatedInsert<UpdateJobTemplateStatusInput>;
+  _deleteQuery: TemplatedUpdate<DeleteJobTemplateInput>;
   _graphUri: string;
   _jobTemplateType: JobTemplateType;
   _uuid: string;
   _status: JobTemplateStatus;
+  private _deleted = false;
   get status() {
+    if (this._deleted)
+      throw new Error(`This resource has been deleted. Remove it's reference`);
     return this._status;
   }
   _datamonitoringFunction: DataMonitoringFunction;
   get datamonitoringFunction() {
+    if (this._deleted)
+      throw new Error(`This resource has been deleted. Remove it's reference`);
     return this._datamonitoringFunction;
   }
   get uuid() {
+    if (this._deleted)
+      throw new Error(`This resource has been deleted. Remove it's reference`);
     return this._uuid;
   }
   get jobTemplateType() {
+    if (this._deleted)
+      throw new Error(`This resource has been deleted. Remove it's reference`);
     return this._jobTemplateType;
   }
 
@@ -136,6 +169,11 @@ export class JobTemplate {
       endpoint,
       updateJobTemplateStatusTemplate
     );
+    this._deleteQuery = new TemplatedUpdate<DeleteJobTemplateInput>(
+      queryEngine,
+      endpoint,
+      deleteJobTemplateInput
+    );
     this._jobTemplateType = jobTemplateType;
     this._graphUri = graphUri;
     this._uuid = uuid;
@@ -144,10 +182,14 @@ export class JobTemplate {
   }
 
   get uri() {
+    if (this._deleted)
+      throw new Error(`This resource has been deleted. Remove it's reference`);
     return `${config.env.URI_PREFIX_RESOURCES}job-template/${this._uuid}`;
   }
 
   async updateStatus(status: JobTemplateStatus) {
+    if (this._deleted)
+      throw new Error(`This resource has been deleted. Remove it's reference`);
     await this._updateStatusQuery.execute({
       prefixes: PREFIXES,
       modifiedAt: now(),
@@ -157,12 +199,29 @@ export class JobTemplate {
     });
     this._status = status;
   }
+
+  async deleteFromDb() {
+    if (this._deleted)
+      throw new Error(`This resource has been deleted. Remove it's reference`);
+    // Remove from db
+    await this._deleteQuery.execute({
+      prefixes: PREFIXES,
+      jobGraphUri: config.env.JOB_GRAPH_URI,
+      uri: this.uri,
+    });
+    // Release from job map
+    jobTemplates.delete(this.uri);
+    this._deleted = true; // Kill this object.
+  }
+
   /**
    * Creates a new job and manages the database. The function associated with it will be added to the execution queue.
    * @param args The arguments to be passed to the datamonitoring function associated with this template job
    * @returns A reference to the newly created job instance
    */
   async invoke(...args: any[]) {
+    if (this._deleted)
+      throw new Error(`This resource has been deleted. Remove it's reference`);
     const job = await createJob(this, JobType.SERIAL, JobStatus.NOT_STARTED);
     logger.debug(
       `Invoking job with uri ${this.uri}. Created job ${
@@ -172,9 +231,6 @@ export class JobTemplate {
         false
       )}`
     );
-    // We wait with the invocation for rest jobs for a second because we want the process page to load first so the user does not miss any debug messages.
-    if (this.jobTemplateType === JobTemplateType.REST_INVOKED)
-      await delay(1000);
     await job.execute(...args); // Returns immediately
     return job;
   }
@@ -393,8 +449,15 @@ export function getRestJobTemplates(): RestJobTemplate[] {
   ) as RestJobTemplate[];
 }
 
-export function getJobTemplate(uri: string): JobTemplate | undefined {
-  return jobTemplates.get(uri);
+/**
+ * Retrieve a job template using its URI or uuid.
+ * @param uriOrUuid
+ * @returns The job template if found; undefined if not.
+ */
+export function getJobTemplate(uriOrUuid: string): JobTemplate | undefined {
+  const test = jobTemplates.get(uriOrUuid);
+  if (test) return test;
+  return [...jobTemplates.values()].find((jt) => jt.uuid === uriOrUuid);
 }
 
 export function setJobTemplateCreeationDefaults(
@@ -528,7 +591,7 @@ SELECT * WHERE {
   { noEscape: true }
 );
 
-export async function loadTemplateJobs() {
+export async function loadJobTemplates() {
   if (!defaults)
     throw new Error(
       `Defaults have not been set. Call 'setJobCreeationDefaults' first from the job module.`
@@ -616,7 +679,7 @@ DELETE {
   { noEscape: true }
 );
 
-export async function deleteAllJobs(
+export async function deleteAllJobTemplates(
   jobTypes: JobTemplateType[] | undefined | Record<string, never> = undefined // The empty object it to make this function compatible as a debug endpoint function with no query parameters
 ) {
   if (!defaults)

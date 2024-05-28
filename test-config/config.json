@@ -1,7 +1,7 @@
 {
   "endpoints": [
     {
-      "url": "http://localhost:8890/sparql",
+      "url": "http://dennisve-dev-2.s.redhost.be:8890/sparql",
       "classes": [
         "besluit:Besluit",
         "besluit:Agendapunt"

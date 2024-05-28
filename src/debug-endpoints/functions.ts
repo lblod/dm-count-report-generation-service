@@ -17,6 +17,8 @@ import { TimeOnly } from "../util/date-time.js";
 import { getQueue } from "../job/execution-queue.js";
 import { getJobs } from "../job/job.js";
 
+// Load templates and parse them
+
 const showJobTemplatesTemplate = Handlebars.compile(
   fs.readFileSync("./templates/show-job-templates.hbs", { encoding: "utf-8" })
 );
@@ -50,6 +52,12 @@ type JobTemplateRecord<T extends JobTemplateType> = {
     : undefined;
 };
 
+/**
+ * Helper function for debugging. Might make this a handlebars helper.
+ * @param timeOfInvocation
+ * @param daysOfInvocation
+ * @returns A nicely formatted string
+ */
 function printInvocationInformation(
   timeOfInvocation: TimeOnly,
   daysOfInvocation: DayOfWeek[]
@@ -59,6 +67,9 @@ function printInvocationInformation(
     .join(", ")}`;
 }
 
+/**
+ * Request hangler to show a page with all job templates.
+ */
 export const showJobTemplates: RequestHandler = (_, res) => {
   const output: JobTemplateRecord<JobTemplateType>[] = [];
   for (const jobTemplate of getJobTemplates()) {
@@ -104,6 +115,9 @@ export const showJobTemplates: RequestHandler = (_, res) => {
   res.send(html);
 };
 
+/**
+ * Requesthandler to show a page showing the execution queue.
+ */
 export async function showQueue(
   _req: Request,
   res: Response,
@@ -117,6 +131,9 @@ export async function showQueue(
   res.send(html);
 }
 
+/**
+ * Request handler showing a page which shows the progress of a specific task
+ */
 export async function showProgress(
   req: Request,
   res: Response,

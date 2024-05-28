@@ -5,7 +5,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Debug endpoints</title>
+  <style>
+    pre {
+      display: inline;
+    }
+  </style>
 </head>
+
+
 
 <body>
   <h1>Debug endpoints</h1>
@@ -23,6 +30,31 @@
       <p><a href="{{rel '/job-templates'}}">/job-templates</a></p>
       <p>Page showing all jobs knwon to the service. If a rest activated job is present a link will be shown to activate
         it.</p>
+    </li>
+    <li>
+      <p><a href="{{rel '/create-periodic-job-template'}}">/create-periodic-job-template</a></p>
+      <p>This function requires three query parameters. It created a new periodic job template (triggered by time).</p>
+      <p>Query parameters:</p>
+      <ol>
+        <li>
+          <pre>datamonitoringFunction</pre>: Example
+          <pre>"DUMMY"</pre>
+        </li>
+        <li>
+          <pre>timeOfInvocation</pre>: Example
+          <pre>"16:00"</pre> (Assumes your local timezone)
+        </li>
+        <li>
+          <pre>invocationDays</pre>: Array of string like
+          <pre>"SATURDAY", "MONDAY", ...</pre> or
+          <pre>"ALL"</pre> for all days. If omitted ALL is assumed.
+        </li>
+      </ol>
+    </li>
+    <li>
+      <p><a href="{{rel '/delete-job-template'}}">/delete-job-template</a></p>
+      <p>Delete a job template. The only url parameter is
+      <pre>uuid</pre>. Just pass the uuid of the job template and it'll be removed.</p>
     </li>
     <li>
       <p><a href="{{rel '/queue'}}">/queue</a></p>

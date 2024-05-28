@@ -4,6 +4,7 @@ import { config } from "../configuration.js";
 // eslint-disable-next-line no-useless-escape
 const PATH_REGEX = /(\/[a-z\-/0-9]*)\??([a-z\-/0-9\=&]*)/;
 
+// Returns true of both args are primitive (number,string,boolean) and equal
 Handlebars.registerHelper(
   "eq",
   function (one: string | number, two: string | number) {
@@ -18,6 +19,7 @@ Handlebars.registerHelper(
   }
 );
 
+// Returns a relative url ending with the path given as a parameter. "/test"=>"/rootPath/test"
 Handlebars.registerHelper("rel", function (path: string) {
   if (typeof path !== "string" || !PATH_REGEX.test(path))
     throw new Error(
@@ -27,6 +29,7 @@ Handlebars.registerHelper("rel", function (path: string) {
   return `${config.env.ROOT_URL_PATH}${path}`;
 });
 
+// Takes a string. Returns the string with all illegal characters escapted. Relevant for SPARQL queries.
 Handlebars.registerHelper("escape", function (input: string) {
   if (typeof input !== "string")
     throw new Error(

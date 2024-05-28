@@ -67,6 +67,11 @@ function getQueries(queryEngine: QueryEngine, endpoint: string) {
   };
 }
 
+/**
+ * Job function counting resources. This is a PoC.
+ * @param progress Default progress object passed to any job function
+ * @param day The day of the year this job needs to take into account. The report only takes into account the published resources of a single day. Default value is yesterday.
+ */
 export const generateReportsDaily: JobFunction = async (
   progress,
   day: DateOnly | undefined = undefined

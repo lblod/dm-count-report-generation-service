@@ -2,6 +2,7 @@ import { QueryEngine } from "@comunica/query-sparql";
 import { PREFIXES } from "../local-constants.js";
 import {
   TemplatedInsert,
+  TemplatedSelect,
   TemplatedUpdate,
 } from "../queries/templated-query.js";
 import {
@@ -15,20 +16,21 @@ import {
 } from "../types.js";
 import { EventEmitter } from "node:events";
 import { config } from "../configuration.js";
-import { JobTemplate } from "./job-template.js";
+import { JobTemplate, getJobTemplate } from "./job-template.js";
 import { v4 as uuidv4 } from "uuid";
 import { DateTime, now } from "../util/date-time.js";
 import Handlebars from "handlebars";
 import winston from "winston";
 import { addToQueue } from "./execution-queue.js";
 import { logger } from "../logger.js";
+import { queryEngine } from "../queries/query-engine.js";
 
 export type JobFunction = (
   progress: JobProgress,
   ...args: any[]
 ) => Promise<void>;
 
-export type WriteNewJobInput = {
+type WriteNewJobInput = {
   prefixes: string;
   resourcesUriPrefix: string;
   jobGraphUri: string;
@@ -42,7 +44,7 @@ export type WriteNewJobInput = {
   jobTemplateUri: string;
 };
 
-export const insertJobTemplate = Handlebars.compile(
+const insertJobTemplate = Handlebars.compile(
   `\
 {{prefixes}}
 INSERT {
@@ -66,49 +68,12 @@ INSERT {
   { noEscape: true }
 );
 
-export type GetJobsInput = {
-  prefixes: string;
-  jobGraphUri: string;
-  jobStatuses: JobStatus[];
-};
-
-export type GetJobsOutput = {
-  jobUri: string;
-  uuid: string;
-  status: JobStatus;
-  datamonitoringFunction: DataMonitoringFunction;
-  jobType: JobType;
-  jobTemplateUri: string;
-};
-
-export const getJobTemplate = Handlebars.compile(
-  `\
-{{prefixes}}
-SELECT * WHERE {
-  GRAPH <{{jobGraphUri}}> {
-    ?jobUri a cogs:Job, datamonitoring:DatamonitoringJob;
-      mu:uuid ?uuid;
-      datamonitoring:function ?datamonitoringFunction;
-      datamonitoring:taskType ?jobType;
-      dct:isPartOf: ?jobTemplateUri.
-    {{#each jobStatuses}}
-    {
-      ?jobUri adms:status {{toJobStatusLiteral this}}.
-    }
-    {{#unless @last}}UNION{{/unless}}
-    {{/each}}
-  }
-}
-`,
-  { noEscape: true }
-);
-
-export type DeleteBusyJobsInput = {
+type DeleteBusyJobsInput = {
   prefixes: string;
   jobGraphUri: string;
 };
 
-export const deleteBusyJobsTemplate = Handlebars.compile(
+const deleteBusyJobsTemplate = Handlebars.compile(
   `\
 {{prefixes}}
 DELETE {
@@ -217,12 +182,12 @@ export class JobProgress {
         false
       )}: ${message}`
     );
-    const updateMessage: UpdateMessage = {
+    const updateMessageObject: UpdateMessage = {
       timestamp: now().format(),
       message,
     };
     this.addToLogBuffer(message);
-    this._eventEmitter.emit(`update`, updateMessage);
+    this._eventEmitter.emit(`update`, updateMessageObject);
   }
 
   /**
@@ -340,7 +305,7 @@ export class Job {
   get uuid() {
     return this._uuid;
   }
-  get taskType() {
+  get jobType() {
     return this._jobType;
   }
 
@@ -477,6 +442,10 @@ export function getJob(uri: string): Job | undefined {
   return jobs.get(uri);
 }
 
+export function unloadJob(uri: string): boolean {
+  return jobs.delete(uri);
+}
+
 export function setJobCreationDefaults(
   queryEngine: QueryEngine,
   endpoint: string
@@ -525,4 +494,108 @@ export async function deleteBusyJobs() {
     prefixes: PREFIXES,
     jobGraphUri: config.env.JOB_GRAPH_URI,
   });
+}
+
+export type GetJobsInput = {
+  prefixes: string;
+  jobGraphUri: string;
+  jobStatuses: JobStatus[];
+};
+
+export type GetJobsOutput = {
+  jobUri: string;
+  uuid: string;
+  status: JobStatus;
+  datamonitoringFunction: DataMonitoringFunction;
+  jobType: JobType;
+  jobTemplateUri: string;
+};
+
+const getJobQueryTemplate = Handlebars.compile(
+  `\
+{{prefixes}}
+SELECT * WHERE {
+  GRAPH <{{jobGraphUri}}> {
+    ?jobUri a cogs:Job, datamonitoring:DatamonitoringJob;
+      mu:uuid ?uuid;
+      datamonitoring:function ?datamonitoringFunction;
+      datamonitoring:jobType ?jobType;
+      dct:isPartOf ?jobTemplateUri;
+      adms:status ?status.
+    {{#each jobStatuses}}
+    {
+      ?jobUri adms:status {{toJobStatusLiteral this}}.
+    }
+    {{#unless @last}}UNION{{/unless}}
+    {{/each}}
+  }
+}
+`,
+  { noEscape: true }
+);
+
+/**
+ * Call this function at startup. It loads the jobs with status not started and busy.
+ * Jobs are not meant to have the status NOT_STARTED and BUSY for long.
+ * When jobs have the status NOT_STARTED at startup it means they were waiting in the execution queue but not executing when the service stopped. They will be re added.
+ * When jobs have the status BUSY at startup it means they were executing when the service quit. Because their operation was halted and the associated state was lost the work cannot be recuperated and its status needs to be changed to error.
+ */
+export async function loadJobs() {
+  const loadJobQuery = new TemplatedSelect<GetJobsInput, GetJobsOutput>(
+    queryEngine,
+    config.env.REPORT_ENDPOINT,
+    getJobQueryTemplate
+  );
+  if (!defaults)
+    throw new Error(
+      `Defaults have not been set. Call 'setJobCreeationDefaults' first from the job module.`
+    );
+  const jobRecords = await loadJobQuery.objects("jobUri", {
+    prefixes: PREFIXES,
+    jobGraphUri: config.env.JOB_GRAPH_URI,
+    jobStatuses: [JobStatus.NOT_STARTED, JobStatus.BUSY],
+  });
+  const bins = {
+    queued: [] as Job[],
+    errored: [] as Job[],
+  };
+  for (const record of jobRecords) {
+    const jt = getJobTemplate(record.jobTemplateUri);
+    if (!jt)
+      throw new Error(
+        `Job was loaded from the database but the associated job template with URI "${record.jobTemplateUri}" was not found. That is impossible.`
+      );
+    if (record.jobType !== JobType.SERIAL)
+      throw new Error(`Other job types than SERIAL are not supported yet.`);
+    const newJob = new Job(
+      defaults.queryEngine,
+      defaults.endpoint,
+      record.jobType,
+      config.env.JOB_GRAPH_URI,
+      record.uuid,
+      record.status,
+      jt
+    );
+
+    // If the job has NOT started then it needs to be added to the queue for executuon.
+    // This means that the service was shut down while there were still jobs in the queue. Re add them.
+    if (record.status === JobStatus.NOT_STARTED) {
+      addToQueue(newJob);
+      bins.queued.push(newJob);
+      jobs.set(newJob.uri, newJob);
+    }
+    // If the job is busy on service statup it means the service was stopped before the job was finished
+    // We need to change the status of these jobs to error because the serivice quit prematurely
+    if (record.status === JobStatus.BUSY) {
+      await newJob.updateStatus(JobStatus.ERROR);
+      bins.errored.push(newJob);
+      unloadJob(newJob.uri); // We don't keep error jobs in memory.
+    }
+  }
+  if (bins.errored.length || bins.queued.length) {
+    logger.verbose(
+      `Jobs loaded but the service may have shut down incorectly. Re added ${bins.queued.length} jobs to the execution queue and ${bins.errored.length} jobs had to have their status changed to ERROR because the service was interrupted before the operation could finish.`
+    );
+  }
+  return bins;
 }

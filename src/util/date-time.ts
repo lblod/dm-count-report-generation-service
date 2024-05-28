@@ -160,7 +160,7 @@ export class DateOnly {
       : `"${this.toString()}"^^xsd:date`;
   }
 
-  toDayJs(time: TimeOnly) {
+  toDateTime(time: TimeOnly) {
     return dayjs()
       .tz(DEFAULT_TIMEZONE)
       .set("year", this.year)
@@ -329,7 +329,7 @@ export class TimeOnly {
       : `"${this.toString()}"^^xsd:time`;
   }
 
-  toDayJs(day: DateOnly) {
+  toDateTime(day: DateOnly) {
     return dayjs()
       .tz(DEFAULT_TIMEZONE)
       .set("year", day.year)

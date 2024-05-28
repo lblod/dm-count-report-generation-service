@@ -1,6 +1,12 @@
 import { delay } from "../util/util.js";
 import { JobFunction } from "./job.js";
 
+/**
+ * Job function simulating a long operation with many status updates. Default values apply when arguments are undefined
+ * @param progress Default progress object passed to any job function
+ * @param numOperations Amount of dummy operations (effectively 'delay')
+ * @param operationDurationSeconds Duration of the dummy operations
+ */
 export const dummyFunction: JobFunction = async (
   progress,
   numOperations: number | undefined,

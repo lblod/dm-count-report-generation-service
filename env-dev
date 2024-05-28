@@ -1,9 +1,11 @@
-#!/bin/zsh
+#!/bin/bash
+# Node
 export NODE_ENV="development"
 export NODE_INSPECT_RESUME_ON_START=1
+# Microservice test env vars
 export DISABLE_DEBUG_ENDPOINT="false"
-export ADMIN_UNIT_ENDPOINT="http://localhost:8890/sparql"
-export REPORT_ENDPOINT="http://localhost:8890/sparql"
+export ADMIN_UNIT_ENDPOINT="http://dennisve-dev-2.s.redhost.be:8890/sparql"
+export REPORT_ENDPOINT="http://dennisve-dev-2.s.redhost.be:8890/sparql"
 export CONFIG_FILE_LOCATION="./test-config"
 export SHOW_SPARQL_QUERIES="true"
 export LIMIT_NUMBER_ADMIN_UNITS=5

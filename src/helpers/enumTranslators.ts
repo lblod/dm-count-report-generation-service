@@ -9,6 +9,11 @@ import {
 } from "../types.js";
 import Handlebars from "handlebars";
 
+/**
+ * The module contains the handlebar helper which convert an enum value of an enum containing URI's (either the key or the value) into the URI.
+ * The rendered query will always contain the URI. The input of the helper can be an enum value.
+ */
+
 function createToSparqlLiteralHelper(
   funcName: string,
   enumObject: Record<string, string>

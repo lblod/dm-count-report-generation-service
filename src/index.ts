@@ -11,14 +11,20 @@ import {
 import {
   createPeriodicJobTemplate,
   createRestJobTemplate,
-  deleteAllJobs,
+  deleteAllJobTemplates,
   getJobTemplates,
-  loadTemplateJobs,
+  loadJobTemplates,
   setJobTemplateCreeationDefaults,
 } from "./job/job-template.js";
-import { deleteBusyJobs, setJobCreationDefaults } from "./job/job.js";
+import {
+  deleteBusyJobs,
+  getJobs,
+  loadJobs,
+  setJobCreationDefaults,
+} from "./job/job.js";
 import {
   DataMonitoringFunction,
+  JobStatus,
   JobTemplateStatus,
   JobTemplateType,
   getEnumStringFromUri,
@@ -71,7 +77,7 @@ async function startupProcedure() {
   // initialise stuff
   // Job templates
   setJobTemplateCreeationDefaults(queryEngine, config.env.REPORT_ENDPOINT); // Always needs to be called. Created in case we 'd want to use a different query engine for jobs in the future.
-  await loadTemplateJobs();
+  await loadJobTemplates();
   logger.info(
     `CHECK PASSED: Job templates loaded. ${getJobTemplates().length} found.`
   );
@@ -120,7 +126,7 @@ async function startupProcedure() {
           logger.warn(
             `Only one rest job was found and that is very strange. There should be two. Deleting all rest jobs and recreating them`
           );
-          await deleteAllJobs([JobTemplateType.REST_INVOKED]);
+          await deleteAllJobTemplates([JobTemplateType.REST_INVOKED]);
           return true;
         default:
           logger.info(`Debug jobs exist in the database. OK.`);
@@ -164,14 +170,20 @@ async function startupProcedure() {
   }
   // Jobs
   setJobCreationDefaults(queryEngine, config.env.REPORT_ENDPOINT);
-  await deleteBusyJobs();
-  logger.info("Made sure there are no busy tasks");
+  await loadJobs();
+  logger.info("Jobs loaded");
   initCron();
+  logger.info("CRON runtime started");
 }
 
 async function shutDownProcedure() {
   // Stop all tasks who are busy and warn
   // Change job status
+  const executing = getJobs().filter((j) => j.status === JobStatus.BUSY);
+  if (executing.length)
+    logger.warn(
+      `${executing.length} Jobs were executing when shutdown signal was received. Their status will change to ERROR because their process was interrupted and the state was lost.`
+    );
 }
 
 function setupExpress(): express.Express {

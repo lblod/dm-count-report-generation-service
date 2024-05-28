@@ -1,4 +1,9 @@
-import { config } from "../configuration.js";
+import {
+  config,
+  datamonitoringFunctionSchema,
+  invocationDaysSchema,
+  invocationTimeSchema,
+} from "../configuration.js";
 import express, { Express, Request, Response } from "express";
 import fs from "node:fs";
 import { clearStore, dumpStore } from "../queries/store.js";
@@ -7,7 +12,9 @@ import { addDebugEndpoint, addSimpleDebugEndpoint } from "./middleware.js";
 import Handlebars from "handlebars";
 import {
   RestJobTemplate,
-  deleteAllJobs,
+  createPeriodicJobTemplate,
+  deleteAllJobTemplates,
+  getJobTemplate,
   getJobTemplates,
 } from "../job/job-template.js";
 import { showJobTemplates, showProgress, showQueue } from "./functions.js";
@@ -15,6 +22,7 @@ import { getJobs } from "../job/job.js";
 import { logger } from "../logger.js";
 import { now } from "../util/date-time.js";
 import { JobStatus } from "../types.js";
+import { ALL_DAYS_OF_WEEK } from "../local-constants.js";
 
 const debugIndexHtml = Handlebars.compile(
   fs.readFileSync("./templates/debug.hbs", {
@@ -37,6 +45,10 @@ const storeDumpQuerySchema = z
 
 const emptySchema = z.union([z.undefined(), z.object({})]);
 
+/**
+ * Dump the contents of the triple memory store to a TTL file for debugging
+ * @param query The query schema for the store dump function
+ */
 async function storeDump(query: z.infer<typeof storeDumpQuerySchema>) {
   const defaultedFilenameWithoutExtention =
     query.filename ?? "dump-" + now().format("YYYYMMDDHHmm");
@@ -45,8 +57,11 @@ async function storeDump(query: z.infer<typeof storeDumpQuerySchema>) {
   );
 }
 
+/**
+ * Main function of this module. If debug env var is true then all of the debug endpoints are added to the app.
+ * @param app The express app
+ */
 export function setupDebugEndpoints(app: Express) {
-  // SIMPLE ENDPOINTS. INVOKE ANY FUNCTION
   app.get("/debug", (_, res) => res.send(debugIndexHtml));
 
   addSimpleDebugEndpoint(app, "GET", "/dump", storeDumpQuerySchema, storeDump);
@@ -64,7 +79,7 @@ export function setupDebugEndpoints(app: Express) {
     "GET",
     "/delete-all-jobs",
     emptySchema,
-    deleteAllJobs
+    deleteAllJobTemplates
   );
 
   addSimpleDebugEndpoint(
@@ -86,6 +101,53 @@ export function setupDebugEndpoints(app: Express) {
       const progressUrl = `${config.env.ROOT_URL_PATH}progress/${job.uuid}`;
       const queueUrl = `${config.env.ROOT_URL_PATH}queue`;
       return `Job with uuid "${job.uuid}" started successfully. To check progress surf to <a href="${progressUrl}">${progressUrl}</a>. To see the job queue go to <a href="${queueUrl}">${queueUrl}</a>`;
+    }
+  );
+
+  const createPeriodicJobTemplateSchema = z.object({
+    datamonitoringFunction: datamonitoringFunctionSchema,
+    timeOfInvocation: invocationTimeSchema,
+    invocationDays: z.union([
+      invocationDaysSchema,
+      z.literal("ALL"),
+      z.undefined(),
+    ]),
+  });
+
+  addSimpleDebugEndpoint(
+    app,
+    "GET",
+    "/create-periodic-job-template",
+    createPeriodicJobTemplateSchema,
+    async (query: z.infer<typeof createPeriodicJobTemplateSchema>) => {
+      const defaultedInvocationDays =
+        query.invocationDays === "ALL" || !query.invocationDays
+          ? ALL_DAYS_OF_WEEK
+          : query.invocationDays;
+      const newTemplate = await createPeriodicJobTemplate(
+        query.datamonitoringFunction,
+        query.timeOfInvocation,
+        defaultedInvocationDays
+      );
+      return `Periodic job template with uri "${newTemplate.uri}" and uuid "${newTemplate.uuid}" has been created,`;
+    }
+  );
+
+  const uuidSchema = z.object({
+    uuid: z.string().min(5),
+  });
+
+  addSimpleDebugEndpoint(
+    app,
+    "GET",
+    "/delete-job-template",
+    uuidSchema,
+    async (query: z.infer<typeof uuidSchema>) => {
+      const tj = getJobTemplate(query.uuid);
+      if (!tj)
+        throw new Error(`Job Template with uuid "${query.uuid}" not found.`);
+      await tj.deleteFromDb();
+      return `Template job successfully deleted`;
     }
   );
 
@@ -112,15 +174,15 @@ export function setupDebugEndpoints(app: Express) {
 
     // Generate event listeners in a record
     const listenerFunctions = ["update", "progress", "status"].reduce<
-      Record<string, (message: any) => void>
+      Record<string, (messageObject: Record<string, any>) => void>
     >((acc, curr) => {
-      acc[curr] = function (message: Record<string, any>) {
+      acc[curr] = function (messageObject: Record<string, any>) {
         logger.debug(
-          `Event of kind ${curr} received. Message is ${JSON.stringify({
-            [curr]: message,
+          `Event of kind ${curr} received. MessageObject is ${JSON.stringify({
+            messageObject,
           })} and sent to event stream.`
         );
-        res.write(`data: ${JSON.stringify({ [curr]: message })}\n\n`); // The double NEWLINE is very important
+        res.write(`data: ${JSON.stringify({ [curr]: messageObject })}\n\n`); // The double NEWLINE is very important
       };
       return acc;
     }, {});
