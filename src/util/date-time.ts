@@ -67,7 +67,7 @@ const dayOfWeekMap = [
 
 /**
  * This immutable class models a date and a date only. This is NOT a timestamp.
- * A date only can be used to model something like a birthday. But the acutual time where your birthday starts will depend on the time zone.
+ * A date only can be used to model something like a birthday. But the acutual exact time where your birthday starts will depend on the time zone.
  * Most days have 24 hours. Some days have 23 and other 25 depending if a daylight savings time change has occurred or not.
  * This report revices considers 'days' a lot. And using date or dayjs object to model them is messy. Because of this this class was written
  * It uses Dayjs under the hood.
@@ -95,6 +95,13 @@ export class DateOnly {
     return this._localEndOfDay;
   }
 
+  /**
+   * Construct a DateOnly using a string or a sequence of three numbers.
+   * You can pass a single string in the format "YYYY-MM-DD"
+   * Or you can pass three numbers: year, month, day of month
+   * Months for this object are one based, as is most common in writing. Dayjs uses zero based months zo be careful.
+   * @param {[number,number,number,number] | [string] } args  Two possible options exist
+   */
   constructor(...args: any[]) {
     this._localStartOfDay = (() => {
       if (args.length === 1 && typeof args[0] === "string") {
@@ -154,12 +161,22 @@ export class DateOnly {
     return `${this._year}-${zeroPad(this._month, 2)}-${zeroPad(this._day, 2)}`;
   }
 
+  /**
+   * Useful to print the value into SPARQL queries and turtle.
+   * @param fullDataTypeUri true to print full URI of data type. To be used in queries with no prefixes. Default value is false and then the prefixed notation (xsd) is used.
+   * @returns a string
+   */
   toDateRdfLiteral(fullDataTypeUri = false): string {
     return fullDataTypeUri
       ? `"${this.toString()}"^^<http://www.w3.org/2001/XMLSchema#date>`
       : `"${this.toString()}"^^xsd:date`;
   }
 
+  /**
+   * Combine with a TimeOnly to create a DateTime (dayjs) instance.
+   * @param time
+   * @returns a DateTime (actually Dayjs)
+   */
   toDateTime(time: TimeOnly) {
     return dayjs()
       .tz(DEFAULT_TIMEZONE)
@@ -172,15 +189,27 @@ export class DateOnly {
       .set("ms", time.millisecond);
   }
 
+  /**
+   *
+   * @returns A dateonly describing today (in the current timezone)
+   */
   static today(): DateOnly {
     return new DateOnly(now());
   }
 
+  /**
+   *
+   * @returns A dateonly describing yesterday. Based on the current exact time in this timezone minus exactly one day.
+   */
   static yesterday(): DateOnly {
     const yesterdayTs = now().add(-1, "day");
     return new DateOnly(yesterdayTs);
   }
 
+  /**
+   *
+   * @returns The current day of the week.
+   */
   static todayDayOfWeek(): DayOfWeek {
     return dayOfWeekMap[now().day()]!;
   }
@@ -197,12 +226,12 @@ const timeNumberSchema = z.object({
 
 /**
  * This immutable class models a time of the day and a time of the day only. This is NOT a timestamp.
- * A time only can be used to model something like a a moment every day. Unlike a DatOnly the timezone does matter in this case
- * This report revices considers 'time' a lot. And using date object to model them is messy. Because of this this class was written
+ * A time only can be used to model something like a a moment every day. Unlike a DateOnly the timezone does matter in this case.
+ * This report revices considers 'time' a lot. And using a javascript date object to model them is messy. Because of this this class was written
  * It uses Dayjs under the hood and its instances are immutable.
  * When converting to Dayjs in combination with a DateOnly it will output a timestamp in the default timezone.
  * When outputting an RDF literal it will use the current timezone offset (local time)
- * To construct a Time only the constructor accepts either a sting of a list of 4 integers.
+ * To construct a TimeOnly the constructor accepts either a sting of a list of 4 integers.
  * When a string it passed it can either use a shorthand notation of "HH:mm" or the full notation of "HH:mm:SS.sss"
  * In every case this time only class models a time in the current timezone.
  */
@@ -231,7 +260,15 @@ export class TimeOnly {
   get minuteOffset() {
     return this._minuteOffset;
   }
-
+  /**
+   * To construct a TimeOnly the constructor accepts either a sting of a list of 4 integers.
+   * When a string it passed it can either use a shorthand notation of "HH:mm" or the full notation of "HH:mm:SS.sss" or even "HH:mm:SS.sss±[HH]:[mm]".
+   * Example of short notation: "10:00" meaning 10 o clock in the current timezone
+   * Example of longer notation: "11:00:10" meaning 10 seconds past eleven o'clock in the current timezone
+   * Example of notation including timezone: "11:30:00.000-05:00" half past eleven o'clock in Chigago (GMT -5)
+   * You can pass a list of 4 numbers as well: hours, minutes, seconds, milliseconds. In this case the time will be constructed in the current timezone.
+   * @param args Some combinations are possible
+   */
   constructor(...args: any[]) {
     const { h, m, s, ms, hourOffset, minuteOffset } = (() => {
       if (args.length === 1 && typeof args[0] === "string") {
@@ -310,6 +347,10 @@ export class TimeOnly {
     this._minuteOffset = minuteOffset;
   }
 
+  /**
+   *
+   * @returns String representation in the current timezone. Looks like "HH:mm:SS.sss"
+   */
   toLocalTimezoneString(): string {
     return `${zeroPad(this.hour, 2)}:${zeroPad(this.minute, 2)}:${zeroPad(
       this.second,
@@ -317,18 +358,32 @@ export class TimeOnly {
     )}.${zeroPad(this.millisecond, 3)}`;
   }
 
+  /**
+   *
+   * @returns A human readable time string useful for printing to logs and HTML
+   */
   toString(): string {
     return `${this.toLocalTimezoneString()}${
       this.hourOffset < 0 ? "-" : "+"
     }${zeroPad(Math.abs(this.hourOffset), 2)}:${zeroPad(this.minuteOffset, 2)}`;
   }
 
+  /**
+   * Useful to print the value into SPARQL queries and turtle.
+   * @param fullDataTypeUri true to print full URI of data type. To be used in queries with no prefixes. Default value is false and then the prefixed notation (xsd) is used which is easier to read.
+   * @returns a string
+   */
   toTimeRdfLiteral(fullDataTypeUri = false): string {
     return fullDataTypeUri
       ? `"${this.toString()}"^^<http://www.w3.org/2001/XMLSchema#time>`
       : `"${this.toString()}"^^xsd:time`;
   }
 
+  /**
+   * Combine with a DateOnly to create a DateTime (dayjs) instance.
+   * @param day
+   * @returns a DateTime (actually Dayjs)
+   */
   toDateTime(day: DateOnly) {
     return dayjs()
       .tz(DEFAULT_TIMEZONE)
@@ -341,6 +396,10 @@ export class TimeOnly {
       .set("ms", this.millisecond);
   }
 
+  /**
+   *
+   * @returns Timeonly describing the current time as a time only. NOT a timestamp. Use this module's 'now' function to get a timestamp representing this moment in the current timezone.
+   */
   static now(): TimeOnly {
     const now = dayjs().tz(DEFAULT_TIMEZONE);
     return new TimeOnly(
@@ -352,11 +411,24 @@ export class TimeOnly {
   }
 }
 
+const bigThousand = BigInt(1000);
+
+/**
+ * Useful for comparing two DateTimes
+ * @param d a DateTime
+ * @returns a BigInt
+ */
 function toBigInt(d: DateTime) {
-  return BigInt(d.unix()) * BigInt(1000) + BigInt(d.get("millisecond"));
+  return BigInt(d.unix()) * bigThousand + BigInt(d.get("millisecond"));
 }
 
-// Sopme helpers
+/**
+ * All parameters are timestamps (DateTime)
+ * @param x the value
+ * @param a the left boundary of the interval, inclusive
+ * @param b the right boundary of the interval, exclusive
+ * @returns true or false depending if timestamp x falls in the interval [a,b[
+ */
 export function inHalfOpenInterval(
   x: DateTime,
   a: DateTime,

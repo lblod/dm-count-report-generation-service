@@ -70,12 +70,7 @@ function toObject(
             `No conversion function for literal of type ${term.datatype.value}`
           );
       }
-    case "NamedNode": // For named nodes we just return the URI.
-      // try {
-      //   return getEnumFromUri(term.value);
-      // } catch (e) {
-      //   return term.value as string;
-      // }
+    case "NamedNode": // For named nodes we just return the URI as a string
       return term.value;
     case "BlankNode":
       return `_`; // TODO: Elegant solution? Crash?
@@ -164,10 +159,20 @@ function getCustomFetchFunction(
   };
 }
 
+/**
+ * Base class for templated queries
+ * The type parameter is the input type which extends a record style javascript object. The keys correspond to the variables referenced in the handlebars template.
+ */
 class TemplatedQueryBase<T extends Record<string, any>> {
   queryEngine: QueryEngine;
   endpoint: string;
   template: HandlebarsTemplateDelegate<T>;
+  /**
+   * Construct a new templated query
+   * @param queryEngine
+   * @param endpoint An URL to send the sparql query to
+   * @param template Handlebars template which will be rendered on each invocation
+   */
   constructor(
     queryEngine: QueryEngine,
     endpoint: string,
@@ -177,12 +182,19 @@ class TemplatedQueryBase<T extends Record<string, any>> {
     this.endpoint = endpoint;
     this.template = template;
   }
-
+  /**
+   *
+   * @param input The input of type object; the schema of which is defined as the input type parameter
+   * @returns The query as a string; a rendered version of the handlebars template.
+   */
   getQuery(input: T): string {
     return this.template(input);
   }
 }
 
+/**
+ * Any INSERT or DELETE operation requires a custom fetch function.
+ */
 class VoidBase<T extends Record<string, any>> extends TemplatedQueryBase<T> {
   async _queryVoidToEndpoint(
     query: string,
@@ -215,7 +227,7 @@ class VoidBase<T extends Record<string, any>> extends TemplatedQueryBase<T> {
  * This class wraps around an INSERT style query constructed from a template.
  * Run execute asynchronously to perform the query and insert the data.
  * The type parameter should contain a type that is suitable for passing to the handlebars template
- * If debug endpoints are active it will record all created triples in memory.
+ * If debug endpoints are active it will record all created triples in memory in addition to writing them to the database.
  */
 export class TemplatedInsert<
   T extends Record<string, any>
@@ -251,7 +263,7 @@ export class TemplatedInsert<
  * This class wraps around an DELETE/INSERT style query constructed from a template.
  * Run execute asynchronously to perform the query and insert the data.
  * The type parameter should contain a type that is suitable for passing to the handlebars template
- * Unlike the insert type query any triples created will never be recorded in memory.
+ * Unlike the insert type query any triples created or modified will never be recorded in memory.
  */
 export class TemplatedUpdate<
   T extends Record<string, any>
@@ -273,18 +285,19 @@ export class TemplatedUpdate<
 
 /**
  * This class wraps around an SELECT style query constructed from a template.
- * Run bindings or objects asynchronously to perform the query and insert the data.
- * The first type parameter should contain a type that is suitable for passing to the handlebars template.
- * The second type parameter should contain a type that is suitable for the shape of each object associated with each row of results when the objects method is run.
+ * Run bindings or objects asynchronously to perform the query and get access to the data
+ * The first type parameter (T) should contain a type that is suitable for passing to the handlebars template; an extension of Record<string,any>
+ * The second type parameter (U) should contain a type that is suitable for the shape of each object associated with each row of results or each resource when the objects method is run.
+ * TODO: Upgrate to ZOD schema instead of second type parameter because we cannot trust the data quality.
  */
 export class TemplatedSelect<
   T extends Record<string, any>,
   U extends Record<string, any>
 > extends TemplatedQueryBase<T> {
   /**
-   * Get query results as bindings
+   * Get query results as a bindings array
    * Unsuitable for more than 10k rows
-   * @param input Handlebars input
+   * @param input Handlebars input of type T
    * @returns Comunica bindings array
    */
   async bindings(
@@ -310,10 +323,10 @@ export class TemplatedSelect<
   /**
    * Get query result as an array of objects with type U
    * This is simpler than the 'objects' function; which tries to interpret the stream of bindings
-   * as a stream of resources. In this case it's simpler. You get one object per result row.
+   * as a stream of resources. In this case it's simpler. You get one record per result row.
    * Unsuitable for more than 10k rows
-   * @param input Handlebars input
-   * @returns An array of objects
+   * @param input Handlebars input of type T
+   * @returns An array of objects of type U
    */
   async records(
     input: T,
@@ -350,7 +363,12 @@ export class TemplatedSelect<
 
   /**
    * Get query result as an array of objects with type U
+   * Unlike the records method more then one result row may be used to construct an object instance in the output.
+   * The uriKey parameter point to the SPARQL variable containing the URI of each resource you are interested in. If multiple rows occur with the same value for this key then the results get added to the values of the result object. For example.
+   * If the uriKey is 'adminUnitUri' and the result set returns two rows with the same admin unit URI as the value of 'adminUnitUri' but two different values for the 'id' variable then the resulting object will
+   * contain a list of two values for for ID
    * Unsuitable for more than 10k rows
+   * TODO refactor with zod schema validator.
    * @param uriKey The key in the query pointing to the URI of the object you want to construct
    * @param input Handlebars input
    * @returns An array of objects
@@ -428,8 +446,8 @@ export class TemplatedSelect<
   }
 
   /**
-   * Useful for queries with a single row as a result. Works like objects but only returns the first result
-   * Will throw when more than 1 row was returned
+   * Useful for queries with a single row as a result; like a count query. Works like records but only returns the first result
+   * Will throw when more than 1 row was returned.
    * @param input Handlebars input
    * @returns A single object
    */

@@ -29,6 +29,13 @@ export type DurationResult<R> = {
   durationSeconds: number;
 };
 
+/**
+ * Return a wrapped version of a function which takes the same arguments as the function and returns a wrapped result. The wrapped result contains the duration the function needed to execute in seconds.
+ * Intented for longer running functions (order of magnitude minutes to many hours)
+ * @param wrapped A async function to be wrapped
+ * @param logLevel Optional loglevel to print information about the duration with
+ * @returns An async function
+ */
 export function longDuration<F extends (...args: any[]) => Promise<any>>(
   wrapped: F,
   logLevel: LogLevel = "debug"
@@ -66,6 +73,13 @@ export type TimeResult<R> = {
   durationMilliseconds: number;
 };
 
+/**
+ * Return a wrapped version of a function which takes the same arguments as the function and returns a wrapped result. The wrapped result contains the duration the function needed to execute in milliseconds
+ * Intented for shorter running functions (order of magnitude seconds to minutes)
+ * @param wrapped A async function to be wrapped
+ * @param logLevel Optional loglevel to print information about the duration with
+ * @returns An async function
+ */
 export function duration<F extends (...args: any[]) => Promise<any>>(
   wrapped: F
 ): (...args: Parameters<F>) => Promise<TimeResult<Awaited<ReturnType<F>>>> {
@@ -103,6 +117,13 @@ export function setDefaultRetriesAndWaitTime(
   defaultWaitMilliseconds = waitMilliseconds;
 }
 
+/**
+ * Return a wrapped version of a function which takes the same arguments as the function and returns a wrapped result. The wrapped result contains the amount of retries that were necassary.
+ * @param wrapped A async function to be wrapped
+ * @param maxRetries
+ * @param waitMilliseconds How long to wait after each retry
+ * @returns An async function
+ */
 export function retry<F extends (...args: any[]) => Promise<any>>(
   wrapped: F,
   maxRetries: number | undefined = undefined,

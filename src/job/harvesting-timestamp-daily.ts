@@ -23,17 +23,6 @@ type GetLastModifiedOutput = {
   lastModified: DateTime;
 };
 
-/*
-SELECT ?scheduledJob ?title (MAX(?modified) AS ?lastModified) WHERE {
-  ?scheduledJob a cogs:ScheduledJob;
-   <http://purl.org/dc/terms/title> ?title.
-  ?job <http://purl.org/dc/terms/creator> ?scheduledJob.
-  ?job <http://www.w3.org/ns/adms#status> <http://redpencil.data.gift/id/concept/JobStatus/success> .
-  ?job <http://purl.org/dc/terms/modified> ?modified
-}
-GROUP BY ?scheduledJob ?title
-*/
-
 const getLastModifiedTemplate = Handlebars.compile(
   `\
 {{prefixes}}

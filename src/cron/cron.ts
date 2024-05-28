@@ -1,6 +1,6 @@
 import { PeriodicJobTemplate, getJobTemplates } from "../job/job-template.js";
 import cron from "node-cron";
-import { JobTemplateType } from "../types.js";
+import { JobTemplateStatus, JobTemplateType } from "../types.js";
 import { DateOnly, inHalfOpenInterval, now } from "../util/date-time.js";
 
 /**
@@ -30,7 +30,8 @@ export function initCron() {
         jobTemplate.timeOfInvocation.toDateTime(today); // Default value is 00:00+02:00 DD/MM/YYYY
       if (
         jobTemplate.daysOfInvocation.includes(DateOnly.todayDayOfWeek()) && // If this day is in the list of invocation days for the given template
-        inHalfOpenInterval(invocationTimeToday, start, end) // If this moment is within the time window of this minute
+        inHalfOpenInterval(invocationTimeToday, start, end) && // If this moment is within the time window of this minute
+        jobTemplate.status === JobTemplateStatus.ACTIVE // If it is active
       ) {
         await jobTemplate.invoke(); // This returns after status is written; not when the job finishes.
       }

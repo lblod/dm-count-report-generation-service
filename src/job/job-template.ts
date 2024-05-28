@@ -591,6 +591,10 @@ SELECT * WHERE {
   { noEscape: true }
 );
 
+/**
+ * Needs to be called on startup to make sure all job templates are in memory.
+ * If they would not be in memory the CRON runtime cannot activate them or the REST activated ones cannot be invoked.
+ */
 export async function loadJobTemplates() {
   if (!defaults)
     throw new Error(
@@ -679,6 +683,11 @@ DELETE {
   { noEscape: true }
 );
 
+/**
+ * Delete job templates with a specific type.
+ * @param jobTypes The job template types that need to be deleted. If omitted (undefined) all will be deleted.
+ * @returns
+ */
 export async function deleteAllJobTemplates(
   jobTypes: JobTemplateType[] | undefined | Record<string, never> = undefined // The empty object it to make this function compatible as a debug endpoint function with no query parameters
 ) {

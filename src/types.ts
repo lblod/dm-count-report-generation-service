@@ -49,6 +49,11 @@ export enum DayOfWeek {
   SUNDAY = `http://www.w3.org/2006/time#Sunday`,
 }
 
+/**
+ * Transforms string like "SATURDAY" into a DayOfWeek enum value if possible. If the string is not a name of a day then it will return undefined
+ * @param input a string
+ * @returns DayOfWeek or undefined
+ */
 export function stringToDayOfWeek(input: string): DayOfWeek | undefined {
   if (!Object.keys(DayOfWeek).includes(input.toUpperCase())) return undefined;
   return (DayOfWeek as Record<string, DayOfWeek>)[input.toUpperCase()];
@@ -85,6 +90,11 @@ const allUris = {
   ...DataMonitoringFunction,
 } as const;
 
+/**
+ * Transform a string with a unique URI to one of the enum object. All linked data related enums in this project have unique values.
+ * @param uri A uri
+ * @returns A DmEnum which is a union of all URI based enums.
+ */
 export function getEnumFromUri(uri: string): DmEnum {
   for (const enumLike of dmEnums) {
     for (const value of Object.values(enumLike)) {
@@ -100,10 +110,11 @@ type GetEnumStringFromUriType = (
 ) => true extends typeof safe ? string | undefined : string;
 // TODO fix
 /**
- *
+ * Given a uri find the enum key. E.g. 'https://codifly.be/ns/resources/task-type/parallel' will output 'PARALLEL'.
+ * Useful for debugging, logging and display purposes because the keys are easier to read than the URI's.
  * @param uri The uri string you want to check
- * @param safe true means it will not throw and return undefined if the uri does not correspond to an enum value
- * @returns The enum key.
+ * @param safe true means it will not throw and return undefined if the uri does not correspond to an enum value. False means it will throw. False is the safest.
+ * @returns The enum key as a string.
  */
 export const getEnumStringFromUri: GetEnumStringFromUriType = (
   uri: string,
