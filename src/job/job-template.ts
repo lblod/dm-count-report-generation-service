@@ -18,7 +18,7 @@ import {
 } from "../types.js";
 import { v4 as uuidv4 } from "uuid";
 import { createJob as createJob } from "./job.js";
-import { delay, retry } from "../util/util.js";
+import { retry } from "../util/util.js";
 import { logger } from "../logger.js";
 import Handlebars from "handlebars";
 

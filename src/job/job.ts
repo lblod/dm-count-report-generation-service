@@ -68,12 +68,13 @@ INSERT {
   { noEscape: true }
 );
 
-type DeleteBusyJobsInput = {
+type DeleteJobsInput = {
   prefixes: string;
   jobGraphUri: string;
+  jobStatuses: JobStatus[] | null; // Null will delete all jobs
 };
 
-const deleteBusyJobsTemplate = Handlebars.compile(
+const deleteJobsTemplate = Handlebars.compile(
   `\
 {{prefixes}}
 DELETE {
@@ -84,8 +85,13 @@ DELETE {
 WHERE {
   GRAPH <{{jobGraphUri}}> {
     ?jobUri a cogs:Job;
-      adms:status {{toJobStatusLiteral "BUSY"}};
       ?p ?o.
+    {{#if (listPopulated jobStatuses)}}{{#each jobStatuses}}
+    {
+      ?jobUri adms:status {{toJobStatusLiteral this}}.
+    }
+    {{#unless @last}}UNION{{/unless}}
+    {{/each}}{{/if}}
   }
 }
 `,
@@ -480,19 +486,25 @@ export async function createJob(
 }
 
 // TODO: Make sure we don't delete a job with an async function running
-export async function deleteBusyJobs() {
+export async function deleteJobs(jobStatuses: JobStatus[] | null = null) {
   if (!defaults)
     throw new Error(
       `Defaults have not been set. Call 'setJobCreeationDefaults' first from the job module.`
     );
-  const deleteBusyJobsQuery = new TemplatedUpdate<DeleteBusyJobsInput>(
+  if (jobStatuses === null) {
+    jobs.clear();
+  } else {
+    for (const job of jobs.values()) jobs.delete(job.uri);
+  }
+  const deleteJobsQuery = new TemplatedUpdate<DeleteJobsInput>(
     defaults.queryEngine,
     defaults.endpoint,
-    deleteBusyJobsTemplate
+    deleteJobsTemplate
   );
-  await deleteBusyJobsQuery.execute({
+  await deleteJobsQuery.execute({
     prefixes: PREFIXES,
     jobGraphUri: config.env.JOB_GRAPH_URI,
+    jobStatuses,
   });
 }
 
