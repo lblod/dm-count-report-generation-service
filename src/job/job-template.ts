@@ -184,7 +184,7 @@ export class JobTemplate {
   get uri() {
     if (this._deleted)
       throw new Error(`This resource has been deleted. Remove it's reference`);
-    return `${config.env.URI_PREFIX_RESOURCES}job-template/${this._uuid}`;
+    return `${config.env.URI_PREFIX_RESOURCES}${this._uuid}`;
   }
 
   async updateStatus(status: JobTemplateStatus) {
@@ -293,7 +293,7 @@ export class PeriodicJobTemplate extends JobTemplate {
       createdAt: now(),
       description: `Job created by dm-count-report-generation-service`,
       jobTemplateType: JobTemplateType.PERIODIC,
-      jobParametersUri: `${config.env.URI_PREFIX_RESOURCES}job-parameters/${uuid}`,
+      jobParametersUri: `${config.env.URI_PREFIX_RESOURCES}${uuid}`,
       jobParametersUuid: uuid,
       timeOfInvocation: this._timeOfInvocation,
       daysOfInvocation: this._daysOfInvocation,
@@ -309,7 +309,7 @@ export class PeriodicJobTemplate extends JobTemplate {
 
 export type WriteNewRestJobTemplateInput = {
   prefixes: string;
-  resourcesUriPrefix: string;
+  creatorUri: string;
   jobGraphUri: string;
   uuid: string;
   newJobTemplateUri: string;
@@ -330,7 +330,7 @@ INSERT {
   GRAPH <{{jobGraphUri}}> {
     <{{newJobTemplateUri}}> a cogs:Job, datamonitoring:DatamonitoringTemplateJob;
       mu:uuid "{{uuid}}";
-      dct:creator <{{resourcesUriPrefix}}job-creator/dm-count-report-generation-service>;
+      dct:creator <{{creatorUri}}>;
       adms:status {{toJobTemplateStatusLiteral status}};
       dct:created {{toDateTimeLiteral createdAt}};
       dct:modified {{toDateTimeLiteral createdAt}};
@@ -386,7 +386,7 @@ export class RestJobTemplate extends JobTemplate {
     const uuid = uuidv4();
     await this._insertQuery.execute({
       prefixes: PREFIXES,
-      resourcesUriPrefix: config.env.URI_PREFIX_RESOURCES,
+      creatorUri: `${config.env.URI_PREFIX_NAMESPACES}/data-monitoring-count-service/v1`,
       uuid: this._uuid,
       jobGraphUri: this._graphUri,
       newJobTemplateUri: this.uri,
@@ -394,7 +394,7 @@ export class RestJobTemplate extends JobTemplate {
       createdAt: now(),
       description: `Job created by dm-count-report-generation-service`,
       jobTemplateType: JobTemplateType.REST_INVOKED,
-      jobParametersUri: `${config.env.URI_PREFIX_RESOURCES}job-parameters/${uuid}`,
+      jobParametersUri: `${config.env.URI_PREFIX_RESOURCES}${uuid}`,
       jobParametersUuid: uuid,
       urlPath: this._urlPath,
       datamonitoringFunction: this._datamonitoringFunction,

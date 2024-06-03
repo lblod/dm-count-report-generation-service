@@ -53,7 +53,7 @@ It will be updated in the future.
 | NO_TIME_FILTER<br>(boolean) | `"false"` | Set to true for testing. This disabled the date related filtering when counting. This can be useful when no new data was posted and too many queries yield 0. |
 | DUMP_FILES_LOCATION<br>(string, directory) | `"/dump"` | Only relevant if DISABLE_DEBUG_ENDPOINT is `false`. This specifies the directory where the service will save the dump files for debugging. |
 | QUERY_MAX_RETRIES<br>(number) | `3` | Amount of times the making a query is retried. |
-| ROOT_URL_PATH<br>(string, url path) | `"/counting-service"` | When generating relative url's this root path will be used. |
+| ROOT_URL_PATH<br>(string, url path) | `""` | When generating relative url's this root path will be pasted at the beginning of the url path. |
 | ADD_DUMMY_REST_JOB_TEMPLATE<br>(boolean) | `"false"` | If true a dummy rest job template will be added. This is useful to test the execution logic of this microservice. Any jobs of type 'serial' should never be executed in parallel. |
 
 * Boolean: "true" for `true`, "false" for `false`.

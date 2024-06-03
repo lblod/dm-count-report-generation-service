@@ -217,9 +217,9 @@ const defaultEnv = {
   DUMP_FILES_LOCATION: "/dump",
   QUERY_MAX_RETRIES: 3,
   QUERY_WAIT_TIME_ON_FAIL: 1000,
-  ROOT_URL_PATH: "/counting-service",
+  ROOT_URL_PATH: "",
   URI_PREFIX_RESOURCES: "http://data.lblod.info/id/",
-  URI_PREFIX_NAMESPACES: "http://codifly.be/namespaces/",
+  URI_PREFIX_NAMESPACES: "http://lblod.data.gift/vocabularies/datamonitoring/",
   ADD_DUMMY_REST_JOB_TEMPLATE: false,
   SKIP_ENDPOINT_CHECK: false,
 };

@@ -98,8 +98,8 @@ export function setupDebugEndpoints(app: Express) {
       if (!jobTemplate)
         throw new Error(`Job template with url path "${urlPath}" not found`);
       const job = await jobTemplate.invoke();
-      const progressUrl = `${config.env.ROOT_URL_PATH}progress/${job.uuid}`;
-      const queueUrl = `${config.env.ROOT_URL_PATH}queue`;
+      const progressUrl = `${config.env.ROOT_URL_PATH}/progress/${job.uuid}`;
+      const queueUrl = `${config.env.ROOT_URL_PATH}/queue`;
       return `Job with uuid "${job.uuid}" started successfully. To check progress surf to <a href="${progressUrl}">${progressUrl}</a>. To see the job queue go to <a href="${queueUrl}">${queueUrl}</a>`;
     }
   );

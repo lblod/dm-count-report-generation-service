@@ -312,7 +312,7 @@ INSERT {
       datamonitoring:targetClass <{{this.classUri}}>;
       skos:prefLabel "{{escape this.prefLabel}}";
       datamonitoring:count "{{this.count}}"^^xsd:integer.
-    {{/each counts}}
+    {{/each}}
   }
 } WHERE {
 

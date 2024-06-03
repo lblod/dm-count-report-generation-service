@@ -28,15 +28,7 @@ import { DateOnly, now } from "../util/date-time.js";
 import { v4 as uuidv4 } from "uuid";
 import { JobFunction } from "./job.js";
 
-function getQueries(queryEngine: QueryEngine, endpoint: string) {
-  const countSessionsQuery = new TemplatedSelect<
-    CountSessionsQueryInput,
-    CountSessionsQueryOutput
-  >(queryEngine, endpoint, countSessionsQueryTemplate);
-  const countResolutionsQuery = new TemplatedSelect<
-    CountResolutionsQueryInput,
-    CountResolutionsQueryOutput
-  >(queryEngine, endpoint, countResolutionsQueryTemplate);
+function getQueriesForWriting(queryEngine: QueryEngine, endpoint: string) {
   const writeCountReportQuery = new TemplatedInsert<WriteReportInput>(
     queryEngine,
     endpoint,
@@ -48,6 +40,20 @@ function getQueries(queryEngine: QueryEngine, endpoint: string) {
       endpoint,
       writeAdminUnitCountReportTemplate
     );
+  return {
+    writeCountReportQuery,
+    writeAdminUnitCountReportQuery,
+  };
+}
+function getQueriesForAnalysis(queryEngine: QueryEngine, endpoint: string) {
+  const countSessionsQuery = new TemplatedSelect<
+    CountSessionsQueryInput,
+    CountSessionsQueryOutput
+  >(queryEngine, endpoint, countSessionsQueryTemplate);
+  const countResolutionsQuery = new TemplatedSelect<
+    CountResolutionsQueryInput,
+    CountResolutionsQueryOutput
+  >(queryEngine, endpoint, countResolutionsQueryTemplate);
   const countAgendaItemsQuery = new TemplatedSelect<
     CountSessionsQueryInput,
     CountSessionsQueryOutput
@@ -62,8 +68,6 @@ function getQueries(queryEngine: QueryEngine, endpoint: string) {
     countAgendaItemsQuery,
     countResolutionsQuery,
     countVoteQuery,
-    writeCountReportQuery,
-    writeAdminUnitCountReportQuery,
   };
 }
 
@@ -120,7 +124,8 @@ export const generateReportsDaily: JobFunction = async (
     `Got org resources. ${queryCount} queries to perform for ${governingBodiesCount} governing bodies and ${orgResources.adminUnits.length} admin units for ${config.file.endpoints.length} endpoints.`
   );
   let queries = 0;
-
+  const { writeCountReportQuery, writeAdminUnitCountReportQuery } =
+    getQueriesForWriting(queryEngine, config.env.REPORT_ENDPOINT);
   // Now perform the query machine gun
   for (const endpoint of config.file.endpoints) {
     const {
@@ -128,9 +133,7 @@ export const generateReportsDaily: JobFunction = async (
       countAgendaItemsQuery,
       countResolutionsQuery,
       countVoteQuery,
-      writeCountReportQuery,
-      writeAdminUnitCountReportQuery,
-    } = getQueries(queryEngine, endpoint.url);
+    } = getQueriesForAnalysis(queryEngine, endpoint.url);
 
     for (const adminUnit of orgResources.adminUnits) {
       const governingBodyReportUriList: string[] = [];
@@ -182,10 +185,10 @@ export const generateReportsDaily: JobFunction = async (
         });
 
         const uuid = uuidv4();
-        const reportUri = `${config.env.URI_PREFIX_RESOURCES}count-report/governing-body-count-report/${uuid}`;
+        const reportUri = `${config.env.URI_PREFIX_RESOURCES}${uuid}`;
         governingBodyReportUriList.push(reportUri);
 
-        const uuids = Array(4).fill(null).map(uuidv4);
+        const uuids = new Array(4).fill(null).map(() => uuidv4());
 
         // Write govering body report
         await performInsert("GoverningBodyCountReport", writeCountReportQuery, {
@@ -200,28 +203,28 @@ export const generateReportsDaily: JobFunction = async (
           uuid,
           counts: [
             {
-              countUri: `${config.env.URI_PREFIX_RESOURCES}count-report/count/${uuids[0]}`,
+              countUri: `${config.env.URI_PREFIX_RESOURCES}${uuids[0]}`,
               uuid: uuids[0],
               classUri: `http://data.vlaanderen.be/ns/besluit#Zitting`,
               count: sessionsResult.count,
               prefLabel: `Count of 'Zitting'`,
             },
             {
-              countUri: `${config.env.URI_PREFIX_RESOURCES}count-report/count/${uuids[1]}`,
+              countUri: `${config.env.URI_PREFIX_RESOURCES}${uuids[1]}`,
               uuid: uuids[1],
               classUri: `http://data.vlaanderen.be/ns/besluit#Agendapunt`,
               count: agendaItemResult.count,
               prefLabel: `Count of 'Agendapunt'`,
             },
             {
-              countUri: `${config.env.URI_PREFIX_RESOURCES}count-report/count/${uuids[2]}`,
+              countUri: `${config.env.URI_PREFIX_RESOURCES}${uuids[2]}`,
               uuid: uuids[2],
               classUri: `http://data.vlaanderen.be/ns/besluit#Besluit`,
               count: resolutionResult.count,
               prefLabel: `Count of 'Besluit'`,
             },
             {
-              countUri: `${config.env.URI_PREFIX_RESOURCES}count-report/count/${uuids[3]}`,
+              countUri: `${config.env.URI_PREFIX_RESOURCES}${uuids[3]}`,
               uuid: uuids[3],
               classUri: `http://data.vlaanderen.be/ns/besluit#Stemming`,
               count: voteResult.count,
@@ -240,7 +243,7 @@ export const generateReportsDaily: JobFunction = async (
           reportGraphUri: config.env.REPORT_GRAPH_URI,
           adminUnitUri: adminUnit.uri,
           prefLabel: `Count report for admin unit '${adminUnit.label}' on ${defaultedDay}`,
-          reportUri: `${config.env.URI_PREFIX_RESOURCES}/count-report/admin-unit-count-report/${uuid}`,
+          reportUri: `${config.env.URI_PREFIX_RESOURCES}${uuid}`,
           uuid,
           createdAt: now(),
           day: defaultedDay,

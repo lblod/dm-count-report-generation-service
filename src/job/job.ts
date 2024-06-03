@@ -272,7 +272,7 @@ export class JobProgress {
    * @param error
    */
   async error(error: object | number | string | boolean | Error) {
-    const message = `Status change of job ${this._job.uuid} to Error`;
+    const message = `Status change of job ${this._job.uuid} to Error.`;
     this.logger.log(this._logLevel, message);
     await this._job.updateStatus(JobStatus.ERROR);
     const statusMessage: StatusMessage = {
@@ -283,11 +283,21 @@ export class JobProgress {
     };
     this.addToLogBuffer(message);
     this._eventEmitter.emit(`status`, statusMessage);
-    const updateMessage: UpdateMessage = {
-      timestamp: now().format(),
-      message,
-    };
-    this._eventEmitter.emit(`update`, updateMessage);
+    if (error instanceof Error) {
+      this.update(
+        `Function threw an error: It was\n${error.message}\n---\n${error.stack}`
+      );
+    } else if (typeof error === "object") {
+      this.update(
+        `Function threw an object: It was\n${JSON.stringify(
+          error,
+          undefined,
+          3
+        )}`
+      );
+    } else {
+      this.update(`Function threw a primitive: It was\n"${error}"`);
+    }
   }
 
   /**
@@ -394,7 +404,7 @@ export class Job {
   }
 
   get uri() {
-    return `${config.env.URI_PREFIX_RESOURCES}job/${this._uuid}`;
+    return `${config.env.URI_PREFIX_RESOURCES}${this._uuid}`;
   }
 
   logs() {
