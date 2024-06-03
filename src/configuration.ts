@@ -162,10 +162,10 @@ const dmReportGenerationServiceEnvSchema = z.object({
       message: "Make sure the string ends in a slash or a #.",
     })
     .optional(),
-  ROOT_URL_PATH: z
-    .string()
-    .regex(/(\/[a-z\-/0-9]*)/)
-    .optional(),
+  ROOT_URL_PATH: z.string().regex(/^(\/[a-zA-Z0-9/-]*|)(?<!\/)$/, {
+    message:
+      "Make sure the root URL path starts with a /. Another acceptable value is empty string",
+  }),
   SKIP_ENDPOINT_CHECK: envBooleanSchema.optional(),
 });
 
