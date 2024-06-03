@@ -418,8 +418,8 @@ let defaults: DefaultJobTemplateCreationSettings | undefined = undefined;
 const jobTemplates = new Map<string, JobTemplate>();
 
 /**
- * Gets you a deep copy of the jobs array. Modifying it is no use. Use the other methods in the module to manipulate jobs
- * @returns An array of jobs
+ * Gets you a deep copy of the job template array. Modifying it is no use. Use the other methods in the module to manipulate jobs templates
+ * @returns An array of job template objects
  */
 export function getJobTemplates(): JobTemplate[] {
   if (!defaults)

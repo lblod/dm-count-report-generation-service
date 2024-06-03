@@ -143,7 +143,7 @@ export type LogLevel = (typeof LOG_LEVELS)[number];
 
 export type UpdateMessage = {
   timestamp: string;
-  message: JsonSerializable;
+  message: string;
 };
 
 export type ProgressMessage = {
@@ -158,13 +158,16 @@ export type StatusMessage =
       done: true;
       failed: false;
       result: object | number | string | boolean;
+      newStatusKey: string;
     }
   | {
       done: true;
       failed: true;
       error: object | number | string | boolean | Error;
+      newStatusKey: string;
     }
   | {
       done: false;
       failed: false;
+      newStatusKey: string;
     };

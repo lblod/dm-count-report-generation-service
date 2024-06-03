@@ -218,7 +218,7 @@ const defaultEnv = {
   QUERY_MAX_RETRIES: 3,
   QUERY_WAIT_TIME_ON_FAIL: 1000,
   ROOT_URL_PATH: "/counting-service",
-  URI_PREFIX_RESOURCES: "http://codifly.be/resources/",
+  URI_PREFIX_RESOURCES: "http://data.lblod.info/id/",
   URI_PREFIX_NAMESPACES: "http://codifly.be/namespaces/",
   ADD_DUMMY_REST_JOB_TEMPLATE: false,
   SKIP_ENDPOINT_CHECK: false,

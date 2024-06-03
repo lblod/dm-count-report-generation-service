@@ -182,7 +182,7 @@ export const generateReportsDaily: JobFunction = async (
         });
 
         const uuid = uuidv4();
-        const reportUri = `${config.env.URI_PREFIX_RESOURCES}count-report/gov-body/${uuid}`;
+        const reportUri = `${config.env.URI_PREFIX_RESOURCES}count-report/governing-body-count-report/${uuid}`;
         governingBodyReportUriList.push(reportUri);
 
         const uuids = Array(4).fill(null).map(uuidv4);
@@ -240,7 +240,7 @@ export const generateReportsDaily: JobFunction = async (
           reportGraphUri: config.env.REPORT_GRAPH_URI,
           adminUnitUri: adminUnit.uri,
           prefLabel: `Count report for admin unit '${adminUnit.label}' on ${defaultedDay}`,
-          reportUri: `${config.env.URI_PREFIX_RESOURCES}/count-report/admin-unit/${uuid}`,
+          reportUri: `${config.env.URI_PREFIX_RESOURCES}/count-report/admin-unit-count-report/${uuid}`,
           uuid,
           createdAt: now(),
           day: defaultedDay,

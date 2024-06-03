@@ -70,11 +70,10 @@ export function addToQueue(job: Job, ...args: any[]): number {
 }
 
 async function loop() {
-  if (!queue.length) return;
+  if (!queue.length) return; // Nothing in the queue. Stop.
+  if (current) return; // Something is already executing. Stop.
   const last = queue[queue.length - 1];
-  // Check if there are new functions that need to be executed.
-  if (last.promise !== null) return; // last one already executing stop
-  if (current) return; // Something is already executing stop
+  if (last.promise !== null) return; // Last one already executing stop. This should never happen because of the state kept in current.
   // There is a job in the queue that needs executing
   // So execute it and make it current
   current = last;

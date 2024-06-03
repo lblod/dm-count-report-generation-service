@@ -13,6 +13,7 @@ import {
   UpdateMessage,
   getEnumStringFromUri,
   DataMonitoringFunction,
+  StatusMessage,
 } from "../types.js";
 import { EventEmitter } from "node:events";
 import { config } from "../configuration.js";
@@ -188,16 +189,16 @@ export class JobProgress {
         false
       )}: ${message}`
     );
-    const updateMessageObject: UpdateMessage = {
+    const updateMessage: UpdateMessage = {
       timestamp: now().format(),
       message,
     };
     this.addToLogBuffer(message);
-    this._eventEmitter.emit(`update`, updateMessageObject);
+    this._eventEmitter.emit(`update`, updateMessage);
   }
 
   /**
-   * Update listeners about progression
+   * Update listeners about progression. Will send a progress message and an update message
    * @param done # Actions completed
    * @param total # Total actions needed doing
    * @param lastDurationMilliseconds # The duration of the last action
@@ -211,9 +212,11 @@ export class JobProgress {
   ) {
     this._done = done;
     this._total = total;
+
     const logMessage = `${done}/${total} (${Math.round(
       (done / total) * 100.0
     )}%) ${lastDurationMilliseconds ? ` ${lastDurationMilliseconds} ms` : ``}`;
+
     this.logger.log(
       this._logLevel,
       `JOB PROGRESS ${getEnumStringFromUri(
@@ -222,8 +225,13 @@ export class JobProgress {
       )}: ${logMessage}`
     );
 
+    const updateMessage: UpdateMessage = {
+      timestamp: now().format(),
+      message: logMessage,
+    };
+
     this.addToLogBuffer(logMessage);
-    this._eventEmitter.emit(`update`, logMessage);
+
     const progressMessage: ProgressMessage = {
       done,
       total,
@@ -231,6 +239,7 @@ export class JobProgress {
       subProcessIdentifier,
     };
     this._eventEmitter.emit(`progress`, progressMessage);
+    this._eventEmitter.emit(`update`, updateMessage);
   }
 
   /**
@@ -241,33 +250,44 @@ export class JobProgress {
     const message = `Status change of job ${this._job.uuid} to Finished`;
     this.logger.log(this._logLevel, message);
     await this._job.updateStatus(JobStatus.FINISHED);
-    const statusMessage = {
+    const statusMessage: StatusMessage = {
       done: true,
       failed: false,
       result,
+      newStatusKey: "FINISHED",
     };
     this.addToLogBuffer(message);
     this._eventEmitter.emit(`status`, statusMessage);
-    this._eventEmitter.emit(`update`, message);
+    const updateMessage: UpdateMessage = {
+      timestamp: now().format(),
+      message,
+    };
+    this._eventEmitter.emit(`update`, updateMessage);
   }
 
   /**
-   * Call this when an error occurs. It updates the status of the job and tells listeners it has errored out
-   * If there is no error handling the job instance should call this for you.
+   * Call this when an error occurs. It updates the status of the job and tells listeners it has errored out.
+   * It will also send an update.
+   * If there is no error handling the execution queue should call this for you.
    * @param error
    */
   async error(error: object | number | string | boolean | Error) {
     const message = `Status change of job ${this._job.uuid} to Error`;
     this.logger.log(this._logLevel, message);
     await this._job.updateStatus(JobStatus.ERROR);
-    const statusMessage = {
+    const statusMessage: StatusMessage = {
       done: true,
       failed: true,
       error,
+      newStatusKey: "ERROR",
     };
     this.addToLogBuffer(message);
     this._eventEmitter.emit(`status`, statusMessage);
-    this._eventEmitter.emit(`update`, message);
+    const updateMessage: UpdateMessage = {
+      timestamp: now().format(),
+      message,
+    };
+    this._eventEmitter.emit(`update`, updateMessage);
   }
 
   /**
@@ -277,13 +297,18 @@ export class JobProgress {
     const message = `Status change of job ${this._job.uuid} to Busy`;
     this.logger.log(this._logLevel, message);
     await this._job.updateStatus(JobStatus.BUSY);
-    const statusMessage = {
+    const statusMessage: StatusMessage = {
       done: false,
       failed: false,
+      newStatusKey: "BUSY",
     };
     this.addToLogBuffer(message);
     this._eventEmitter.emit(`status`, statusMessage);
-    this._eventEmitter.emit(`update`, message);
+    const updateMessage: UpdateMessage = {
+      timestamp: now().format(),
+      message,
+    };
+    this._eventEmitter.emit(`update`, updateMessage);
   }
 }
 

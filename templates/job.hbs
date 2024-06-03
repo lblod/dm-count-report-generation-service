@@ -17,8 +17,8 @@
   <p>Job modified:
   <pre>{{toDateTimeString modifiedAt}}</pre>
   </p>
-  <p>Job status:
-  <pre>{{printUriEnum status}}</pre>
+  <p>Job status (updatet):
+  <pre id="status">{{printUriEnum status}}</pre>
   </p>
   <p>Job function:
   <pre>{{printUriEnum function}}</pre>
@@ -93,6 +93,7 @@
       pre.textContent = "STATUS CHANGE:" + JSON.stringify({ done: eventObject.status.done, failed: eventObject.status.failed });
       par.appendChild(pre);
       logElement.appendChild(par);
+      const statusElement = document.getElementById("status").innerText = eventObject.status.newStatusKey;
       return;
 
     } else {

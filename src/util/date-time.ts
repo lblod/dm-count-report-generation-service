@@ -10,6 +10,10 @@ dayjs.extend(timezone);
 
 export type DateTime = dayjs.Dayjs;
 
+/**
+ * The current time as a timestamp in the local timezone
+ * @returns DateTime (actually dayjs)
+ */
 export function now(): DateTime {
   return dayjs().tz(DEFAULT_TIMEZONE);
 }
