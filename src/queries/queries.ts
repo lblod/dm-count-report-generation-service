@@ -303,7 +303,7 @@ INSERT {
       skos:prefLabel "{{escape prefLabel}}";
       mu:uuid "{{uuid}}";
       datamonitoring:istest "true"^^xsd:boolean;
-      datamonitoring:counts
+      datamonitoring:publicationCountReports
         {{#each counts}}<{{this.countUri}}>{{#unless @last}},{{/unless}}{{/each}}.
 
     {{#each counts}}
