@@ -25,7 +25,7 @@ Handlebars.registerHelper("rel", function (path: string) {
     throw new Error(
       `'rel' takes one parameter which must be a string describing an URL relative to the root. It needs to start with "/". Got "${path}"`
     );
-  return `${config.env.ROOT_URL_PATH}/${path}`;
+  return `${config.env.ROOT_URL_PATH}${path}`;
 });
 
 // Takes a string. Returns the string with all illegal characters escapted. Relevant for SPARQL queries.

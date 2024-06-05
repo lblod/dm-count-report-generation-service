@@ -75,7 +75,7 @@ INSERT {
     <{{this.resultUri}}>
       a datamonitoring:LastHarvestingExecutionRecord;
       mu:uuid "{{this.uuid}}";
-      datamonitoring:targetAdminitrativeUnit <{{this.organisationUri}}>;
+      datamonitoring:targetAdministrativeUnit <{{this.organisationUri}}>;
       skos:prefLabel "Last execution of harvesting job for organisation \\'{{escape this.organisationLabel}}\\'";
       datamonitoring:lastExecutionTime {{toDateTimeLiteral this.lastExecutionTimestamp}}.
     {{/each}}

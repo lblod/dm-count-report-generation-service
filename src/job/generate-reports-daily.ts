@@ -90,6 +90,7 @@ export const generateReportsDaily: JobFunction = async (
     O extends Record<string, any>
   >(resource: string, query: TemplatedSelect<I, O>, input: I): Promise<O> {
     const result = await duration(query.result.bind(query))(input);
+
     progress.progress(++queries, queryCount, result.durationMilliseconds);
     progress.update(
       `Performed count query for resource "${resource}" in ${result.durationMilliseconds} ms.`

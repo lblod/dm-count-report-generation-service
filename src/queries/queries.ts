@@ -298,7 +298,7 @@ INSERT {
     <{{reportUri}}> a datamonitoring:GoverningBodyCountReport;
       datamonitoring:createdAt {{toDateTimeLiteral createdAt}};
       datamonitoring:day {{toDateLiteral day}};
-      datamonitoring:targetAdminitrativeUnit <{{adminUnitUri}}>;
+      datamonitoring:targetAdministrativeUnit <{{adminUnitUri}}>;
       datamonitoring:targetGoverningBody <{{govBodyUri}}>;
       skos:prefLabel "{{escape prefLabel}}";
       mu:uuid "{{uuid}}";
@@ -307,7 +307,7 @@ INSERT {
         {{#each counts}}<{{this.countUri}}>{{#unless @last}},{{/unless}}{{/each}}.
 
     {{#each counts}}
-    <{{this.countUri}}> a datamonitoring:Count;
+    <{{this.countUri}}> a datamonitoring:PublicationCountReport;
       mu:uuid "{{this.uuid}}";
       datamonitoring:targetClass <{{this.classUri}}>;
       skos:prefLabel "{{escape this.prefLabel}}";
@@ -340,14 +340,14 @@ INSERT {
   GRAPH <{{reportGraphUri}}> {
     <{{reportUri}}> a datamonitoring:AdminUnitCountReport;
       skos:prefLabel "{{escape prefLabel}}";
-      datamonitoring:targetAdminitrativeUnit <{{adminUnitUri}}>;
+      datamonitoring:targetAdministrativeUnit <{{adminUnitUri}}>;
       datamonitoring:createdAt {{toDateTimeLiteral createdAt}};
       datamonitoring:day {{toDateLiteral day}};
       mu:uuid "{{uuid}}";
       datamonitoring:istest "true"^^xsd:boolean
       {{#if (listPopulated reportUris)}}
       ;
-      datamonitoring:goveringBodyReports
+      datamonitoring:governingBodyReports
       {{#each reportUris}}
         <{{this}}>
         {{#unless @last}},{{/unless}}
