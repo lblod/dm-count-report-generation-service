@@ -121,6 +121,7 @@ export const showJobTemplates: RequestHandler = (_, res) => {
 export async function showQueue(
   _req: Request,
   res: Response,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _next: NextFunction
 ): Promise<void> {
   const queue = getQueue();

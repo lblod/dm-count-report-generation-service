@@ -17,9 +17,7 @@ export function delay(millis: number): Promise<void> {
 function extendError(original: any, extendMessage: string): Error {
   if (!(original instanceof Error))
     throw "This function does not support functions that throw anything other than errors.";
-  const error = new Error(`${extendMessage}: ${original.message}`, {
-    cause: original.cause,
-  });
+  const error = new Error(`${extendMessage}: ${original.message}`);
   error.stack = original.stack;
   return error;
 }

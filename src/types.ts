@@ -16,27 +16,27 @@ export type JsonSerializable =
 //TODO Make uri prefixes reliant on the configuration
 
 export enum JobStatus {
-  BUSY = `https://codifly.be/ns/resources/status/busy`,
-  NOT_STARTED = `https://codifly.be/ns/resources/status/not-started`,
-  FINISHED = `https://codifly.be/ns/resources/status/finished`,
-  ERROR = `https://codifly.be/ns/resources/status/failed`,
+  BUSY = `http://lblod.data.gift/vocabularies/datamonitoring/status/busy`,
+  NOT_STARTED = `http://lblod.data.gift/vocabularies/datamonitoring/status/not-started`,
+  FINISHED = `http://lblod.data.gift/vocabularies/datamonitoring/status/finished`,
+  ERROR = `http://lblod.data.gift/vocabularies/datamonitoring/status/failed`,
 }
 
 export enum JobTemplateStatus {
-  ACTIVE = `https://codifly.be/ns/resources/status/active`,
-  NOT_STARTED = `https://codifly.be/ns/resources/status/not-started`,
-  FINISHED = `https://codifly.be/ns/resources/status/finished`,
-  INACTIVE = `https://codifly.be/ns/resources/status/inactive`,
+  ACTIVE = `http://lblod.data.gift/vocabularies/datamonitoring/status/active`,
+  NOT_STARTED = `http://lblod.data.gift/vocabularies/datamonitoring/status/not-started`,
+  FINISHED = `http://lblod.data.gift/vocabularies/datamonitoring/status/finished`,
+  INACTIVE = `http://lblod.data.gift/vocabularies/datamonitoring/status/inactive`,
 }
 
 export enum JobType {
-  SERIAL = `https://codifly.be/ns/resources/task-type/serial`,
-  PARALLEL = `https://codifly.be/ns/resources/task-type/parallel`,
+  SERIAL = `http://lblod.data.gift/vocabularies/datamonitoring/task-type/serial`,
+  PARALLEL = `http://lblod.data.gift/vocabularies/datamonitoring/task-type/parallel`,
 }
 
 export enum JobTemplateType {
-  PERIODIC = `https://codifly.be/ns/resources/job-type/periodic`,
-  REST_INVOKED = `https://codifly.be/ns/resources/job-type/rest-invoked`,
+  PERIODIC = `http://lblod.data.gift/vocabularies/datamonitoring/job-type/periodic`,
+  REST_INVOKED = `http://lblod.data.gift/vocabularies/datamonitoring/job-type/rest-invoked`,
 }
 
 export enum DayOfWeek {
@@ -60,9 +60,9 @@ export function stringToDayOfWeek(input: string): DayOfWeek | undefined {
 }
 
 export enum DataMonitoringFunction {
-  COUNT_RESOURCES = `https://codifly.be/ns/resources/dm-function/count-resources`,
-  CHECK_HARVESTING_EXECUTION_TIME = `https://codifly.be/ns/resources/dm-function/check-harvesting-execution-time`,
-  DUMMY = `https://codifly.be/ns/resources/dm-function/dummy`,
+  COUNT_RESOURCES = `http://lblod.data.gift/vocabularies/datamonitoring/dm-function/count-resources`,
+  CHECK_HARVESTING_EXECUTION_TIME = `http://lblod.data.gift/vocabularies/datamonitoring/dm-function/check-harvesting-execution-time`,
+  DUMMY = `http://lblod.data.gift/vocabularies/datamonitoring/dm-function/dummy`,
 }
 
 export type DmEnum =
@@ -110,7 +110,7 @@ type GetEnumStringFromUriType = (
 ) => true extends typeof safe ? string | undefined : string;
 // TODO fix
 /**
- * Given a uri find the enum key. E.g. 'https://codifly.be/ns/resources/task-type/parallel' will output 'PARALLEL'.
+ * Given a uri find the enum key. E.g. 'http://lblod.data.gift/vocabularies/datamonitoring/task-type/parallel' will output 'PARALLEL'.
  * Useful for debugging, logging and display purposes because the keys are easier to read than the URI's.
  * @param uri The uri string you want to check
  * @param safe true means it will not throw and return undefined if the uri does not correspond to an enum value. False means it will throw. False is the safest.

@@ -36,32 +36,32 @@
 @prefix datamonitoring: <http://lblod.data.gift/vocabularies/datamonitoring/>.
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#>.
 
-<https://codifly.be/ns/resources/job-creator/dm-count-report-generation-service> a skos:Concept;
+<http://lblod.data.gift/vocabularies/datamonitoring/job-creator/dm-count-report-generation-service> a skos:Concept;
   skos:prefLabel "dm-count-generation-service job creator".
 
 # Statuses
-<https://codifly.be/ns/resources/status/busy> a skos:Concept;
+<http://lblod.data.gift/vocabularies/datamonitoring/status/busy> a skos:Concept;
   skos:prefLabel "Busy".
 
-<https://codifly.be/ns/resources/status/not-started> a skos:Concept;
+<http://lblod.data.gift/vocabularies/datamonitoring/status/not-started> a skos:Concept;
   skos:prefLabel "Not started".
 
-<https://codifly.be/ns/resources/status/finished> a skos:Concept;
+<http://lblod.data.gift/vocabularies/datamonitoring/status/finished> a skos:Concept;
   skos:prefLabel "Finished".
 
-<https://codifly.be/ns/resources/status/failed> a skos:Concept;
+<http://lblod.data.gift/vocabularies/datamonitoring/status/failed> a skos:Concept;
   skos:prefLabel "Failed".
 
-<https://codifly.be/ns/resources/task-type/serial> a skos:Concept;
+<http://lblod.data.gift/vocabularies/datamonitoring/task-type/serial> a skos:Concept;
   skos:prefLabel "Serial task".
 
-<https://codifly.be/ns/resources/task-type/parallel> a skos:Concept;
+<http://lblod.data.gift/vocabularies/datamonitoring/task-type/parallel> a skos:Concept;
   skos:prefLabel "Parallel task".
 
-<https://codifly.be/ns/resources/job-type/periodic> a skos:Concept;
+<http://lblod.data.gift/vocabularies/datamonitoring/job-type/periodic> a skos:Concept;
   skos:prefLabel "Job that invokes a task periodically".
 
-<https://codifly.be/ns/resources/job-type/rest-invoked> a skos:Concept;
+<http://lblod.data.gift/vocabularies/datamonitoring/job-type/rest-invoked> a skos:Concept;
   skos:prefLabel "Job that encapsulates tasks invoked on request".
 
 

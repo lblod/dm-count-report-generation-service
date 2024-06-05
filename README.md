@@ -1,8 +1,10 @@
 # Data monitoring count report generation service
 
-This is a microservice emulating the functionality of a future microservice to be built. It will be called `dm-report-generation-service`. This service is to be embedded in [Data monitoring](https://github.com/lblod/app-data-monitoring) which is under development.
+This was a microservice emulating the functionality of a future microservice to be built. It will be called `dm-report-generation-service`. This service is to be embedded in [Data monitoring](https://github.com/lblod/app-data-monitoring) which is under development.
 
-The point of this microservice is to contain functionality that contacts a specific SPARQL endpoint using SPARQL queries. A function needs to run automatically every night which executes queries to gather information about specific resources. In this particular case the microservice will just count the amount of new records each day for each governing body (bestuursorgaan) of each admin unit (bestuurseenheid). Reports are written to a different SPARQL endpoint. This will not make any sense to you unless you are aware of the specific context within which ABB (Agentschap Binnenlands Bestuur) operates; which is the agency of the Flemish government this service was designed for.
+For now this service executes experimental report generation jobs. To build `dm-report-generation-service` this service will act as a template.
+
+The point of this microservice is to contain functionality that contacts a specific SPARQL endpoint using SPARQL queries. Multiple functions need to run automatically every night executing queries to gather information about specific resources. In this particular case the first function counts the amount of new records each day for each governing body (bestuursorgaan) of each admin unit (bestuurseenheid). Reports are written to a different SPARQL endpoint. This will not make any sense to you unless you are aware of the specific context within which ABB (Agentschap Binnenlands Bestuur) operates; which is the agency of the Flemish government this service was designed for.
 
 So every night this service will run a procedure which targets the linked data published the day before. This nightly procedure looks as follows in pseudocode (for now).
 
@@ -17,7 +19,11 @@ FOR EACH endpoint IN endpoints:
 Write aggegated reports (overviews)
 ```
 
-It will be updated in the future.
+This is just the first function. As of today there are three functions in existence:
+
+* Counting function
+* Harvested time function
+* Dummy function for testing
 
 ## Stack
 
@@ -39,28 +45,30 @@ It will be updated in the future.
 
 | Variable name & type | Default value | Explanation |
 | :--- | :--- | :--- |
-| ADMIN_UNIT_ENDPOINT<br>(string, URL) | No default. Required. | URL of the SPARQL endpoint where the reporting service can query for admin units and governing bodies. Typically ending in `/sparql` |
-| REPORT_ENDPOINT<br>(string, URL) | No default. Required | Url of the SPARQL endpoint where the reporting service can write reports to  |
-| DISABLE_DEBUG_ENDPOINT<br>(boolean) | `"true"` | True activates endpoints which can be used for testing. See discussion below. In production these endpoint should be disabled. |
+| ADMIN_UNIT_ENDPOINT<br>(string, URL) | No default. Required. | URL of the SPARQL endpoint where the reporting service can query for admin units and governing bodies. Typically ending in `/sparql`. The value can be identical to REPORT_ENDPOINT but it needs to be provided nonetheless. |
+| REPORT_ENDPOINT<br>(string, URL) | No default. Required. | Url of the SPARQL endpoint where the reporting service can write reports to. The value can be identical to ADMIN_UNIT_ENDPOINT but it needs to be provided nonetheless. |
+| DISABLE_DEBUG_ENDPOINT<br>(boolean) | `"true"` | False activates endpoints which can be used for testing. See discussion below. In production these endpoint should be disabled (the default value). |
 | REPORT_GRAPH_URI<br>(string, URI) | `"http://mu.semte.ch/graphs/public"` | The URI of the graph where to write report related linked data to. |
-| CONFIG_FILE_LOCATION<br>(string, directory) | `"/config"` | The directory where the config file can be found. Useful for development. Default value is the location in the container. |
+| CONFIG_FILE_LOCATION<br>(string, directory) | `"/config"` | The directory where the config file can be found. Useful for development. Default value is the normal location in the container. For local testing you may point to a folder on your host's filesystem containing a specific configuration.  |
 | SLEEP_BETWEEN_QUERIES_MS<br>(integer) | `0` | Value in milliseconds. Setting this higher than 0 means the service will wait the specified number of milliseconds after each query before the next query. This may be needed in order to prevent the service from overloading the database. |
-| SHOW_SPARQL_QUERIES<br>(boolean) | `"false"` | Set to true to print the queries to the console (`info` log level) |
-| LIMIT_NUMBER_ADMIN_UNITS<br>(integer) | `0` | 0 Means query for all admin units. A non zero value imposes a limit. This is useful for testing so you don't flood the database. I'd suggest you set it to 5 for testing. |
+| SHOW_SPARQL_QUERIES<br>(boolean) | `"false"` | Set to true to print the queries to the console (`verbose` log level). Prefixes are not printed for successful queries. |
+| LIMIT_NUMBER_ADMIN_UNITS<br>(integer) | `0` | 0 Means query for all admin units. A non zero value imposes a limit. This is useful for testing so you don't flood the database and or test quicker. I'd suggest you set it to 5 for testing in which case only 5 admin units will be loaded to perform analysis on. |
 | ORG_RESOURCES_TTL_S<br>(number) | `300` | Value in seconds. Data concerning admin units and governing bodies are kept in a cache with a Time To Live (TTL). This prevents unnecessary load during repeated test invocations of report generation. After this time has elapsed the cache is cleared and new data needs to be queried. |
 | SERVER_PORT<br>(number) | `80` | HTTP port the server listens on. For debugging locally I suggest port 4199. |
-| LOG_LEVEL<br>(string) | `"info"` | Level of the logs. Accepted values are "error","warn","info","http","verbose","debug" and "silly". For production set to "error". For development set to "info" or "debug". |
-| NO_TIME_FILTER<br>(boolean) | `"false"` | Set to true for testing. This disabled the date related filtering when counting. This can be useful when no new data was posted and too many queries yield 0. |
-| DUMP_FILES_LOCATION<br>(string, directory) | `"/dump"` | Only relevant if DISABLE_DEBUG_ENDPOINT is `false`. This specifies the directory where the service will save the dump files for debugging. |
+| LOG_LEVEL<br>(string) | `"info"` | Level of the logs. Accepted values are "error","warn","info","http","verbose","debug" and "silly". For production set to "error". For development set to "info", "debug" or "silly" depending on your preference. |
+| NO_TIME_FILTER<br>(boolean) | `"false"` | Set to true in some test cases. This disabled the date related filtering when counting. This can be useful when no new data was posted and too many queries yield 0. |
+| DUMP_FILES_LOCATION<br>(string, directory) | `"/dump"` | Only relevant if DISABLE_DEBUG_ENDPOINT is `false`. This specifies the directory where the service will save the dump files for debugging. Typically this is a docker volume. |
 | QUERY_MAX_RETRIES<br>(number) | `3` | Amount of times the making a query is retried. |
-| ROOT_URL_PATH<br>(string, url path) | `""` | When generating relative url's this root path will be pasted at the beginning of the url path. |
+| QUERY_WAIT_TIME_ON_FAIL_MS<br>(number) | `1000` | Amount of time in milliseconds to wait after a query has failed before retrying. |
+| ROOT_URL_PATH<br>(string, url path) | `""` | When generating absolute url paths this root path will be pasted at the beginning of the url path. Example: if ROOT_PATH is `/counting-service` then the queue debug endpoint will have the following link: `https://<domain>/counting-service/queue`. The value needs to start with a slash. And empty string is also acceptable for local testing in which case the queue endpoint is `http://localhost:<port>/queue`. |
 | ADD_DUMMY_REST_JOB_TEMPLATE<br>(boolean) | `"false"` | If true a dummy rest job template will be added. This is useful to test the execution logic of this microservice. Any jobs of type 'serial' should never be executed in parallel. |
+| SKIP_ENDPOINT_CHECK<br>(boolean) | `"false"` | If true the test checking if all SPARQL endpoints respond will be skipped. In production this should be 'true' because it's important to know of endpoints are up before starting operations. |
 
 * Boolean: "true" for `true`, "false" for `false`.
 
 The program will validate the environment variables before running. If you made a mistake the program will stop until you fix the error. An error could be providing a string where a number is expected or a faulty value for a boolean.
 
-### File
+### Configuration JSON file
 
 When using this service you'll need to make a volume that links a directory to the `/config` directory in the container. This directory should contain a `config.json` file. The contents should look like this:
 
@@ -75,13 +83,37 @@ When using this service you'll need to make a volume that links a directory to t
         "besluit:Agendapunt",
         ...
       ]
-    }
+    },
+    ...
   ],
-  ...
+  "harvester-endpoints": [
+    {
+      "url": "...",
+    },
+    ...
+  ],
+  "periodic-function-invocation-times": {
+    "COUNT_RESOURCES": {
+      "time": "00:00",
+      "days": "monday,tuesday,wednesday,thursday,friday,saturday,sunday"
+    },
+    "CHECK_HARVESTING_EXECUTION_TIME": {
+      "time": "00:00",
+      "days": "monday,tuesday,wednesday,thursday,friday,saturday,sunday"
+    }
+  }
 }
 ```
+* `"endpoints"`:
+Contains a list of endpoints specifying a SPARQL endpoint URL and a list of resources to count in the counting task. Both short notations of URI's and full ones are supported.
 
-It's a list of endpoints specifying a SPARQL endpoint URL and a list of resources to count. There is a JSON schema so you should not make any mistaktes. If you do mess up the schema though the program will crash on startup and you'll get a slap on the wrist. Both short notations of URI's and full ones are supported.
+* `"harvester-endpoints"`:
+Contains a list of harvester SPARQL endpoints for the last harvested task
+
+* `"periodic-function-invocation-times"`:
+An object modeling a record. The key needs to be a name of a data monitoring function and the value is another object containing a time and a comma separated list of days. The service will create periodic job templates automatically when they are not present in accordance with these definitions. When they are already present the microservice will NOT change them because they are ment to be changed by updating the job records using a delta message. Delta message processing has not been developed yet.
+
+There is a JSON schema so you should not make any mistaktes. If you do mess up the schema though the program will crash on startup and you'll get a slap on the wrist. If I messed up the schema please let me know.
 
 ## Testing
 
@@ -97,60 +129,28 @@ To run locally:
 1. Clone the repo
 2. Run `npm install` in the folder
 3. Change the file `env-dev` to your preferences.
-4. Run `npm run dev` and nodemon will start. It will run the service using [tsx](https://github.com/privatenumber/tsx).
+4. Set the `CONFIG_FILE_LOCATION` env var to `"./test-config"` and add the folter in your repo. Make a file called config.json in this folder with the appropriate configuration. Make sure to copy the `$schema` key and value shown above in order to prevent mistakes.
+5. Run `npm run dev` and nodemon will start. It will run the service using [tsx](https://github.com/privatenumber/tsx).
 
-VSCode users can use the debugger. Again make sure `env-dev` is adapted to your circumstance and press play in the debugger sidebar.
+VSCode users can use the debugger. Again make sure `env-dev` is adapted to your circumstance and press play in the debugger sidebar in VSCode. This applies only to VSCode users.
 
 ### Running from a container
 
-Adapt the environment variables in the `run` file. Then run it `./run`.
+Adapt the environment variables in the `run` file. Then run it `./run`. Make sure you have docker installed
 
 It will build the image and then spin up a container. There will be strict type checking during building.
 
-## Debugging
+## Debugging and triples memory store
 
-When running the node process locally or when running the container you can trigger the report generation process manually for testing purposes.
+When running the node process locally or when running the container you can use the browser to contact debug endpoints (`DISABLE_DEBUG_ENDPOINT` needs to be set to `"false"`).
 
-For this example we'll assume the server is running on your local machine using port 4199.
+To check the current catalog of functions visit:
 
-To trigger report generation use the browser to request ...
+* `http://localhost:4199/debug` (Port 4199 is an example. Set the port value using `SERVER_PORT`. When running on localhost the `ROOT_URL_PATH` needs to be `""`)
 
-* `http://localhost:4199/generate-reports-now` to generate reports for 'yesterday'
-* `http://localhost:4199/generate-reports-now?day=2024-05-01` to generate reports for a specific day.
+When `DISABLE_DEBUG_ENDPOINT` is set to `false` all of the triples created with INSERT queries will be stored in memory during runtime. See the debug page. It contains a link to trigger a GET request which makes a TTL triples dump of all the triples you have inserted. This is useful for testing purposes.
 
-When passing a day in the query parameters use the format `YYYY-MM-DD` (ISO).
-
-This process can take a long time. You will not be seeing updates so it's best you look at the logs. When the report generation process finishes or errors out the browser will show a simple HTML page with the results.
-
-To check the current configuration use the browser to request:
-
-* `http://localhost:4199/configuration`
-
-When `DISABLE_DEBUG_ENDPOINT` is set to `false` all of the triples created with INSERT queries will be stored in memory. You can create a TTL dump file by sending a GET request to `/dump-file`. To create a dump called `my-dump.ttl` use the url below. The query parameter is optional. If omitted it will use the current timestamp.
-
-* `http://localhost:4199/dump?filename=my-dump`
-
-To see an index of the dump files use:
-
-* `http://localhost:4199/dump-files`
-
-The get an index of all debug functions use:
-
-* `http://localhost:4199/debug`
-
-## Reports format
-
-There are a number of types of reports:
-
-1. Governing body (bestuursorgaan) type: Associated with a specific day and governing body
-2. Admin unit (bestuurseenheid of organisatie) type: Associated with a specific day and admin unit. Linked to all associated governing body reports
-3. Aggregated report (still to be developed)
-4. Monthly report (still to be developed)
-5. Aggregated report of several admin units together
-
-TODO: Overview of reports and their schema.
-
-## Developing this service further
+## Developing this service further and background
 
 ### The templated query system
 
@@ -168,7 +168,8 @@ SELECT ?resourceUri ?label WHERE {
   ?resourceUri a <{{classUri}}>;
     skos:prefLabel ?label;
     example:day {{toDateLiteral day}};
-    example:time ?time.
+    example:time ?time;
+    example:fixedTextObjectExamplePredicate {{escape stringValueWithQuotes}}.
 }
 `, { noEscape:true });
 ```
@@ -184,19 +185,23 @@ export type MySelectQueryInput = {
   prefixes: string;
   classUri: string;
   day: DateOnly;
+  stringValueWithQuotes: string; // If this string contains quotes they need to be escaped...
+  // ... using the 'escape' helper function.
 }
 ```
 
-Include ANY variable referenced in the template with its type. Feel free to use types like 'DateOnly' of 'TimeOnly' or some enums. In this case you will need the literal helper which converts the type to an RDF literal (shaped like `"serialnotation"^^"xsd:Type"`).
+Include ANY variable referenced in the template in the input type. In many cases you will need a literal helper function which converts the variable to a string with a valid RDF literal (shaped like `"serialnotation"^^"xsd:Type"`). Whenever you expect the user of your query to input an URI make sure to use `uri` in the name. In the future we may use RDFJS integration but now it's pure text wrangling.
 
-| Variabele type | Helper | Type Notation | Handlebars notation |
+Feel free to use types like 'DateOnly' of 'TimeOnly' or some enums. To format specific types of variables to the correct SPARQL format you'll need these helpers in the query:
+
+| Variabele type | Helper | Type Notation in typescript | Handlebars notation |
 | :--- | :--- | :--- | :--- |
 | `DateOnly` | `toDateLiteral` | `exampleDate:DateOnly;` | `{{toDateLiteral exampleDate}}` |
 | `TimeOnly` | `toTimeLiteral` | `exampleTime:TimeOnly;` | `{{toDateLiteral exampleTime}}` |
-| `Dayjs` | `toDateTimeLiteral` | `exampleDateTime:DayJs;` | `{{toDateTimeLiteral exampleDateTime}}` |
-| `TaskStatus` | `toTaskStatusLiteral` | `exampleStatus:TaskStatus;` | `{{toTaskStatusLiteral exampleStatus}}` |
+| `DateTime` | `toDateTimeLiteral` | `exampleDateTime:DayJs;` | `{{toDateTimeLiteral exampleDateTime}}` |
+| `JobStatus` | `toJobStatusLiteral` | `exampleStatus:JobStatus;` | `{{toJobStatusLiteral exampleStatus}}` |
 
-The last row in the table is an enum value. Other enums such as `TaskType`, `JobStatus`, `JobType`, `DayOfWeek` and `DatamonitoringFunction` are also supported in a similar way.
+The last row in the table is an enum value. Other enums such as `JobType`, `JobStatus`, `JobTemplateType`, `JobTemplateStatus`, `DayOfWeek` and `DatamonitoringFunction` are also supported in a similar way.
 
 The output is linked to the selected variables after the `SELECT` keyword. In this case.
 
@@ -208,7 +213,7 @@ export type MySelectQueryOutput = {
 }
 ```
 
-In this type structure you can also use TimeOnly, DateOnly, Dayjs(modeling a timestamp) and enums. When parsing the bindings after invoking the `objects` method of the `TemplatedSelect` instance will automatically convert the variables to the correct type because the linked data has type information. Of course you can just use strings and number without helpers. Remember that Handlebars is 'dumb'. Whatever template you write will need to be correct SPARQL. So putting URI's in your query will require you not to forget the `<` and `>` characters.
+In this type structure you can also use TimeOnly, DateOnly, DateTime(Dayjs)(modeling a timestamp) and enums. When parsing the bindings after invoking the `objects` or `records` method of the `TemplatedSelect` instance will automatically convert the variables to the correct type because the linked data has type information. Of course you can just use strings and number without helpers. Remember that Handlebars is 'dumb'. Whatever template you write will need to generate correct SPARQL. So putting URI's in your query will require you not to forget the `<` and `>` characters. When rendering plain text strings as objects please use the `escape` helper which escapes `"` and `'` like this: `{{escape stringVariable}}`.
 
 Then, in another file where you want to execute the query, you'll instantiate the `TemplatedSelect` class.
 
@@ -224,12 +229,14 @@ const mySelectQuery = new TemplatedSelect<
 ```
 
 
-Now this query machine is ready to go. You can launch it in two ways:
+Now this query machine is ready to go. You can launch it in many ways:
 
 * `await mySelectQuery.bindings(input)`: Get results as an array of comunica bindings.
-* `await mySelectQuery.objects('resourceUri', input)`: Get results as an array of javascript objects in the shape of `MySelectQueryOutput[]` in the example.
+* `await mySelectQuery.records(input)`: Get results as an array of javascript objects in the shape of `MySelectQueryOutput[]` in the example. In this case reach result row is one record.
+* `await mySelectQuery.objects('resourceUri', input)`: Get results as an array of javascript objects in the shape of `MySelectQueryOutput[]` in the example. It outputs one object per unique value of `resourceUri`.
+* `await mySelectQuery.result(input)`: Identical to records except it returns one and one record only. Useful for count queries. Will throw when more then one or 0 rows are returned.
 
-The `objects` method needs to map the bindings onto a list of objects modeling resources. In order to do that it needs a key that is the URI of the resource being returned. Now we can perform the query using the objects function and get results.
+The `objects(uriKey, input)` method needs to map the bindings onto a list of objects modeling resources. In order to do that it needs a key that is the URI of the resource being returned as the first parameter. Now we can perform the query using the objects function and get results.
 
 ```typescript
 // Perform the query and get the results as objects. Pass the input
@@ -240,18 +247,19 @@ const result = await mySelectQuery.objects('resourceUri', {
 });
 
 // Print the results
-for (const row of result) {
-  logger.info(`Row. Resource <${row.resourceUri}> with label "${row.label}" and time of day ${timeOfDay.toString()}`);
+for (const obj of result) {
+  logger.info(`Resource <${obj.resourceUri}> with label "${obj.label}" and time of day ${obj.timeOfDay.toString()}`);
 }
 ```
 
-`result` is an array of objects of the type `MySelectQueryOutput`. Again: Some complex objects are created automatically for you.
+`records(input)` is an array of objects of the type `MySelectQueryOutput`. Again: Some complex objects are created automatically for you.
+
 
 ![](./docs/image.png)
 
-This class works well up to tens of thousands of rows but was not really designed to handle really large amounts of rows. There is no optimization for extremely large result sets at this time. This is also not an ORM and it cannot handle relations and/or follow links. It's mostly created because this service will generate a LOT of different queries.
+This class works well up to tens of thousands of rows but was not really designed to handle really large amounts of rows. There is no optimization for extremely large result sets at this time. This is also not an ORM and it cannot handle relations and/or follow links. It's mostly created because this service will generate a LOT of different queries and type validation is handy at development time.
 
-Just one little snippet to complete the example. Here's how you consume the results:
+Just one little snippet to complete the example. Here's how you consume results:
 
 ```typescript
 // Perform the templated query using specific input parameters
@@ -259,6 +267,7 @@ const result = await mySelectQuery.objects({
   prefixes: PREFIXES,
   classUri: "http://data.vlaanderen.be/ns/besluit#Besluit",
 });
+//Result is a list of objects; each modeling a resource.
 ```
 
 Because of the way the templated query system was designed you should get full type checking at compile time. I hope it helps to prevent bugs.
@@ -317,6 +326,7 @@ If you want to time measure it:
 const measured = await duration(example)("Input string");
 const durationMilliseconds = measured.durationMilliseconds; // Around 10k millis
 const result = measured.result; // "Modified Input string" 
+const duration = measured.durationMilliseconds; // Value is milliseconds
 ```
 
 If the function is very long running:
@@ -325,6 +335,7 @@ If the function is very long running:
 const measured = await longDuration(example)("Input string");
 const durationSeconds = measured.durationSeconds; // Around 10
 const result = measured.result; // "Modified Input string" 
+const duration = measured.durationSeconds; // Value is seconds
 ```
 
 If you want to retry the function 5 times and wait for a second after each failed try:
@@ -367,4 +378,128 @@ You can nest retries. Imagine you want to try 3 times and wait for a second afte
 const functionWithAlotOfRetrying = retry(retry(wrappedfunction,3,1_000),2,60_000);
 ```
 
-Easy.
+Easy. If you pass instance methods make sure to bind them like this:
+
+```typescript
+const wrappedMethod = retry(this.method.bind(this));
+```
+
+### Job templates and jobs
+
+ABB uses the Mu semtech higher order framework. In this framework the concept of 'jobs' exists which models an amount of work. For each job a corresponding job resource in the database exists with a status.
+
+Eventually delta processing will be included. When a delta changes a job the service should be able to react to it.
+
+In this microservice two kinds of jobs exist; each of which are associated with a mu-semtech compatible job resource in the jobs graph of the database connected to the report writing endpoint.
+
+* 'Job template': A type of job that spawns jobs depending on a trigger. There are two kinds:
+  * Periodic job: Triggered on a day of the week at a time of the day
+  * Rest job: Triggered by a GET http request on a specific endpoint
+* Job: Models the execution of a function; like generating reports.
+
+To see a list of job templates go the the `/job-templates` page. You can trigger the rest jobs there.
+
+A job is associated with a datamonitoring function enum value defining the function the job should execute. jobs are created in this microservice by job templates.
+
+### Execution queue
+
+This service can only execute jobs in series for the moment. Because of this there is a job queue. When a template job is triggered a new job is added to the queue. The queue makes sure only one job is executed at a time.
+
+When the queue is empty a new job starts executing immediately (status BUSY). When there is already a job executing the job is added to the queue with the status 'NOT_STARTED'.
+
+If this service is stopped while jobs are still executing that's an error. On startup the service will find all jobs with BUSY status and change the status to ERROR because they have been interrupted. On startup the service will add all jobs with the status 'NOT_STARTED' to the queue automatically so the jobs that have been queued start executing again immediately.
+
+### Making your own job function
+
+Make a module and export an async function of the type `JobFunction` like this (the dummy job serves as an example).
+
+For now jobs may have arguments but there is not yet a way to define them. This may be added in the future. For now job functions are not expected to take arguments and therefore should work without them.
+
+Lets look at the dummy function:
+
+```typescript
+// in module job/dummy.ts
+export const dummyFunction: JobFunction = async (
+  progress,
+  numOperations: number | undefined,
+  operationDurationSeconds: number | undefined
+) => {
+  const defaultedNumOperations = numOperations ?? 60;
+  const defaultedOperationDurationSeconds = operationDurationSeconds ?? 1;
+  progress.update(
+    `Dummy function invoked with ${defaultedNumOperations} operations. Each operation will take ${defaultedOperationDurationSeconds} seconds. Original arguments were ${numOperations} and ${operationDurationSeconds}.`
+  );
+
+  for (let i = 0; i < defaultedNumOperations; i++) {
+    await delay(defaultedOperationDurationSeconds * 1_000);
+    progress.progress(
+      i + 1,
+      defaultedNumOperations,
+      defaultedOperationDurationSeconds * 1_000
+    );
+  }
+  progress.update(
+    `Dummy function finished. Approximate duration was ${
+      defaultedNumOperations * defaultedOperationDurationSeconds
+    } seconds.`
+  );
+};
+```
+
+Implement your job function with progress as the first parameter. This object serves as a logging interface. The progress object supports the `update` and `progress` methods amongst others. The queue will call `start` and `error` for you.
+
+`progress.update` just logs a message and sends it to listeners.
+`progress.progress` sends a progress update to the listeners. This is used to update a progress bar.
+
+You can see that apart from `progress` the dummy function takes to optional parameters. For now any JobFunction must have optional parameters only (for now).
+
+When your new job function is ready you'll need to update two things:
+
+1. In `job/job-functions-map.ts`:
+
+```typescript
+import { myFunction } from "./my-function.js";
+
+export const JOB_FUNCTIONS: Record<DataMonitoringFunction, JobFunction> = {
+  [DataMonitoringFunction.COUNT_RESOURCES]: generateReportsDaily,
+  [DataMonitoringFunction.CHECK_HARVESTING_EXECUTION_TIME]:
+    getHarvestingTimestampDaily,
+  [DataMonitoringFunction.DUMMY]: dummyFunction,
+  [DataMonitoringFunction.MY_FUNCTION]: myFunction,
+} as const;
+```
+
+2. In `types.ts`
+
+```typescript
+export enum DataMonitoringFunction {
+  COUNT_RESOURCES = `http://lblod.data.gift/vocabularies/datamonitoring/dm-function/count-resources`,
+  CHECK_HARVESTING_EXECUTION_TIME = `http://lblod.data.gift/vocabularies/datamonitoring/dm-function/check-harvesting-execution-time`,
+  DUMMY = `http://lblod.data.gift/vocabularies/datamonitoring/dm-function/dummy`,
+  MY_FUNCTION = `http://lblod.data.gift/vocabularies/datamonitoring/dm-function/my-function`,
+}
+```
+
+Then you can make a new job template referring to your new function. Possibly by using the `/create-periodic-job-template` debug endpoint or by editing the database manually.
+
+It makes sense that you update the progress every time you perform a SPARQL query. Like this:
+
+```typescript
+const result = await duration(query.execute.bind(query))(input);
+progress.progress(++queries, totalQueryCount, result.durationMilliseconds);
+progress.update(
+  `Performed query in ${result.durationMilliseconds} ms`
+);
+```
+
+Imagine your function must execute 200 queries. It's helpful to call progress after each query including the amount of milliseconds it took the execute the query to inform the developer that the job is progressing. When you pass the milliseconds parameter the progress page will show this value in a graph.
+
+This system may be expanded in the future.
+
+
+### Monitoring job progress
+
+Any job's progress can be monitored using the endpoint `/progress/:uuid` with uuid being the uuid of the job. You'll see a progress bar on the page and logs. When not behind a dispatcher proxy you'll see live updates.
+
+Of course; only when debug endpoints are enabled.
+

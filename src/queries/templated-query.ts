@@ -487,6 +487,10 @@ export class TemplatedSelect<
       }, {});
       first = false;
     }
+    if (!result)
+      throw new Error(
+        `Result method is only for sparql queries that return only a single row. Received empty result set.`
+      );
     return result as unknown as U;
   }
 }
