@@ -1,4 +1,5 @@
 {
+  "$schema": "https://raw.githubusercontent.com/lblod/dm-count-report-generation-service/master/config-schema.json",
   "endpoints": [
     {
       "url": "http://dennisve-dev-2.s.redhost.be:8890/sparql",

@@ -107,7 +107,7 @@ export type RetryResult<R> = {
 };
 
 let defaultMaxRetries = config.env.QUERY_MAX_RETRIES;
-let defaultWaitMilliseconds = config.env.QUERY_WAIT_TIME_ON_FAIL;
+let defaultWaitMilliseconds = config.env.QUERY_WAIT_TIME_ON_FAIL_MS;
 
 export function setDefaultRetriesAndWaitTime(
   maxRetries: number,

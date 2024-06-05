@@ -473,8 +473,9 @@ export class TemplatedSelect<
         throw e;
       }
     })();
+    // Non type safe code below
     let first = true;
-    let result = undefined;
+    let result: any = undefined;
     for await (const binding of bindingsStream) {
       if (!first)
         throw new Error(
@@ -486,6 +487,6 @@ export class TemplatedSelect<
       }, {});
       first = false;
     }
-    return result as U;
+    return result as unknown as U;
   }
 }

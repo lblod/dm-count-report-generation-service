@@ -148,7 +148,7 @@ const dmReportGenerationServiceEnvSchema = z.object({
   NO_TIME_FILTER: envBooleanSchema.optional(),
   DUMP_FILES_LOCATION: z.string().optional(),
   QUERY_MAX_RETRIES: z.number().int().min(0).max(10).optional(),
-  QUERY_WAIT_TIME_ON_FAIL: z.number().int().min(0).max(60_000).optional(),
+  QUERY_WAIT_TIME_ON_FAIL_MS: z.number().int().min(0).max(60_000).optional(),
   ADD_DUMMY_REST_JOB_TEMPLATE: envBooleanSchema.optional(),
   URI_PREFIX_RESOURCES: z
     .string()
@@ -216,7 +216,7 @@ const defaultEnv = {
   NO_TIME_FILTER: false,
   DUMP_FILES_LOCATION: "/dump",
   QUERY_MAX_RETRIES: 3,
-  QUERY_WAIT_TIME_ON_FAIL: 1000,
+  QUERY_WAIT_TIME_ON_FAIL_MS: 1000,
   ROOT_URL_PATH: "",
   URI_PREFIX_RESOURCES: "http://data.lblod.info/id/",
   URI_PREFIX_NAMESPACES: "http://lblod.data.gift/vocabularies/datamonitoring/",
