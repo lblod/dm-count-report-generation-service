@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Debug endpoints</title>
+  <style>
+    pre {
+      display: inline;
+    }
+  </style>
+</head>
+
+
+
+<body>
+  <h1>Debug endpoints</h1>
+  <p>These endpoints are only active under development.</p>
+  <ul>
+    <li>
+      <p><a href="{{rel '/configuration'}}">/configuration</a></p>
+      <p>Show current configuration as JSON.</p>
+    </li>
+    <li>
+      <p><a href="{{rel '/force-error'}}">/force-error</a></p>
+      <p>Force an error to test error catching middleware.</p>
+    </li>
+    <li>
+      <p><a href="{{rel '/job-templates'}}">/job-templates</a></p>
+      <p>Page showing all jobs knwon to the service. If a rest activated job is present a link will be shown to activate
+        it.</p>
+    </li>
+    <li>
+      <p><a href="{{rel '/create-periodic-job-template'}}">/create-periodic-job-template</a></p>
+      <p>This function requires three query parameters. It created a new periodic job template (triggered by time).</p>
+      <p>Query parameters:</p>
+      <ol>
+        <li>
+          <pre>datamonitoringFunction</pre>: Example
+          <pre>"DUMMY"</pre>
+        </li>
+        <li>
+          <pre>timeOfInvocation</pre>: Example
+          <pre>"16:00"</pre> (Assumes your local timezone)
+        </li>
+        <li>
+          <pre>invocationDays</pre>: Array of string like
+          <pre>"SATURDAY", "MONDAY", ...</pre> or
+          <pre>"ALL"</pre> for all days. If omitted ALL is assumed.
+        </li>
+      </ol>
+    </li>
+    <li>
+      <p><a href="{{rel '/delete-job-template'}}">/delete-job-template</a></p>
+      <p>Delete a job template. The only url parameter is
+      <pre>uuid</pre>. Just pass the uuid of the job template and it'll be removed.</p>
+    </li>
+    <li>
+      <p><a href="{{rel '/clean-jobs'}}">/clean-jobs</a></p>
+      <p>Removes jobs from the database with status finished or error to save some space.</p>
+      <p>In the future a date filter will be added.</p>
+    </li>
+    <li>
+      <p><a href="{{rel '/queue'}}">/queue</a></p>
+      <p>Page showing all of the jobs in the execution queue (only for serial jobs, parallel jobs not supported yet.)
+      </p>
+    </li>
+    <li>
+      <p><a href="{{rel '/dump'}}">/dump</a></p>
+      <p>Dump the data contained in the write cache as a TTL file. Optional query parameter 'filename' where you can
+        input the file name of the dump file. Do not use an extention.</p>
+    </li>
+    <li>
+      <p><a href="{{rel '/clear-store'}}">/clear-store</a></p>
+      <p>Clear the write cache where the last reports are cached</p>
+    </li>
+    <li>
+      <p><a href="{{rel '/delete-all-jobs'}}">/delete-all-jobs</a></p>
+      <p>Delete all jobs from the database and from memory.</p>
+    </li>
+
+    <li>
+      <p><a href="{{rel '/dump-files'}}">/dump-files</a></p>
+      <p>Show index of the created dump files</p>
+    </li>
+    <li>
+      <p>/dump-files/filename</p>
+      <p>Download specific dump file</p>
+    </li>
+  </ul>
+</body>
+
+</html>

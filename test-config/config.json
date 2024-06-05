@@ -1,12 +1,35 @@
 {
-  "$schema": "https://raw.githubusercontent.com/lblod/dm-count-report-generation-service/master/config-schema.json",
   "endpoints": [
     {
-      "url": "http://localhost:8890/sparql",
+      "url": "http://dennisve-dev-2.s.redhost.be:8890/sparql",
       "classes": [
         "besluit:Besluit",
         "besluit:Agendapunt"
       ]
     }
-  ]
+  ],
+  "harvester-endpoints": [
+    {
+      "url": "https://lokaalbeslist-harvester-0.s.redhost.be/sparql"
+    },
+    {
+      "url": "https://lokaalbeslist-harvester-1.s.redhost.be/sparql"
+    },
+    {
+      "url": "https://lokaalbeslist-harvester-2.s.redhost.be/sparql"
+    },
+    {
+      "url": "https://lokaalbeslist-harvester-3.s.redhost.be/sparql"
+    }
+  ],
+  "periodic-function-invocation-times": {
+    "COUNT_RESOURCES": {
+      "time": "00:00",
+      "days": "monday,tuesday,wednesday,thursday,friday,saturday,sunday"
+    },
+    "CHECK_HARVESTING_EXECUTION_TIME": {
+      "time": "00:00",
+      "days": "monday,tuesday,wednesday,thursday,friday,saturday,sunday"
+    }
+  }
 }

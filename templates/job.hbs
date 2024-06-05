@@ -9,26 +9,32 @@
 
 <body>
   <h1>{{title}}</h1>
-  <p>Task created:
+  <p>Back to <a href="{{rel '/debug'}}">Debug</a></p>
+  <p>Back to <a href="{{rel '/job-templates'}}">Job templates</a></p>
+  <p>Job created:
   <pre>{{toDateTimeString createdAt}}</pre>
   </p>
-  <p>Task modified:
+  <p>Job modified:
   <pre>{{toDateTimeString modifiedAt}}</pre>
   </p>
-  <p>Task status:
-  <pre>{{printUriEnum status}}</pre>
+  <p>Job status (updatet):
+  <pre id="status">{{printUriEnum status}}</pre>
   </p>
-  <p>Task function:
+  <p>Job function:
   <pre>{{printUriEnum function}}</pre>
   </p>
   <label for="progress">Procedure progress:</label>
-  <progress id="progress" value="0" max="100"> 32% </progress>
+  <progress id="progress" value="{{done}}" max="{{total}}"></progress>
   <div style="width: 800px;">
     <canvas id="graph"></canvas>
   </div>
   <hr>
   <div id="log">
-
+    {{#each log}}
+    <p>
+    <pre>{{this}}</pre>
+    </p>
+    {{/each}}
   </div>
 </body>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
@@ -55,7 +61,7 @@
   const logElement = document.getElementById('log');
 
   let counter = 0;
-  const eventSource = new EventSource("/progress/{{uuid}}");
+  const eventSource = new EventSource("{{rel '/event-stream'}}/{{uuid}}");
   eventSource.onmessage = function (event) {
     console.log('event received', event);
     const eventObject = JSON.parse(event.data);
@@ -63,12 +69,12 @@
       const { timestamp, message } = eventObject.update;
       const par = document.createElement('p');
       const pre = document.createElement('pre');
-      pre.textContent = timestamp + ": " + JSON.stringify(message);
+      pre.textContent = timestamp + ": " + message;
       par.appendChild(pre);
       logElement.appendChild(par);
       return;
-    }
-    if ('progress' in eventObject) {
+
+    } else if ('progress' in eventObject) {
       const { done, total, lastDurationMilliseconds, subProcessIdentifier } = eventObject.progress;
       const progressElement = document.getElementById('progress');
       progressElement.setAttribute('value', done);
@@ -78,16 +84,21 @@
       performanceChart.data.datasets[0].data.push(lastDurationMilliseconds);
       performanceChart.update('none');
       return;
-    }
-    if ('status' in eventObject) {
+
+    } else if ('status' in eventObject) {
       const par = document.createElement('p');
+      par.style.color = "red";
+      par.style.fontWeight = "bold";
       const pre = document.createElement('pre');
       pre.textContent = "STATUS CHANGE:" + JSON.stringify({ done: eventObject.status.done, failed: eventObject.status.failed });
       par.appendChild(pre);
       logElement.appendChild(par);
+      const statusElement = document.getElementById("status").innerText = eventObject.status.newStatusKey;
       return;
+
+    } else {
+      console.warn(`Received weird server side event:${JSON.stringify(event)}`);
     }
-    console.warn(`Received werid server side event:${JSON.stringify(event)}`);
   }
 </script>
 

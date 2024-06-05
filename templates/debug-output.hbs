@@ -9,15 +9,21 @@
 
 <body>
   <h1>{{title}}</h1>
+  <p>Back to <a href="{{rel '/debug'}}">Debug</a></p>
+  <p>Back to <a href="{{rel '/job-templates'}}">Job templates</a></p>
   <p>Endpoint:
   <pre>{{method}}</pre>
   </p>
   <p>Query param:
   <pre>{{query}}</pre>
   </p>
-  <p>Duration: {{duration}} seconds</p>
+  <p>Duration: {{duration}} milliseconds</p>
   <hr>
+  {{#if preformatted}}
   <pre>{{result}}</pre>
+  {{else}}
+  {{{result}}}
+  {{/if}}
 </body>
 
 </html>

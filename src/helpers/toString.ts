@@ -1,7 +1,10 @@
 import dayjs from "dayjs";
-import { DateOnly, TimeOnly } from "../date-util.js";
+import { DateOnly, TimeOnly } from "../util/date-time.js";
 import Handlebars from "handlebars";
 
+/**
+ * Transforms a DateOnly object to a string. This is used in HTML templates; not in SPARQL query templates.
+ */
 Handlebars.registerHelper("toDateString", function (dateOnly: unknown) {
   if (!(dateOnly instanceof DateOnly))
     throw new Error(
@@ -10,6 +13,9 @@ Handlebars.registerHelper("toDateString", function (dateOnly: unknown) {
   return dateOnly.toString();
 });
 
+/**
+ * Transforms a DateTime object to a string. This is used in HTML templates; not in SPARQL query templates.
+ */
 Handlebars.registerHelper("toDateTimeString", function (dateTime: unknown) {
   if (!dayjs.isDayjs(dateTime))
     throw new Error(
@@ -18,6 +24,9 @@ Handlebars.registerHelper("toDateTimeString", function (dateTime: unknown) {
   return dateTime.format();
 });
 
+/**
+ * Transforms a TimeOnly object to a string. This is used in HTML templates; not in SPARQL query templates.
+ */
 Handlebars.registerHelper("toTimeString", function (timeOnly: unknown) {
   if (!(timeOnly instanceof TimeOnly))
     throw new Error(

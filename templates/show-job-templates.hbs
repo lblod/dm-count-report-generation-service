@@ -14,9 +14,10 @@
 
 <body>
   <h1>{{title}}</h1>
-  <p>Current jobs:</p>
+  <p>Current Job templates:</p>
+  <p><a href="{{rel '/queue'}}">Queue</a></p>
   <ul>
-    {{#each jobs}}
+    {{#each jobTemplates}}
     <li>
       <h3>URI: &lt;{{this.uri}}&gt;</h3>
       <ul>
@@ -27,18 +28,21 @@
           <pre>{{printUriEnum this.status}} </pre>
         </li>
         <li>jobType:
-          <pre>{{printUriEnum this.jobType}}</pre>
+          <pre>{{printUriEnum this.jobTemplateType}}</pre>
         </li>
         <li>function:
           <pre>{{printUriEnum this.datamonitoringFunction}}</pre>
         </li>
-        {{#if (eq this.jobType @root.periodicValue)}}
+        {{#if (eq this.jobTemplateType @root.periodicValue)}}
         <li>Invocation time:
           <pre>{{this.information.timeOfInvocationInformation}}</pre>
         </li>
         {{/if}}
-        {{#if (eq this.jobType @root.restValue)}}
-        <li>REST path: <a href="/start/{{this.information.restPath}}">/start/{{this.information.restPath}}</a></li>
+        {{#if (eq this.jobTemplateType @root.restValue)}}
+        <li>REST path (click to start a new REST job based on the template):
+          <pre><a
+            href="{{rel '/start'}}/{{this.information.urlPath}}">/start/{{this.information.urlPath}}</a></pre>
+        </li>
         {{/if}}
       </ul>
     </li>

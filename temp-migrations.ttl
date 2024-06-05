@@ -39,6 +39,7 @@
 <https://codifly.be/ns/resources/job-creator/dm-count-report-generation-service> a skos:Concept;
   skos:prefLabel "dm-count-generation-service job creator".
 
+# Statuses
 <https://codifly.be/ns/resources/status/busy> a skos:Concept;
   skos:prefLabel "Busy".
 
@@ -62,6 +63,8 @@
 
 <https://codifly.be/ns/resources/job-type/rest-invoked> a skos:Concept;
   skos:prefLabel "Job that encapsulates tasks invoked on request".
+
+
 
 
 

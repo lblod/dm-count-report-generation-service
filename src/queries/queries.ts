@@ -1,17 +1,8 @@
 import Handlebars from "handlebars";
-import dayjs from "dayjs";
 import "./../helpers/index.js"; // Making sure the modules in the helpers folder are loaded before these templates are compiled
-import { DateOnly, TimeOnly } from "date-util.js";
-import {
-  DataMonitoringFunction,
-  DayOfWeek,
-  JobStatus,
-  JobType,
-  TaskStatus,
-  TaskType,
-} from "types.js";
+import { DateOnly, DateTime } from "../util/date-time.js";
 
-export type TestQueryInput = {};
+export type TestQueryInput = Record<string, never>;
 export type TestQueryOutput = {
   result: number;
 };
@@ -26,23 +17,30 @@ SELECT (1+1 as ?result) WHERE {}
 export type GetOrganisationsInput = {
   prefixes: string;
   limit: number;
+  graphUri: string;
 };
 
 export type GetOrganisationsOutput = {
   organisationUri: string;
-  label: string;
-  id: string;
+  label: string | string[]; // Some org seem to have 2 labels's...
+  id: string | string[]; // Some org seem to have 2 ID's...
 };
 
 export const getOrganisationsTemplate = Handlebars.compile(
   `\
 {{prefixes}}
 SELECT ?organisationUri ?label ?id WHERE {
-  ?organisationUri a besluit:Bestuurseenheid;
-    mu:uuid ?id;
-    skos:prefLabel ?label;
-    org:classification <http://data.vlaanderen.be/id/concept/BestuurseenheidClassificatieCode/5ab0e9b8a3b2ca7c5e000001>.
-} {{limitClause limit}}
+  GRAPH <{{graphUri}}> {
+    {
+      SELECT ?organisationUri WHERE {
+        ?organisationUri a besluit:Bestuurseenheid;
+        org:classification <http://data.vlaanderen.be/id/concept/BestuurseenheidClassificatieCode/5ab0e9b8a3b2ca7c5e000001>.
+      } {{limitClause limit}}
+    }
+    ?organisationUri mu:uuid ?id;
+      skos:prefLabel ?label.
+  }
+}
 `,
   { noEscape: true }
 );
@@ -71,20 +69,26 @@ SELECT * WHERE {
 export type GetGoveringBodiesInput = {
   prefixes: string;
   adminitrativeUnitUri: string;
+  graphUri: string;
 };
 
 export type GetGoveringBodiesOutput = {
   goveringBodyUri: string;
-  label: string;
+  classLabel: string;
 };
 
 export const getGoverningBodiesOfAdminUnitTemplate = Handlebars.compile(
   `\
 {{prefixes}}
-SELECT ?goveringBodyUri ?label WHERE {
-  ?goveringBodyUri a besluit:Bestuursorgaan;
-    besluit:bestuurt <{{adminitrativeUnitUri}}>;
-    skos:prefLabel ?label.
+SELECT ?goveringBodyUri ?classLabel WHERE {
+  GRAPH <{{graphUri}}> {
+    ?goveringBodyUri a besluit:Bestuursorgaan;
+      besluit:bestuurt <{{adminitrativeUnitUri}}>;
+      org:classification [
+        a skos:Concept;
+        skos:prefLabel ?classLabel;
+      ].
+  }
 }
 `,
   { noEscape: true }
@@ -93,8 +97,8 @@ SELECT ?goveringBodyUri ?label WHERE {
 export type CountSessionsQueryInput = {
   prefixes: string;
   governingBodyUri: string;
-  from: dayjs.Dayjs;
-  to: dayjs.Dayjs;
+  from: DateTime;
+  to: DateTime;
   noFilterForDebug: boolean;
 };
 
@@ -130,8 +134,8 @@ SELECT (COUNT(DISTINCT ?session) as ?count) WHERE {
 export type CountAgendaItemsQueryInput = {
   prefixes: string;
   governingBodyUri: string;
-  from: dayjs.Dayjs;
-  to: dayjs.Dayjs;
+  from: DateTime;
+  to: DateTime;
   noFilterForDebug: boolean;
 };
 
@@ -177,8 +181,8 @@ SELECT (COUNT(DISTINCT ?agendaItem) as ?count) WHERE {
 export type CountResolutionsQueryInput = {
   prefixes: string;
   governingBodyUri: string;
-  from: dayjs.Dayjs;
-  to: dayjs.Dayjs;
+  from: DateTime;
+  to: DateTime;
   noFilterForDebug: boolean;
 };
 
@@ -225,8 +229,8 @@ SELECT (COUNT(DISTINCT ?resolution) as ?count) WHERE {
 export type CountVoteQueryInput = {
   prefixes: string;
   governingBodyUri: string;
-  from: dayjs.Dayjs;
-  to: dayjs.Dayjs;
+  from: DateTime;
+  to: DateTime;
   noFilterForDebug: boolean;
 };
 
@@ -271,14 +275,18 @@ export type WriteReportInput = {
   prefixes: string;
   reportGraphUri: string;
   reportUri: string;
-  createdAt: dayjs.Dayjs;
+  createdAt: DateTime;
   day: DateOnly;
   govBodyUri: string;
   adminUnitUri: string;
   prefLabel: string;
+  uuid: string;
   counts: {
+    countUri: string;
     classUri: string;
     count: number;
+    prefLabel: string;
+    uuid: string;
   }[];
 };
 
@@ -289,18 +297,22 @@ INSERT {
   GRAPH <{{reportGraphUri}}> {
     <{{reportUri}}> a datamonitoring:GoverningBodyCountReport;
       datamonitoring:createdAt {{toDateTimeLiteral createdAt}};
-      datamonitoring:day: {{toDateLiteral day}};
-      datamonitoring:targetAdminitrativeUnit <{{adminUnitUri}}>;
+      datamonitoring:day {{toDateLiteral day}};
+      datamonitoring:targetAdministrativeUnit <{{adminUnitUri}}>;
       datamonitoring:targetGoverningBody <{{govBodyUri}}>;
-      skos:prefLabel "{{prefLabel}}";
+      skos:prefLabel "{{escape prefLabel}}";
+      mu:uuid "{{uuid}}";
       datamonitoring:istest "true"^^xsd:boolean;
-      datamonitoring:counts
-      {{#each counts}}
-        [
-          datamonitoring:targetClass <{{this.classUri}}>;
-          datamonitoring:count {{this.count}}
-        ]{{#unless @last}},{{/unless}}
-     {{/each}}
+      datamonitoring:publicationCountReports
+        {{#each counts}}<{{this.countUri}}>{{#unless @last}},{{/unless}}{{/each}}.
+
+    {{#each counts}}
+    <{{this.countUri}}> a datamonitoring:PublicationCountReport;
+      mu:uuid "{{this.uuid}}";
+      datamonitoring:targetClass <{{this.classUri}}>;
+      skos:prefLabel "{{escape this.prefLabel}}";
+      datamonitoring:count "{{this.count}}"^^xsd:integer.
+    {{/each}}
   }
 } WHERE {
 
@@ -314,9 +326,10 @@ export type WriteAdminUnitReportInput = {
   prefLabel: string;
   reportGraphUri: string;
   reportUri: string;
-  createdAt: dayjs.Dayjs;
+  createdAt: DateTime;
   adminUnitUri: string;
   day: DateOnly;
+  uuid: string;
   reportUris: string[];
 };
 
@@ -326,14 +339,15 @@ export const writeAdminUnitCountReportTemplate = Handlebars.compile(
 INSERT {
   GRAPH <{{reportGraphUri}}> {
     <{{reportUri}}> a datamonitoring:AdminUnitCountReport;
-      skos:prefLabel "{{prefLabel}}";
-      datamonitoring:targetAdminitrativeUnit <{{adminUnitUri}}>;
+      skos:prefLabel "{{escape prefLabel}}";
+      datamonitoring:targetAdministrativeUnit <{{adminUnitUri}}>;
       datamonitoring:createdAt {{toDateTimeLiteral createdAt}};
-      datamonitoring:day: {{toDateLiteral day}};
+      datamonitoring:day {{toDateLiteral day}};
+      mu:uuid "{{uuid}}";
       datamonitoring:istest "true"^^xsd:boolean
       {{#if (listPopulated reportUris)}}
       ;
-      datamonitoring:goveringBodyReports
+      datamonitoring:governingBodyReports
       {{#each reportUris}}
         <{{this}}>
         {{#unless @last}},{{/unless}}
@@ -344,348 +358,6 @@ INSERT {
       {{/if}}
   }
 } WHERE { }
-`,
-  { noEscape: true }
-);
-
-export type WriteNewTaskInput = {
-  prefixes: string;
-  jobGraphUri: string;
-  taskUri: string;
-  uuid: string;
-  status: TaskStatus;
-  createdAt: dayjs.Dayjs;
-  index: number;
-  description: string;
-  taskType: TaskType;
-  datamonitoringFunction: DataMonitoringFunction;
-  jobUri: string;
-};
-
-export const insertTaskTemplate = Handlebars.compile(
-  `\
-{{prefixes}}
-INSERT {
-  GRAPH <{{jobGraphUri}}> {
-    <{{taskUri}}> a task:Task, datamonitoring:DatamonitoringTask;
-      mu:uuid "{{uuid}}";
-      dct:creator <https://codifly.be/ns/resources/task-creator/dm-count-report-generation-service>;
-      adms:status {{toTaskStatusLiteral status}};
-      dct:created {{toDateTimeLiteral createdAt}};
-      dct:modified {{toDateTimeLiteral createdAt}};
-      task:operation {{toDatamonitoringFunctionLiteral datamonitoringFunction}};
-      task:index {{index}};
-      dct:isPartOf <{{jobUri}}>;
-      datamonitoring:function {{toDatamonitoringFunctionLiteral datamonitoringFunction}};
-      datamonitoring:description "{{description}}";
-      datamonitoring:taskType {{toTaskTypeLiteral taskType}}.
-  }
-} WHERE {
-
-}
-`,
-  { noEscape: true }
-);
-
-export type GetTasksInput = {
-  prefixes: string;
-  jobGraphUri: string;
-  taskStatuses: TaskStatus[];
-};
-
-export type GetTasksOutput = {
-  taskUri: string;
-  uuid: string;
-  status: TaskStatus;
-  datamonitoringFunction: DataMonitoringFunction;
-  taskType: TaskType;
-  jobUri: string;
-};
-
-export const getTasksTemplate = Handlebars.compile(
-  `\
-{{prefixes}}
-SELECT * WHERE {
-  GRAPH <{{jobGraphUri}}> {
-    ?taskUri a task:Task, datamonitoring:DatamonitoringTask;
-      mu:uuid ?uuid;
-      datamonitoring:function ?datamonitoringFunction;
-      datamonitoring:taskType ?taskType;
-      dct:isPartOf: ?jobUri.
-    {{#each taskStatuses}}
-    {
-      ?taskUri adms:status {{toTaskStatusLiteral this}}.
-    }
-    {{#unless @last}}UNION{{/unless}}
-    {{/each}}
-  }
-}
-`,
-  { noEscape: true }
-);
-
-export type DeleteBusyTasksInput = {
-  prefixes: string;
-  jobGraphUri: string;
-};
-
-export const deleteBusyTasksTemplate = Handlebars.compile(
-  `\
-{{prefixes}}
-DELETE {
-  GRAPH <{{jobGraphUri}}> {
-    ?taskUri ?p ?o.
-  }
-}
-WHERE {
-  GRAPH <{{jobGraphUri}}> {
-    ?taskUri a task:Task;
-      adms:status <https://codifly.be/ns/resources/status/busy>;
-      ?p ?o.
-  }
-}
-`,
-  { noEscape: true }
-);
-
-export type UpdateTaskStatusInput = {
-  prefixes: string;
-  jobGraphUri: string;
-  taskUri: string;
-  status: TaskStatus;
-  modifiedAt: dayjs.Dayjs;
-};
-
-export const updateTaskStatusTemplate = Handlebars.compile(
-  `\
-{{prefixes}}
-DELETE {
-  GRAPH <{{jobGraphUri}}> {
-    <{{taskUri}}
-      adms:status ?status;
-      dct:modified ?modified.
-  }
-} INSERT {
-  GRAPH <{{jobGraphUri}}> {
-    <{{taskUri}}>
-      adms:status {{toTaskStatusLiteral status}};
-      dct:modified {{toDateTimeLiteral modifiedAt}}.
-  }
-} WHERE {
-  GRAPH <{{jobGraphUri}}> {
-    <{{taskUri}}> a task:Task,datamonitoring:DatamonitoringTask;
-      adms:status ?status;
-      dct:modified ?modified.
-  }
-}
-`,
-  { noEscape: true }
-);
-
-export type UpdateJobStatusInput = {
-  prefixes: string;
-  jobGraphUri: string;
-  jobUri: string;
-  status: JobStatus;
-  modifiedAt: dayjs.Dayjs;
-};
-
-export const updateJobStatusTemplate = Handlebars.compile(
-  `\
-{{prefixes}}
-DELETE {
-  GRAPH <{{jobGraphUri}}> {
-    <{{jobUri}}>
-      adms:status ?status;
-      dct:modified ?modified.
-  }
-} INSERT {
-  GRAPH <{{jobGraphUri}}> {
-    <{{jobUri}}>
-      adms:status {{toJobStatusLiteral status}};
-      dct:modified {{toDateTimeLiteral modifiedAt}}.
-  }
-} WHERE {
-  GRAPH <{{jobGraphUri}}> {
-    <{{jobUri}}> a cogs:Job,datamonitoring:DatamonitoringJob;
-      adms:status ?status;
-      dct:modified ?modified.
-  }
-}
-`,
-  { noEscape: true }
-);
-
-export type GetJobsInput = {
-  prefixes: string;
-  jobGraphUri: string;
-};
-
-export type GetJobsOutput = {
-  jobUri: string;
-  uuid: string;
-  status: JobStatus;
-  createdAt: dayjs.Dayjs;
-  modifiedAt: dayjs.Dayjs;
-  description: TaskStatus;
-  jobType: JobType;
-  datamonitoringFunction: DataMonitoringFunction;
-};
-
-export type GetPeriodicJobsOutput = GetJobsOutput & {
-  timeOfInvocation: TimeOnly;
-  daysOfInvocation: DayOfWeek[];
-};
-
-export type GetRestJobsOutput = GetJobsOutput & {
-  restPath: string;
-};
-
-export const getPeriodicJobsTemplate = Handlebars.compile(
-  `\
-{{prefixes}}
-SELECT * WHERE {
-  GRAPH <{{jobGraphUri}}> {
-    ?jobUri a cogs:Job, datamonitoring:DatamonitoringJob;
-      mu:uuid ?uuid;
-      adms:status ?status;
-      dct:created ?createdAt;
-      dct:modified ?modifiedAt;
-      datamonitoring:description ?description;
-      datamonitoring:jobType ?jobType;
-      datamonitoring:jobParameters [
-        datamonitoring:function ?datamonitoringFunction;
-        datamonitoring:timeOfInvocation ?timeOfInvocation;
-        datamonitoring:daysOfInvocation ?daysOfInvocation;
-      ].
-  }
-}
-`,
-  { noEscape: true }
-);
-
-export const getRestJobsTemplate = Handlebars.compile(
-  `\
-{{prefixes}}
-SELECT * WHERE {
-  GRAPH <{{jobGraphUri}}> {
-    ?jobUri a cogs:Job, datamonitoring:DatamonitoringJob;
-      mu:uuid ?uuid;
-      adms:status ?status;
-      dct:created ?createdAt;
-      dct:modified ?modifiedAt;
-      datamonitoring:description ?description;
-      datamonitoring:jobType ?jobType;
-      datamonitoring:jobParameters [
-        datamonitoring:function ?datamonitoringFunction;
-        datamonitoring:restPath ?restPath;
-      ].
-
-  }
-}
-`,
-  { noEscape: true }
-);
-
-export type WriteNewPeriodicJobInput = {
-  prefixes: string;
-  jobGraphUri: string;
-  uuid: string;
-  newJobUri: string;
-  status: JobStatus;
-  createdAt: dayjs.Dayjs;
-  description: string;
-  jobType: JobType.PERIODIC;
-  timeOfInvocation: TimeOnly;
-  daysOfInvocation: DayOfWeek[];
-  datamonitoringFunction: DataMonitoringFunction;
-};
-
-export const insertPeriodicJobTemplate = Handlebars.compile(
-  `\
-{{prefixes}}
-INSERT {
-  GRAPH <{{jobGraphUri}}> {
-    <{{newJobUri}}> a cogs:Job, datamonitoring:DatamonitoringJob;
-      mu:uuid "{{uuid}}";
-      dct:creator <https://codifly.be/ns/resources/job-creator/dm-count-report-generation-service>;
-      adms:status {{toJobStatusLiteral status}};
-      dct:created {{toDateTimeLiteral createdAt}};
-      dct:modified {{toDateTimeLiteral createdAt}};
-      datamonitoring:description "{{description}}";
-      datamonitoring:jobType {{toJobTypeLiteral jobType}};
-      datamonitoring:jobParameters [
-        datamonitoring:timeOfInvocation {{toTimeLiteral timeOfInvocation}};
-        datamonitoring:function {{toDatamonitoringFunctionLiteral datamonitoringFunction}};
-        datamonitoring:daysOfInvocation {{#each daysOfInvocation}}{{toDayOfWeekLiteral this}}{{#unless @last}},{{/unless}}{{/each}};
-      ].
-  }
-} WHERE {
-
-}
-`,
-  { noEscape: true }
-);
-
-export type WriteNewRestJobInput = {
-  prefixes: string;
-  jobGraphUri: string;
-  uuid: string;
-  newJobUri: string;
-  status: JobStatus;
-  createdAt: dayjs.Dayjs;
-  description: string;
-  jobType: JobType.REST_INVOKED;
-  restPath: string;
-  datamonitoringFunction: DataMonitoringFunction;
-};
-
-export const insertRestJobTemplate = Handlebars.compile(
-  `\
-{{prefixes}}
-INSERT {
-  GRAPH <{{jobGraphUri}}> {
-    <{{newJobUri}}> a cogs:Job, datamonitoring:DatamonitoringJob;
-      mu:uuid "{{uuid}}";
-      dct:creator <https://codifly.be/ns/resources/job-creator/dm-count-report-generation-service>;
-      adms:status {{toJobStatusLiteral status}};
-      dct:created {{toDateTimeLiteral createdAt}};
-      dct:modified {{toDateTimeLiteral createdAt}};
-      datamonitoring:description "{{description}}";
-      datamonitoring:jobType {{toJobTypeLiteral jobType}};
-      datamonitoring:jobParameters [
-        datamonitoring:function {{toDatamonitoringFunctionLiteral datamonitoringFunction}};
-        datamonitoring:restPath "{{restPath}}";
-      ].
-  }
-} WHERE {
-
-}
-`,
-  { noEscape: true }
-);
-
-export type DeleteAllJobsInput = {
-  prefixes: string;
-  jobGraphUri: string;
-};
-
-export const deleteAllJobsTemplate = Handlebars.compile(
-  `\
-{{prefixes}}
-DELETE {
-  GRAPH <{{jobGraphUri}}> {
-    ?blind ?pb ?ob.
-    ?job ?p ?o.
-  }
-} WHERE {
-  GRAPH <{{jobGraphUri}}> {
-    ?job a cogs:Job, datamonitoring:DatamonitoringJob;
-      datamonitoring:jobParameters ?blind.
-    ?blind ?pb ?ob.
-    ?job ?p ?o.
-  }
-}
 `,
   { noEscape: true }
 );

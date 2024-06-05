@@ -13,74 +13,88 @@ export type JsonSerializable =
   | { [key: string]: JsonSerializable }
   | undefined;
 
-export enum TaskStatus {
-  BUSY = "https://codifly.be/ns/resources/status/busy",
-  NOT_STARTED = "https://codifly.be/ns/resources/status/not-started",
-  FINISHED = "https://codifly.be/ns/resources/status/finished",
-  ERROR = "https://codifly.be/ns/resources/status/failed",
-}
+//TODO Make uri prefixes reliant on the configuration
 
 export enum JobStatus {
-  ACTIVE = "https://codifly.be/ns/resources/status/active",
-  NOT_STARTED = "https://codifly.be/ns/resources/status/not-started",
-  FINISHED = "https://codifly.be/ns/resources/status/finished",
-  INACTIVE = "https://codifly.be/ns/resources/status/inactive",
+  BUSY = `https://codifly.be/ns/resources/status/busy`,
+  NOT_STARTED = `https://codifly.be/ns/resources/status/not-started`,
+  FINISHED = `https://codifly.be/ns/resources/status/finished`,
+  ERROR = `https://codifly.be/ns/resources/status/failed`,
 }
 
-export enum TaskType {
-  SERIAL = "https://codifly.be/ns/resources/task-type/serial",
-  PARALLEL = "https://codifly.be/ns/resources/task-type/parallel",
+export enum JobTemplateStatus {
+  ACTIVE = `https://codifly.be/ns/resources/status/active`,
+  NOT_STARTED = `https://codifly.be/ns/resources/status/not-started`,
+  FINISHED = `https://codifly.be/ns/resources/status/finished`,
+  INACTIVE = `https://codifly.be/ns/resources/status/inactive`,
 }
 
 export enum JobType {
-  PERIODIC = "https://codifly.be/ns/resources/job-type/periodic",
-  REST_INVOKED = "https://codifly.be/ns/resources/job-type/rest-invoked",
+  SERIAL = `https://codifly.be/ns/resources/task-type/serial`,
+  PARALLEL = `https://codifly.be/ns/resources/task-type/parallel`,
+}
+
+export enum JobTemplateType {
+  PERIODIC = `https://codifly.be/ns/resources/job-type/periodic`,
+  REST_INVOKED = `https://codifly.be/ns/resources/job-type/rest-invoked`,
 }
 
 export enum DayOfWeek {
-  MONDAY = "http://www.w3.org/2006/time#Monday",
-  TUESDAY = "http://www.w3.org/2006/time#Tuesday",
-  WEDNESDAY = "http://www.w3.org/2006/time#Wednesday",
-  THURSDAY = "http://www.w3.org/2006/time#Thursday",
-  FRIDAY = "http://www.w3.org/2006/time#Friday",
-  SATURDAY = "http://www.w3.org/2006/time#Saturday",
-  SUNDAY = "http://www.w3.org/2006/time#Sunday",
+  MONDAY = `http://www.w3.org/2006/time#Monday`,
+  TUESDAY = `http://www.w3.org/2006/time#Tuesday`,
+  WEDNESDAY = `http://www.w3.org/2006/time#Wednesday`,
+  THURSDAY = `http://www.w3.org/2006/time#Thursday`,
+  FRIDAY = `http://www.w3.org/2006/time#Friday`,
+  SATURDAY = `http://www.w3.org/2006/time#Saturday`,
+  SUNDAY = `http://www.w3.org/2006/time#Sunday`,
 }
 
+/**
+ * Transforms string like "SATURDAY" into a DayOfWeek enum value if possible. If the string is not a name of a day then it will return undefined
+ * @param input a string
+ * @returns DayOfWeek or undefined
+ */
 export function stringToDayOfWeek(input: string): DayOfWeek | undefined {
   if (!Object.keys(DayOfWeek).includes(input.toUpperCase())) return undefined;
   return (DayOfWeek as Record<string, DayOfWeek>)[input.toUpperCase()];
 }
 
 export enum DataMonitoringFunction {
-  GENERATE_REPORTS = "https://codifly.be/ns/resources/dm-function/generate-reports",
+  COUNT_RESOURCES = `https://codifly.be/ns/resources/dm-function/count-resources`,
+  CHECK_HARVESTING_EXECUTION_TIME = `https://codifly.be/ns/resources/dm-function/check-harvesting-execution-time`,
+  DUMMY = `https://codifly.be/ns/resources/dm-function/dummy`,
 }
 
 export type DmEnum =
-  | TaskType
-  | TaskStatus
+  | JobType
   | JobStatus
+  | JobTemplateStatus
   | DayOfWeek
   | DataMonitoringFunction;
 
 export const dmEnums = [
-  TaskStatus,
-  TaskType,
-  JobType,
   JobStatus,
+  JobType,
+  JobTemplateType,
+  JobTemplateStatus,
   DayOfWeek,
   DataMonitoringFunction,
-];
+] as const;
 
 const allUris = {
-  ...TaskStatus,
-  ...TaskType,
-  ...JobType,
   ...JobStatus,
+  ...JobType,
+  ...JobTemplateType,
+  ...JobTemplateStatus,
   ...DayOfWeek,
   ...DataMonitoringFunction,
 } as const;
 
+/**
+ * Transform a string with a unique URI to one of the enum object. All linked data related enums in this project have unique values.
+ * @param uri A uri
+ * @returns A DmEnum which is a union of all URI based enums.
+ */
 export function getEnumFromUri(uri: string): DmEnum {
   for (const enumLike of dmEnums) {
     for (const value of Object.values(enumLike)) {
@@ -96,10 +110,11 @@ type GetEnumStringFromUriType = (
 ) => true extends typeof safe ? string | undefined : string;
 // TODO fix
 /**
- *
+ * Given a uri find the enum key. E.g. 'https://codifly.be/ns/resources/task-type/parallel' will output 'PARALLEL'.
+ * Useful for debugging, logging and display purposes because the keys are easier to read than the URI's.
  * @param uri The uri string you want to check
- * @param safe true means it will not throw and return undefined if the uri does not correspond to an enum value
- * @returns The enum key.
+ * @param safe true means it will not throw and return undefined if the uri does not correspond to an enum value. False means it will throw. False is the safest.
+ * @returns The enum key as a string.
  */
 export const getEnumStringFromUri: GetEnumStringFromUriType = (
   uri: string,
@@ -128,7 +143,7 @@ export type LogLevel = (typeof LOG_LEVELS)[number];
 
 export type UpdateMessage = {
   timestamp: string;
-  message: JsonSerializable;
+  message: string;
 };
 
 export type ProgressMessage = {
@@ -143,13 +158,16 @@ export type StatusMessage =
       done: true;
       failed: false;
       result: object | number | string | boolean;
+      newStatusKey: string;
     }
   | {
       done: true;
       failed: true;
       error: object | number | string | boolean | Error;
+      newStatusKey: string;
     }
   | {
       done: false;
       failed: false;
+      newStatusKey: string;
     };

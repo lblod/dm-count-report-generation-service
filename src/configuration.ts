@@ -1,13 +1,14 @@
 import { z } from "zod";
 import fs from "node:fs";
-import {
-  ALL_DAYS_OF_WEEK,
-  PREFIXES,
-  RESOURCE_CLASS_SHORT_URI_REGEX,
-} from "./local-constants.js"; // Not named 'constants' because of name conflict with node. Same of the nam of this module.
 import { fromError } from "zod-validation-error";
-import { DayOfWeek, LOG_LEVELS, stringToDayOfWeek } from "types.js";
-import { TimeOnly, TIME_ANY_NOTATION_REGEX } from "date-util.js";
+import { PREFIXES, RESOURCE_CLASS_SHORT_URI_REGEX } from "./local-constants.js"; // Not named 'constants' because of name conflict with node. Same of the nam of this module.
+import {
+  DataMonitoringFunction,
+  DayOfWeek,
+  LOG_LEVELS,
+  stringToDayOfWeek,
+} from "./types.js";
+import { TimeOnly, TIME_ANY_NOTATION_REGEX } from "./util/date-time.js";
 
 // Extract namespaces and build a conversion function to convert short URI's to full ones
 
@@ -65,15 +66,15 @@ const envIntegerSchema = z
     return integer;
   })
   .pipe(z.number().int());
-const uriSchema = z
+export const uriSchema = z
   .string()
   .url()
   .or(z.string().regex(RESOURCE_CLASS_SHORT_URI_REGEX));
-const invocationTimeSchema = z
+export const invocationTimeSchema = z
   .string()
   .regex(TIME_ANY_NOTATION_REGEX)
   .transform((x) => new TimeOnly(x));
-const invocationDaysSchema = z
+export const invocationDaysSchema = z
   .string()
   .transform((x, ctx) => {
     const result = x.split(",").map((str) => stringToDayOfWeek(str));
@@ -89,12 +90,43 @@ const invocationDaysSchema = z
     return [...new Set(result)]; // Remove duplicate days if present
   })
   .pipe(z.array(z.nativeEnum(DayOfWeek)));
+export const datamonitoringFunctionSchema = z
+  .string()
+  .transform((x, ctx) => {
+    if (!Object.keys(DataMonitoringFunction).includes(x)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `This needs to represent a data monitoring function enum value. Got ${x}. Needs to be one of: ${Object.keys(
+          DataMonitoringFunction
+        ).join(",")}`,
+      });
+      return z.never();
+    }
+    return (DataMonitoringFunction as Record<string, string>)[
+      x
+    ] as DataMonitoringFunction;
+  })
+  .pipe(z.nativeEnum(DataMonitoringFunction));
 
 const dmReportGenerationServiceConfigFileSchema = z.object({
   endpoints: z.array(
     z.object({
       url: z.string().url(),
       classes: z.array(uriSchema),
+    })
+  ),
+  "harvester-endpoints": z
+    .array(
+      z.object({
+        url: z.string().url(),
+      })
+    )
+    .min(1),
+  "periodic-function-invocation-times": z.record(
+    datamonitoringFunctionSchema,
+    z.object({
+      time: invocationTimeSchema,
+      days: invocationDaysSchema,
     })
   ),
 });
@@ -105,20 +137,37 @@ const dmReportGenerationServiceEnvSchema = z.object({
   DISABLE_DEBUG_ENDPOINT: envBooleanSchema.optional(),
   REPORT_GRAPH_URI: z.string().optional(),
   JOB_GRAPH_URI: z.string().optional(),
+  ADMIN_UNIT_GRAPH_URI: z.string().optional(),
   CONFIG_FILE_LOCATION: z.string().optional(),
   SLEEP_BETWEEN_QUERIES_MS: envIntegerSchema.optional(),
   SHOW_SPARQL_QUERIES: envBooleanSchema.optional(),
   LIMIT_NUMBER_ADMIN_UNITS: envIntegerSchema.optional(),
   ORG_RESOURCES_TTL_S: envIntegerSchema.optional(),
   SERVER_PORT: envIntegerSchema.optional(),
-  REPORT_INVOCATION_TIME: invocationTimeSchema.optional(),
-  REPORT_INVOCATION_DAYS: invocationDaysSchema.optional(),
   LOG_LEVEL: z.enum(LOG_LEVELS).optional(),
   NO_TIME_FILTER: envBooleanSchema.optional(),
   DUMP_FILES_LOCATION: z.string().optional(),
+  QUERY_MAX_RETRIES: z.number().int().min(0).max(10).optional(),
+  QUERY_WAIT_TIME_ON_FAIL: z.number().int().min(0).max(60_000).optional(),
+  ADD_DUMMY_REST_JOB_TEMPLATE: envBooleanSchema.optional(),
+  URI_PREFIX_RESOURCES: z
+    .string()
+    .regex(/^.+[/#]$/, {
+      message: "Make sure the string ends in a slash or a #.",
+    })
+    .optional(),
+  URI_PREFIX_NAMESPACES: z
+    .string()
+    .regex(/^.+[/#]$/, {
+      message: "Make sure the string ends in a slash or a #.",
+    })
+    .optional(),
+  ROOT_URL_PATH: z.string().regex(/^(\/[a-zA-Z0-9/-]*|)(?<!\/)$/, {
+    message:
+      "Make sure the root URL path starts with a /. Another acceptable value is empty string",
+  }),
+  SKIP_ENDPOINT_CHECK: envBooleanSchema.optional(),
 });
-
-// Useful types
 
 export type DmReportGenerationServiceConfigFile = z.infer<
   typeof dmReportGenerationServiceConfigFileSchema
@@ -134,7 +183,19 @@ export type DmReportGenerationServiceEnv = z.infer<
 >;
 
 export type DmReportGenerationServiceConfig = {
-  file: EndpointConfig[];
+  file: {
+    endpoints: EndpointConfig[];
+    harvesterEndpoints: { url: string }[];
+    periodicFunctionInvocationTimes: Partial<
+      Record<
+        DataMonitoringFunction,
+        {
+          time: TimeOnly;
+          days: DayOfWeek[];
+        }
+      >
+    >;
+  };
   env: Required<DmReportGenerationServiceEnv>;
 };
 
@@ -144,17 +205,23 @@ const defaultEnv = {
   DISABLE_DEBUG_ENDPOINT: false,
   REPORT_GRAPH_URI: "http://mu.semte.ch/graphs/public",
   JOB_GRAPH_URI: "http://mu.semte.ch/graphs/job",
+  ADMIN_UNIT_GRAPH_URI: "http://mu.semte.ch/graphs/public",
   CONFIG_FILE_LOCATION: "/config",
   SLEEP_BETWEEN_QUERIES_MS: 0,
   SHOW_SPARQL_QUERIES: false,
-  LIMIT_NUMBER_ADMIN_UNITS: 0, // Default value of 0 means no limit
+  LIMIT_NUMBER_ADMIN_UNITS: 0, // Default value of 0 means no limit. In production this should always be 0
   ORG_RESOURCES_TTL_S: 300, // Default cache TTL is five minutes
   SERVER_PORT: 80, // HTTP (TODO add HTTPS port)
-  REPORT_INVOCATION_TIME: new TimeOnly("00:00"),
-  REPORT_INVOCATION_DAYS: ALL_DAYS_OF_WEEK,
   LOG_LEVEL: "info" as const,
   NO_TIME_FILTER: false,
   DUMP_FILES_LOCATION: "/dump",
+  QUERY_MAX_RETRIES: 3,
+  QUERY_WAIT_TIME_ON_FAIL: 1000,
+  ROOT_URL_PATH: "",
+  URI_PREFIX_RESOURCES: "http://data.lblod.info/id/",
+  URI_PREFIX_NAMESPACES: "http://lblod.data.gift/vocabularies/datamonitoring/",
+  ADD_DUMMY_REST_JOB_TEMPLATE: false,
+  SKIP_ENDPOINT_CHECK: false,
 };
 
 const envResult = dmReportGenerationServiceEnvSchema.safeParse(process.env);
@@ -194,5 +261,10 @@ const endpointConfig: EndpointConfig[] = fileResult.data.endpoints.map(
 
 export const config: DmReportGenerationServiceConfig = {
   env: defaultedEnv,
-  file: endpointConfig,
+  file: {
+    endpoints: endpointConfig,
+    harvesterEndpoints: fileResult.data["harvester-endpoints"],
+    periodicFunctionInvocationTimes:
+      fileResult.data["periodic-function-invocation-times"],
+  },
 };
