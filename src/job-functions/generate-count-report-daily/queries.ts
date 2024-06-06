@@ -1,98 +1,6 @@
 import Handlebars from "handlebars";
 import "./../helpers/index.js"; // Making sure the modules in the helpers folder are loaded before these templates are compiled
-import { DateOnly, DateTime } from "../util/date-time.js";
-
-export type TestQueryInput = Record<string, never>;
-export type TestQueryOutput = {
-  result: number;
-};
-
-export const testQueryTemplate = Handlebars.compile(
-  `\
-SELECT (1+1 as ?result) WHERE {}
-`,
-  { noEscape: true }
-);
-
-export type GetOrganisationsInput = {
-  prefixes: string;
-  limit: number;
-  graphUri: string;
-};
-
-export type GetOrganisationsOutput = {
-  organisationUri: string;
-  label: string | string[]; // Some org seem to have 2 labels's...
-  id: string | string[]; // Some org seem to have 2 ID's...
-};
-
-export const getOrganisationsTemplate = Handlebars.compile(
-  `\
-{{prefixes}}
-SELECT ?organisationUri ?label ?id WHERE {
-  GRAPH <{{graphUri}}> {
-    {
-      SELECT ?organisationUri WHERE {
-        ?organisationUri a besluit:Bestuurseenheid;
-        org:classification <http://data.vlaanderen.be/id/concept/BestuurseenheidClassificatieCode/5ab0e9b8a3b2ca7c5e000001>.
-      } {{limitClause limit}}
-    }
-    ?organisationUri mu:uuid ?id;
-      skos:prefLabel ?label.
-  }
-}
-`,
-  { noEscape: true }
-);
-
-export type CountInput = {
-  prefixes: string;
-  classes: readonly string[];
-};
-
-export const getCountForOrgQueryTemplate = Handlebars.compile(
-  `\
-{{prefixes}}
-SELECT * WHERE {
-  {{#each classes}}
-  {
-    SELECT (COUNT(DISTINCT ?res{{@index}}) as ?resCount{{@index}}) WHERE {
-      ?res{{@index}} a <{{this}}>.
-    }
-  }
-  {{/each}}
-}
-`,
-  { noEscape: true }
-);
-
-export type GetGoveringBodiesInput = {
-  prefixes: string;
-  adminitrativeUnitUri: string;
-  graphUri: string;
-};
-
-export type GetGoveringBodiesOutput = {
-  goveringBodyUri: string;
-  classLabel: string;
-};
-
-export const getGoverningBodiesOfAdminUnitTemplate = Handlebars.compile(
-  `\
-{{prefixes}}
-SELECT ?goveringBodyUri ?classLabel WHERE {
-  GRAPH <{{graphUri}}> {
-    ?goveringBodyUri a besluit:Bestuursorgaan;
-      besluit:bestuurt <{{adminitrativeUnitUri}}>;
-      org:classification [
-        a skos:Concept;
-        skos:prefLabel ?classLabel;
-      ].
-  }
-}
-`,
-  { noEscape: true }
-);
+import { DateOnly, DateTime } from "../../util/date-time.js";
 
 export type CountSessionsQueryInput = {
   prefixes: string;
@@ -112,13 +20,13 @@ export const countSessionsQueryTemplate = Handlebars.compile(
 SELECT (COUNT(DISTINCT ?session) as ?count) WHERE {
   {
     ?session a besluit:Zitting;
-      besluit:isGehoudenDoor <{{governingBodyUri}}>.
+      besluit:isGehoudenDoor {{uriToNode governingBodyUri}}.
   } UNION {
     ?session a besluit:Zitting;
       besluit:isGehoudenDoor ?governingBodyTimeSpecified.
 
     ?governingBodyTimeSpecified a besluit:Bestuursorgaan;
-        mandaat:isTijdspecialisatieVan <{{governingBodyUri}}>.
+        mandaat:isTijdspecialisatieVan {{uriToNode governingBodyUri}}.
   }
   ?session besluit:geplandeStart ?plannedStart.
   {{#unless noFilterForDebug}}
@@ -150,14 +58,14 @@ SELECT (COUNT(DISTINCT ?agendaItem) as ?count) WHERE {
   {
     ?session a besluit:Zitting;
       besluit:behandelt ?agendaItem;
-      besluit:isGehoudenDoor <{{governingBodyUri}}>.
+      besluit:isGehoudenDoor {{uriToNode governingBodyUri}}.
   } UNION {
     ?session a besluit:Zitting;
       besluit:behandelt ?agendaItem;
       besluit:isGehoudenDoor ?governingBodyTimeSpecified.
 
     ?governingBodyTimeSpecified a besluit:Bestuursorgaan;
-      mandaat:isTijdspecialisatieVan <{{governingBodyUri}}>.
+      mandaat:isTijdspecialisatieVan {{uriToNode governingBodyUri}}.
   }
   ?agendaItem a besluit:Agendapunt.
   ?session besluit:geplandeStart ?plannedStart.
@@ -197,14 +105,14 @@ SELECT (COUNT(DISTINCT ?resolution) as ?count) WHERE {
   {
     ?session a besluit:Zitting;
       besluit:behandelt ?agendaItem;
-      besluit:isGehoudenDoor <{{governingBodyUri}}>.
+      besluit:isGehoudenDoor {{uriToNode governingBodyUri}}.
   } UNION {
     ?session a besluit:Zitting;
       besluit:behandelt ?agendaItem;
       besluit:isGehoudenDoor ?governingBodyTimeSpecified.
 
     ?governingBodyTimeSpecified a besluit:Bestuursorgaan;
-      mandaat:isTijdspecialisatieVan <{{governingBodyUri}}>.
+      mandaat:isTijdspecialisatieVan {{uriToNode governingBodyUri}}.
   }
   ?agendaItem a besluit:Agendapunt.
   ?session besluit:geplandeStart ?plannedStart.
@@ -294,23 +202,23 @@ export const writeCountReportQueryTemplate = Handlebars.compile(
   `\
 {{prefixes}}
 INSERT {
-  GRAPH <{{reportGraphUri}}> {
-    <{{reportUri}}> a datamonitoring:GoverningBodyCountReport;
+  GRAPH {{uriToNode reportGraphUri}} {
+    {{uriToNode reportUri}} a datamonitoring:GoverningBodyCountReport;
       datamonitoring:createdAt {{toDateTimeLiteral createdAt}};
       datamonitoring:day {{toDateLiteral day}};
-      datamonitoring:targetAdministrativeUnit <{{adminUnitUri}}>;
-      datamonitoring:targetGoverningBody <{{govBodyUri}}>;
-      skos:prefLabel "{{escape prefLabel}}";
-      mu:uuid "{{uuid}}";
+      datamonitoring:targetAdministrativeUnit {{uriToNode adminUnitUri}};
+      datamonitoring:targetGoverningBody {{uriToNode govBodyUri}};
+      skos:prefLabel {{toStringLiteral prefLabel}};
+      mu:uuid {{toUuidLiteral uuid}};
       datamonitoring:istest "true"^^xsd:boolean;
       datamonitoring:publicationCountReports
-        {{#each counts}}<{{this.countUri}}>{{#unless @last}},{{/unless}}{{/each}}.
+        {{#each counts}}{{uriToNode this.countUri}}{{#unless @last}},{{/unless}}{{/each}}.
 
     {{#each counts}}
-    <{{this.countUri}}> a datamonitoring:PublicationCountReport;
-      mu:uuid "{{this.uuid}}";
-      datamonitoring:targetClass <{{this.classUri}}>;
-      skos:prefLabel "{{escape this.prefLabel}}";
+    {{uriToNode this.countUri}} a datamonitoring:PublicationCountReport;
+      mu:uuid {{toUuidLiteral this.uuid}};
+      datamonitoring:targetClass {{uriToNode this.classUri}};
+      skos:prefLabel {{toStringLiteral this.prefLabel}};
       datamonitoring:count "{{this.count}}"^^xsd:integer.
     {{/each}}
   }
@@ -337,19 +245,19 @@ export const writeAdminUnitCountReportTemplate = Handlebars.compile(
   `\
 {{prefixes}}
 INSERT {
-  GRAPH <{{reportGraphUri}}> {
-    <{{reportUri}}> a datamonitoring:AdminUnitCountReport;
-      skos:prefLabel "{{escape prefLabel}}";
-      datamonitoring:targetAdministrativeUnit <{{adminUnitUri}}>;
+  GRAPH {{uriToNode reportGraphUri}} {
+    {{uriToNode reportUri}} a datamonitoring:AdminUnitCountReport;
+      skos:prefLabel {{toStringLiteral prefLabel}};
+      datamonitoring:targetAdministrativeUnit {{uriToNode adminUnitUri}};
       datamonitoring:createdAt {{toDateTimeLiteral createdAt}};
       datamonitoring:day {{toDateLiteral day}};
-      mu:uuid "{{uuid}}";
+      mu:uuid {{toUuidLiteral uuid}};
       datamonitoring:istest "true"^^xsd:boolean
       {{#if (listPopulated reportUris)}}
       ;
       datamonitoring:governingBodyReports
       {{#each reportUris}}
-        <{{this}}>
+        {{uriToNode this}}
         {{#unless @last}},{{/unless}}
       {{/each}}
       .

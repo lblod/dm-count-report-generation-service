@@ -165,7 +165,7 @@ export const mySelectQueryTemplate = Handlebars.compile(`\
 {{prefixes}}
 
 SELECT ?resourceUri ?label WHERE {
-  ?resourceUri a <{{classUri}}>;
+  ?resourceUri a {{uriToNode classUri}};
     skos:prefLabel ?label;
     example:day {{toDateLiteral day}};
     example:time ?time;

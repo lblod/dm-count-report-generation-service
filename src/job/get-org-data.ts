@@ -8,7 +8,7 @@ import {
   GetOrganisationsOutput,
   getGoverningBodiesOfAdminUnitTemplate,
   getOrganisationsTemplate,
-} from "../queries/queries.js";
+} from "../queries/util-queries.js";
 import { TemplatedSelect } from "../queries/templated-query.js";
 import { delay } from "../util/util.js";
 import { logger } from "../logger.js";

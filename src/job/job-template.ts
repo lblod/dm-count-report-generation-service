@@ -34,20 +34,20 @@ export const updateJobTemplateStatusTemplate = Handlebars.compile(
   `\
 {{prefixes}}
 DELETE {
-  GRAPH <{{jobGraphUri}}> {
-    <{{jobTemplateUri}}>
+  GRAPH {{uriToNode jobGraphUri}} {
+    {{uriToNode jobTemplateUri}}
       adms:status ?status;
       dct:modified ?modified.
   }
 } INSERT {
-  GRAPH <{{jobGraphUri}}> {
-    <{{jobTemplateUri}}>
+  GRAPH {{uriToNode jobGraphUri}} {
+    {{uriToNode jobTemplateUri}}
       adms:status {{toJobTemplateStatusLiteral status}};
       dct:modified {{toDateTimeLiteral modifiedAt}}.
   }
 } WHERE {
-  GRAPH <{{jobGraphUri}}> {
-    <{{jobTemplateUri}}> a cogs:Job,datamonitoring:DatamonitoringTemplateJob;
+  GRAPH {{uriToNode jobGraphUri}} {
+    {{uriToNode jobTemplateUri}} a cogs:Job,datamonitoring:DatamonitoringTemplateJob;
       adms:status ?status;
       dct:modified ?modified.
   }
@@ -77,18 +77,18 @@ export const insertPeriodicJobTemplateTemplate = Handlebars.compile(
   `\
 {{prefixes}}
 INSERT {
-  GRAPH <{{jobGraphUri}}> {
-    <{{newJobTemplateUri}}> a cogs:Job, datamonitoring:DatamonitoringTemplateJob;
-      mu:uuid "{{uuid}}";
+  GRAPH {{uriToNode jobGraphUri}} {
+    {{uriToNode newJobTemplateUri}} a cogs:Job, datamonitoring:DatamonitoringTemplateJob;
+      mu:uuid {{toUuidLiteral uuid}};
       dct:creator <{{resourcesUriPrefix}}job-creator/dm-count-report-generation-service>;
       adms:status {{toJobTemplateStatusLiteral status}};
       dct:created {{toDateTimeLiteral createdAt}};
       dct:modified {{toDateTimeLiteral createdAt}};
-      datamonitoring:description "{{escape description}}";
+      datamonitoring:description {{toStringLiteral description}};
       datamonitoring:jobType {{toJobTemplateTypeLiteral jobTemplateType}};
-      datamonitoring:jobParameters <{{jobParametersUri}}>.
+      datamonitoring:jobParameters {{uriToNode jobParametersUri}}.
 
-      <{{jobParametersUri}}> a datamonitoring:PeriodicJobTemplateParameters;
+      {{uriToNode jobParametersUri}} a datamonitoring:PeriodicJobTemplateParameters;
         mu:uuid "{{jobParametersUuid}}";
         datamonitoring:timeOfInvocation {{toTimeLiteral timeOfInvocation}};
         datamonitoring:function {{toDatamonitoringFunctionLiteral datamonitoringFunction}};
@@ -112,13 +112,13 @@ const deleteJobTemplateInput = Handlebars.compile(
   `\
 {{prefixes}}
 DELETE {
-  GRAPH <{{jobGraphUri}}> {
-    <{{uri}}> ?p ?o.
+  GRAPH {{uriToNode jobGraphUri}} {
+    {{uriToNode uri}} ?p ?o.
     ?paramRes ?pp ?po.
   }
 } WHERE {
-  GRAPH <{{jobGraphUri}}> {
-    <{{uri}}> datamonitoring:jobParameters ?paramRes.
+  GRAPH {{uriToNode jobGraphUri}} {
+    {{uriToNode uri}} datamonitoring:jobParameters ?paramRes.
   }
 }
 `,
@@ -327,18 +327,18 @@ export const insertRestJobTemplateTemplate = Handlebars.compile(
   `\
 {{prefixes}}
 INSERT {
-  GRAPH <{{jobGraphUri}}> {
-    <{{newJobTemplateUri}}> a cogs:Job, datamonitoring:DatamonitoringTemplateJob;
-      mu:uuid "{{uuid}}";
-      dct:creator <{{creatorUri}}>;
+  GRAPH {{uriToNode jobGraphUri}} {
+    {{uriToNode newJobTemplateUri}} a cogs:Job, datamonitoring:DatamonitoringTemplateJob;
+      mu:uuid {{toUuidLiteral uuid}};
+      dct:creator {{uriToNode creatorUri}};
       adms:status {{toJobTemplateStatusLiteral status}};
       dct:created {{toDateTimeLiteral createdAt}};
       dct:modified {{toDateTimeLiteral createdAt}};
-      datamonitoring:description "{{escape description}}";
+      datamonitoring:description {{toStringLiteral description}};
       datamonitoring:jobType {{toJobTemplateTypeLiteral jobTemplateType}};
-      datamonitoring:jobParameters <{{jobParametersUri}}>.
+      datamonitoring:jobParameters {{uriToNode jobParametersUri}}.
 
-      <{{jobParametersUri}}> a datamonitoring:restJobTemplateParameters;
+      {{uriToNode jobParametersUri}} a datamonitoring:restJobTemplateParameters;
         mu:uuid "{{jobParametersUuid}}";
         datamonitoring:function {{toDatamonitoringFunctionLiteral datamonitoringFunction}};
         datamonitoring:urlPath "{{urlPath}}".
@@ -549,7 +549,7 @@ const getPeriodicJobTemplatesTemplate = Handlebars.compile(
   `\
 {{prefixes}}
 SELECT * WHERE {
-  GRAPH <{{jobGraphUri}}> {
+  GRAPH {{uriToNode jobGraphUri}} {
     ?jobTemplateUri a cogs:Job, datamonitoring:DatamonitoringTemplateJob;
       mu:uuid ?uuid;
       adms:status ?status;
@@ -572,7 +572,7 @@ export const getRestJobTemplatesTemplate = Handlebars.compile(
   `\
 {{prefixes}}
 SELECT * WHERE {
-  GRAPH <{{jobGraphUri}}> {
+  GRAPH {{uriToNode jobGraphUri}} {
     ?jobUri a cogs:Job, datamonitoring:DatamonitoringTemplateJob;
       mu:uuid ?uuid;
       adms:status ?status;
@@ -658,12 +658,12 @@ export const deleteAllJobTemplatesTemplate = Handlebars.compile(
   `\
 {{prefixes}}
 DELETE {
-  GRAPH <{{jobGraphUri}}> {
+  GRAPH {{uriToNode jobGraphUri}} {
     ?blind ?pb ?ob.
     ?job ?p ?o.
   }
 } WHERE {
-  GRAPH <{{jobGraphUri}}> {
+  GRAPH {{uriToNode jobGraphUri}} {
     ?job a cogs:Job, datamonitoring:DatamonitoringTemplateJob;
       datamonitoring:jobParameters ?blind.
     {{#if (listPopulated jobTemplateTypes)}}

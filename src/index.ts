@@ -7,7 +7,7 @@ import {
   TestQueryInput,
   TestQueryOutput,
   testQueryTemplate,
-} from "./queries/queries.js";
+} from "./queries/util-queries.js";
 import {
   createPeriodicJobTemplate,
   createRestJobTemplate,

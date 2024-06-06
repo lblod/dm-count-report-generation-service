@@ -62,20 +62,20 @@ const insertLastExecutedReportTemplate = Handlebars.compile(
   `\
 {{prefixes}}
 INSERT {
-  GRAPH <{{reportGraphUri}}> {
-    <{{reportUri}}> a datamonitoring:LastHarvestingExecutionReport;
+  GRAPH {{uriToNode reportGraphUri}} {
+    {{uriToNode reportUri}} a datamonitoring:LastHarvestingExecutionReport;
       datamonitoring:day {{toDateLiteral day}};
-      skos:prefLabel "{{escape prefLabel}}";
+      skos:prefLabel {{toStringLiteral prefLabel}};
       datamonitoring:createdAt {{toDateTimeLiteral createdAt}};
-      mu:uuid "{{uuid}}";
+      mu:uuid {{toUuidLiteral uuid}};
       datamonitoring:adminUnitLastExecutionRecords
-        {{#each times}}<{{this.resultUri}}>{{#unless @last}},{{/unless}}{{/each}}.
+        {{#each times}}{{uriToNode this.resultUri}}{{#unless @last}},{{/unless}}{{/each}}.
 
     {{#each times}}
-    <{{this.resultUri}}>
+    {{uriToNode this.resultUri}}
       a datamonitoring:LastHarvestingExecutionRecord;
-      mu:uuid "{{this.uuid}}";
-      datamonitoring:targetAdministrativeUnit <{{this.organisationUri}}>;
+      mu:uuid {{toUuidLiteral this.uuid}};
+      datamonitoring:targetAdministrativeUnit {{uriToNode this.organisationUri}};
       skos:prefLabel "Last execution of harvesting job for organisation \\'{{escape this.organisationLabel}}\\'";
       datamonitoring:lastExecutionTime {{toDateTimeLiteral this.lastExecutionTimestamp}}.
     {{/each}}
