@@ -8,10 +8,10 @@ import { logger } from "../logger.js";
 
 // Load templates
 
-const debugResultTemplate = Handlebars.compile(
+const debugResultTemplate = compileSparql(
   fs.readFileSync("./templates/debug-output.hbs", { encoding: "utf-8" })
 );
-const errorResultTemplate = Handlebars.compile(
+const errorResultTemplate = compileSparql(
   fs.readFileSync("./templates/error-output.hbs", { encoding: "utf-8" })
 );
 

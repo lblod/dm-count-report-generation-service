@@ -13,12 +13,12 @@ import Handlebars from "handlebars";
  * The module contains the handlebar helper which convert an enum value of an enum containing URI's (either the key or the value) into the URI.
  * The rendered query will always contain the URI. The input of the helper can be an enum value.
  */
-
 function createToSparqlLiteralHelper(
+  handlebars: typeof Handlebars,
   funcName: string,
   enumObject: Record<string, string>
 ) {
-  Handlebars.registerHelper(funcName, function (enumValue: unknown) {
+  handlebars.registerHelper(funcName, function (enumValue: unknown) {
     if (typeof enumValue !== "string")
       throw `${funcName} ony takes one string as an argument.`;
     for (const [key, value] of Object.entries(enumObject)) {
@@ -33,18 +33,28 @@ function createToSparqlLiteralHelper(
   });
 }
 
-Handlebars.registerHelper("printUriEnum", function (enumValue: unknown) {
-  if (!(typeof enumValue === "string"))
-    throw new Error(`printUriEnum only takes a string. Got "${enumValue}"`);
-  return getEnumStringFromUri(enumValue, false);
-});
-
-createToSparqlLiteralHelper("toJobStatusLiteral", JobStatus);
-createToSparqlLiteralHelper("toJobTypeLiteral", JobType);
-createToSparqlLiteralHelper("toJobTemplateStatusLiteral", JobTemplateStatus);
-createToSparqlLiteralHelper("toJobTemplateTypeLiteral", JobTemplateType);
-createToSparqlLiteralHelper("toDayOfWeekLiteral", DayOfWeek);
-createToSparqlLiteralHelper(
-  "toDatamonitoringFunctionLiteral",
-  DataMonitoringFunction
-);
+export function addHelpers(handlebars: typeof Handlebars) {
+  createToSparqlLiteralHelper(handlebars, "toJobStatusLiteral", JobStatus);
+  createToSparqlLiteralHelper(handlebars, "toJobTypeLiteral", JobType);
+  createToSparqlLiteralHelper(
+    handlebars,
+    "toJobTemplateStatusLiteral",
+    JobTemplateStatus
+  );
+  createToSparqlLiteralHelper(
+    handlebars,
+    "toJobTemplateTypeLiteral",
+    JobTemplateType
+  );
+  createToSparqlLiteralHelper(handlebars, "toDayOfWeekLiteral", DayOfWeek);
+  createToSparqlLiteralHelper(
+    handlebars,
+    "toDatamonitoringFunctionLiteral",
+    DataMonitoringFunction
+  );
+  handlebars.registerHelper("printUriEnum", function (enumValue: unknown) {
+    if (!(typeof enumValue === "string"))
+      throw new Error(`printUriEnum only takes a string. Got "${enumValue}"`);
+    return getEnumStringFromUri(enumValue, false);
+  });
+}

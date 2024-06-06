@@ -24,13 +24,13 @@ import { now } from "../util/date-time.js";
 import { JobStatus } from "../types.js";
 import { ALL_DAYS_OF_WEEK } from "../local-constants.js";
 
-const debugIndexHtml = Handlebars.compile(
+const debugIndexHtml = compileHtml(
   fs.readFileSync("./templates/debug.hbs", {
     encoding: "utf-8",
   })
 )({});
 
-const staticIndexTemplate = Handlebars.compile(
+const staticIndexTemplate = compileHtml(
   fs.readFileSync("./templates/static-index.hbs", { encoding: "utf-8" })
 );
 

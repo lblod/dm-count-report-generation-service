@@ -1,8 +1,7 @@
-import Handlebars from "handlebars";
-import "./../helpers/index.js"; // Making sure the modules in the helpers folder are loaded before these templates are compiled
 import { DateOnly, DateTime } from "../../util/date-time.js";
+import { compileSparql } from "../../handlebars/index.js";
 
-export const checkSessionsQueryTemplate = Handlebars.compile(
+export const checkSessionsQueryTemplate = compileSparql(
   `\
 {{prefixes}}
 SELECT (COUNT(DISTINCT ?session) as ?count) WHERE {
@@ -18,13 +17,12 @@ SELECT (COUNT(DISTINCT ?session) as ?count) WHERE {
   }
   ?session besluit:geplandeStart ?plannedStart.
   {{#unless noFilterForDebug}}
-  FILTER(?plannedStart >= {{toDateTimeLiteral from}})
-  FILTER(?plannedStart < {{toDateTimeLiteral to}})
+  FILTER(?plannedStart >= {{toDateTime from}})
+  FILTER(?plannedStart < {{toDateTime to}})
   {{/unless}}
 }
 
-`,
-  { noEscape: true }
+`
 );
 
 export type WriteGoveringBodyReportInput = {
@@ -52,41 +50,40 @@ export type WriteGoveringBodyReportInput = {
   }[];
 };
 
-export const writeGoverningBodyReportTemplate = Handlebars.compile(
+export const writeGoverningBodyReportTemplate = compileSparql(
   `\
 {{prefixes}}
 INSERT {
   GRAPH {{uriToNode reportGraphUri}} {
     {{uriToNode reportUri}} a datamonitoring:GoverningBodyDocumentPresenceCheckReport;
-      datamonitoring:createdAt {{toDateTimeLiteral createdAt}};
-      datamonitoring:day {{toDateLiteral day}};
+      datamonitoring:createdAt {{toDateTime createdAt}};
+      datamonitoring:day {{toDate day}};
       datamonitoring:targetAdministrativeUnit {{uriToNode adminUnitUri}};
       datamonitoring:targetGoverningBody {{uriToNode govBodyUri}};
-      skos:prefLabel {{toStringLiteral prefLabel}};
-      mu:uuid {{toUuidLiteral uuid}};
+      skos:prefLabel {{toString prefLabel}};
+      mu:uuid {{toUuid uuid}};
       datamonitoring:istest "true"^^xsd:boolean;
-      datamonitoring:totalSessions {{toIntegerLiteral totalSessions}};
-      datamonitoring:totalCompleteSessions {{toIntegerLiteral totalCompleteSessions}};
+      datamonitoring:totalSessions {{toInteger totalSessions}};
+      datamonitoring:totalCompleteSessions {{toInteger totalCompleteSessions}};
       datamonitoring:sessionCheckReports
         {{#each checks}}{{uriToNode this.checkUri}}{{#unless @last}},{{/unless}}{{/each}}.
 
     {{#each checks}}
     {{uriToNode this.checkUri}} a datamonitoring:DocumentPresenceSessionCheck;
-      mu:uuid {{toUuidLiteral this.uuid}};
-      skos:prefLabel {{toStringLiteral this.prefLabel}};
+      mu:uuid {{toUuid this.uuid}};
+      skos:prefLabel {{toString this.prefLabel}};
       datamonitoring:targetSession {{uriToNode this.sessionUri}};
-      datamonitoring:hasMeetingNotes {{toBooleanLiteral this.hasMeetingNotes}};
-      datamonitoring:hasAgenda {{toBooleanLiteral this.hasAgenda}};
-      datamonitoring:hasResolutionList {{toBooleanLiteral this.hasResolutionList}};
-      datamonitoring:hasAll {{toBooleanLiteral this.hasAll}};
-      datamonitoring:hasNone {{toBooleanLiteral this.hasNone}}.
+      datamonitoring:hasMeetingNotes {{toBoolean this.hasMeetingNotes}};
+      datamonitoring:hasAgenda {{toBoolean this.hasAgenda}};
+      datamonitoring:hasResolutionList {{toBoolean this.hasResolutionList}};
+      datamonitoring:hasAll {{toBoolean this.hasAll}};
+      datamonitoring:hasNone {{toBoolean this.hasNone}}.
     {{/each}}
   }
 } WHERE {
 
 }
-`,
-  { noEscape: true }
+`
 );
 
 export type WriteAdminUnitReportInput = {
@@ -101,17 +98,17 @@ export type WriteAdminUnitReportInput = {
   reportUris: string[];
 };
 
-export const writeAdminUnitReportTemplate = Handlebars.compile(
+export const writeAdminUnitReportTemplate = compileSparql(
   `\
 {{prefixes}}
 INSERT {
   GRAPH {{uriToNode reportGraphUri}} {
     {{uriToNode reportUri}} a datamonitoring:AdminUnitDocumentPresenceCheckReport;
-      skos:prefLabel {{toStringLiteral prefLabel}};
+      skos:prefLabel {{toString prefLabel}};
       datamonitoring:targetAdministrativeUnit {{uriToNode adminUnitUri}};
-      datamonitoring:createdAt {{toDateTimeLiteral createdAt}};
-      datamonitoring:day {{toDateLiteral day}};
-      mu:uuid {{toUuidLiteral uuid}};
+      datamonitoring:createdAt {{toDateTime createdAt}};
+      datamonitoring:day {{toDate day}};
+      mu:uuid {{toUuid uuid}};
       datamonitoring:istest "true"^^xsd:boolean
       {{#if (listPopulated reportUris)}}
       ;
@@ -126,6 +123,5 @@ INSERT {
       {{/if}}
   }
 } WHERE { }
-`,
-  { noEscape: true }
+`
 );

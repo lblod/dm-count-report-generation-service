@@ -1,16 +1,14 @@
-import Handlebars from "handlebars";
-import "../helpers/index.js"; // Making sure the modules in the helpers folder are loaded before these templates are compiled
+import { compileSparql } from "../handlebars/index.js";
 
 export type TestQueryInput = Record<string, never>;
 export type TestQueryOutput = {
   result: number;
 };
 
-export const testQueryTemplate = Handlebars.compile(
+export const testQueryTemplate = compileSparql(
   `\
 SELECT (1+1 as ?result) WHERE {}
-`,
-  { noEscape: true }
+`
 );
 
 export type GetOrganisationsInput = {
@@ -25,7 +23,7 @@ export type GetOrganisationsOutput = {
   id: string | string[]; // Some org seem to have 2 ID's...
 };
 
-export const getOrganisationsTemplate = Handlebars.compile(
+export const getOrganisationsTemplate = compileSparql(
   `\
 {{prefixes}}
 SELECT ?organisationUri ?label ?id WHERE {
@@ -40,8 +38,7 @@ SELECT ?organisationUri ?label ?id WHERE {
       skos:prefLabel ?label.
   }
 }
-`,
-  { noEscape: true }
+`
 );
 
 export type CountInput = {
@@ -49,7 +46,7 @@ export type CountInput = {
   classes: readonly string[];
 };
 
-export const getCountForOrgQueryTemplate = Handlebars.compile(
+export const getCountForOrgQueryTemplate = compileSparql(
   `\
 {{prefixes}}
 SELECT * WHERE {
@@ -61,8 +58,7 @@ SELECT * WHERE {
   }
   {{/each}}
 }
-`,
-  { noEscape: true }
+`
 );
 
 export type GetGoveringBodiesInput = {
@@ -76,7 +72,7 @@ export type GetGoveringBodiesOutput = {
   classLabel: string;
 };
 
-export const getGoverningBodiesOfAdminUnitTemplate = Handlebars.compile(
+export const getGoverningBodiesOfAdminUnitTemplate = compileSparql(
   `\
 {{prefixes}}
 SELECT ?goveringBodyUri ?classLabel WHERE {
@@ -89,6 +85,5 @@ SELECT ?goveringBodyUri ?classLabel WHERE {
       ].
   }
 }
-`,
-  { noEscape: true }
+`
 );

@@ -161,20 +161,18 @@ In order to write a new query add one in `report-generation/queries.ts` or anoth
 First write a query using [handlebars](https://handlebarsjs.com/) like this:
 
 ```typescript
-export const mySelectQueryTemplate = Handlebars.compile(`\
+export const mySelectQueryTemplate = compileSparql(`\
 {{prefixes}}
 
 SELECT ?resourceUri ?label WHERE {
   ?resourceUri a {{uriToNode classUri}};
     skos:prefLabel ?label;
-    example:day {{toDateLiteral day}};
+    example:day {{toDate day}};
     example:time ?time;
     example:fixedTextObjectExamplePredicate {{escape stringValueWithQuotes}}.
 }
-`, { noEscape:true });
+`);
 ```
-
-DON'T forget the 'noEscape: true' part. This is not HTML and we don't want HTML encoding.
 
 It's important to add two typescript types together with a SELECT query and export them: one for the input and one for the output. For INSERT queries you will only need an input type.
 
@@ -196,10 +194,10 @@ Feel free to use types like 'DateOnly' of 'TimeOnly' or some enums. To format sp
 
 | Variabele type | Helper | Type Notation in typescript | Handlebars notation |
 | :--- | :--- | :--- | :--- |
-| `DateOnly` | `toDateLiteral` | `exampleDate:DateOnly;` | `{{toDateLiteral exampleDate}}` |
-| `TimeOnly` | `toTimeLiteral` | `exampleTime:TimeOnly;` | `{{toDateLiteral exampleTime}}` |
-| `DateTime` | `toDateTimeLiteral` | `exampleDateTime:DayJs;` | `{{toDateTimeLiteral exampleDateTime}}` |
-| `JobStatus` | `toJobStatusLiteral` | `exampleStatus:JobStatus;` | `{{toJobStatusLiteral exampleStatus}}` |
+| `DateOnly` | `toDateLiteral` | `exampleDate:DateOnly;` | `{{toDate exampleDate}}` |
+| `TimeOnly` | `toTimeLiteral` | `exampleTime:TimeOnly;` | `{{toDate exampleTime}}` |
+| `DateTime` | `toDateTimeLiteral` | `exampleDateTime:DayJs;` | `{{toDateTime exampleDateTime}}` |
+| `JobStatus` | `toJobStatusLiteral` | `exampleStatus:JobStatus;` | `{{toJobStatus exampleStatus}}` |
 
 The last row in the table is an enum value. Other enums such as `JobType`, `JobStatus`, `JobTemplateType`, `JobTemplateStatus`, `DayOfWeek` and `DatamonitoringFunction` are also supported in a similar way.
 

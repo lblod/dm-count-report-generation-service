@@ -1,5 +1,4 @@
-import Handlebars from "handlebars";
-import "./../helpers/index.js"; // Making sure the modules in the helpers folder are loaded before these templates are compiled
+import { compileSparql } from "../../handlebars/index.js";
 import { DateOnly, DateTime } from "../../util/date-time.js";
 
 export type CountSessionsQueryInput = {
@@ -14,7 +13,7 @@ export type CountSessionsQueryOutput = {
   count: number;
 };
 
-export const countSessionsQueryTemplate = Handlebars.compile(
+export const countSessionsQueryTemplate = compileSparql(
   `\
 {{prefixes}}
 SELECT (COUNT(DISTINCT ?session) as ?count) WHERE {
@@ -30,13 +29,12 @@ SELECT (COUNT(DISTINCT ?session) as ?count) WHERE {
   }
   ?session besluit:geplandeStart ?plannedStart.
   {{#unless noFilterForDebug}}
-  FILTER(?plannedStart >= {{toDateTimeLiteral from}})
-  FILTER(?plannedStart < {{toDateTimeLiteral to}})
+  FILTER(?plannedStart >= {{toDateTime from}})
+  FILTER(?plannedStart < {{toDateTime to}})
   {{/unless}}
 }
 
-`,
-  { noEscape: true }
+`
 );
 
 export type CountAgendaItemsQueryInput = {
@@ -51,7 +49,7 @@ export type CountAgendaItemsQueryOutput = {
   count: number;
 };
 
-export const countAgendaItemsQueryTemplate = Handlebars.compile(
+export const countAgendaItemsQueryTemplate = compileSparql(
   `\
 {{prefixes}}
 SELECT (COUNT(DISTINCT ?agendaItem) as ?count) WHERE {
@@ -77,13 +75,12 @@ SELECT (COUNT(DISTINCT ?agendaItem) as ?count) WHERE {
   ?anyBesluit a besluit:Besluit.
 
   {{#unless noFilterForDebug}}
-  FILTER(?plannedStart >= {{toDateTimeLiteral from}})
-  FILTER(?plannedStart < {{toDateTimeLiteral to}})
+  FILTER(?plannedStart >= {{toDateTime from}})
+  FILTER(?plannedStart < {{toDateTime to}})
   {{/unless}}
 }
 
-`,
-  { noEscape: true }
+`
 );
 
 export type CountResolutionsQueryInput = {
@@ -98,7 +95,7 @@ export type CountResolutionsQueryOutput = {
   count: number;
 };
 
-export const countResolutionsQueryTemplate = Handlebars.compile(
+export const countResolutionsQueryTemplate = compileSparql(
   `\
 {{prefixes}}
 SELECT (COUNT(DISTINCT ?resolution) as ?count) WHERE {
@@ -125,13 +122,12 @@ SELECT (COUNT(DISTINCT ?resolution) as ?count) WHERE {
     eli:date_publication ?datePublication.
 
   {{#unless noFilterForDebug}}
-  FILTER(?plannedStart >= {{toDateTimeLiteral from}})
-  FILTER(?plannedStart < {{toDateTimeLiteral to}})
+  FILTER(?plannedStart >= {{toDateTime from}})
+  FILTER(?plannedStart < {{toDateTime to}})
   {{/unless}}
 }
 
-`,
-  { noEscape: true }
+`
 );
 
 export type CountVoteQueryInput = {
@@ -146,7 +142,7 @@ export type CountVoteQueryOutput = {
   count: number;
 };
 
-export const countVoteQueryTemplate = Handlebars.compile(
+export const countVoteQueryTemplate = compileSparql(
   `\
 {{prefixes}}
 SELECT (COUNT(DISTINCT ?vote) as ?count) WHERE {
@@ -170,13 +166,12 @@ SELECT (COUNT(DISTINCT ?vote) as ?count) WHERE {
 
   ?vote a besluit:Stemming.
   {{#unless noFilterForDebug}}
-  FILTER(?plannedStart >= {{toDateTimeLiteral from}})
-  FILTER(?plannedStart < {{toDateTimeLiteral to}})
+  FILTER(?plannedStart >= {{toDateTime from}})
+  FILTER(?plannedStart < {{toDateTime to}})
   {{/unless}}
 }
 
-`,
-  { noEscape: true }
+`
 );
 
 export type WriteReportInput = {
@@ -198,35 +193,34 @@ export type WriteReportInput = {
   }[];
 };
 
-export const writeCountReportQueryTemplate = Handlebars.compile(
+export const writeCountReportQueryTemplate = compileSparql(
   `\
 {{prefixes}}
 INSERT {
   GRAPH {{uriToNode reportGraphUri}} {
     {{uriToNode reportUri}} a datamonitoring:GoverningBodyCountReport;
-      datamonitoring:createdAt {{toDateTimeLiteral createdAt}};
-      datamonitoring:day {{toDateLiteral day}};
+      datamonitoring:createdAt {{toDateTime createdAt}};
+      datamonitoring:day {{toDate day}};
       datamonitoring:targetAdministrativeUnit {{uriToNode adminUnitUri}};
       datamonitoring:targetGoverningBody {{uriToNode govBodyUri}};
-      skos:prefLabel {{toStringLiteral prefLabel}};
-      mu:uuid {{toUuidLiteral uuid}};
+      skos:prefLabel {{toString prefLabel}};
+      mu:uuid {{toUuid uuid}};
       datamonitoring:istest "true"^^xsd:boolean;
       datamonitoring:publicationCountReports
         {{#each counts}}{{uriToNode this.countUri}}{{#unless @last}},{{/unless}}{{/each}}.
 
     {{#each counts}}
     {{uriToNode this.countUri}} a datamonitoring:PublicationCountReport;
-      mu:uuid {{toUuidLiteral this.uuid}};
+      mu:uuid {{toUuid this.uuid}};
       datamonitoring:targetClass {{uriToNode this.classUri}};
-      skos:prefLabel {{toStringLiteral this.prefLabel}};
-      datamonitoring:count "{{this.count}}"^^xsd:integer.
+      skos:prefLabel {{toString this.prefLabel}};
+      datamonitoring:count {{toInteger this.count}}.
     {{/each}}
   }
 } WHERE {
 
 }
-`,
-  { noEscape: true }
+`
 );
 
 export type WriteAdminUnitReportInput = {
@@ -241,17 +235,17 @@ export type WriteAdminUnitReportInput = {
   reportUris: string[];
 };
 
-export const writeAdminUnitCountReportTemplate = Handlebars.compile(
+export const writeAdminUnitCountReportTemplate = compileSparql(
   `\
 {{prefixes}}
 INSERT {
   GRAPH {{uriToNode reportGraphUri}} {
     {{uriToNode reportUri}} a datamonitoring:AdminUnitCountReport;
-      skos:prefLabel {{toStringLiteral prefLabel}};
+      skos:prefLabel {{toString prefLabel}};
       datamonitoring:targetAdministrativeUnit {{uriToNode adminUnitUri}};
-      datamonitoring:createdAt {{toDateTimeLiteral createdAt}};
-      datamonitoring:day {{toDateLiteral day}};
-      mu:uuid {{toUuidLiteral uuid}};
+      datamonitoring:createdAt {{toDateTime createdAt}};
+      datamonitoring:day {{toDate day}};
+      mu:uuid {{toUuid uuid}};
       datamonitoring:istest "true"^^xsd:boolean
       {{#if (listPopulated reportUris)}}
       ;
@@ -266,6 +260,5 @@ INSERT {
       {{/if}}
   }
 } WHERE { }
-`,
-  { noEscape: true }
+`
 );

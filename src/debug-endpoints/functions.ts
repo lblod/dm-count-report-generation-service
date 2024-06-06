@@ -1,6 +1,5 @@
 import { NextFunction, Request, RequestHandler, Response } from "express";
 import fs from "node:fs";
-import Handlebars from "handlebars";
 import {
   PeriodicJobTemplate,
   RestJobTemplate,
@@ -16,18 +15,19 @@ import {
 import { TimeOnly } from "../util/date-time.js";
 import { getQueue } from "../job/execution-queue.js";
 import { getJobs } from "../job/job.js";
+import { compileHtml } from "../handlebars/index.js";
 
 // Load templates and parse them
 
-const showJobTemplatesTemplate = Handlebars.compile(
+const showJobTemplatesTemplate = compileHtml(
   fs.readFileSync("./templates/show-job-templates.hbs", { encoding: "utf-8" })
 );
 
-const showQueueTemplate = Handlebars.compile(
+const showQueueTemplate = compileHtml(
   fs.readFileSync("./templates/queue.hbs", { encoding: "utf-8" })
 );
 
-const showJobTemplate = Handlebars.compile(
+const showJobTemplate = compileHtml(
   fs.readFileSync("./templates/job.hbs", { encoding: "utf-8" })
 );
 
