@@ -9,7 +9,6 @@ import fs from "node:fs";
 import { clearStore, dumpStore } from "../queries/store.js";
 import { z } from "zod";
 import { addDebugEndpoint, addSimpleDebugEndpoint } from "./middleware.js";
-import Handlebars from "handlebars";
 import {
   RestJobTemplate,
   createPeriodicJobTemplate,
@@ -23,6 +22,7 @@ import { logger } from "../logger.js";
 import { now } from "../util/date-time.js";
 import { JobStatus } from "../types.js";
 import { ALL_DAYS_OF_WEEK } from "../local-constants.js";
+import { compileHtml } from "../handlebars/index.js";
 
 const debugIndexHtml = compileHtml(
   fs.readFileSync("./templates/debug.hbs", {

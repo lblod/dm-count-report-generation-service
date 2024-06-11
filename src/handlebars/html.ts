@@ -2,6 +2,8 @@ import { DateOnly, TimeOnly } from "../util/date-time.js";
 import Handlebars from "handlebars";
 import dayjs from "dayjs";
 import { config } from "../configuration.js";
+import { getEnumStringFromUri } from "../types.js";
+import fs from "node:fs";
 
 // eslint-disable-next-line no-useless-escape
 const PATH_REGEX = /(\/[a-z\-/0-9]*)\??([a-z\-/0-9\=&]*)/;
@@ -47,4 +49,17 @@ export function addHelpers(handlebars: typeof Handlebars) {
       );
     return `${config.env.ROOT_URL_PATH}${path}`;
   });
+
+  handlebars.registerHelper("printUriEnum", function (enumValue: unknown) {
+    if (!(typeof enumValue === "string"))
+      throw new Error(`printUriEnum only takes a string. Got "${enumValue}"`);
+    return getEnumStringFromUri(enumValue, false);
+  });
+
+  handlebars.registerPartial(
+    "styling",
+    "<style>\n" +
+      fs.readFileSync("./templates/styling.css", { encoding: "utf-8" }) +
+      "</style>\n"
+  );
 }

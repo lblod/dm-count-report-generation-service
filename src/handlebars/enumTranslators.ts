@@ -13,7 +13,7 @@ import Handlebars from "handlebars";
  * The module contains the handlebar helper which convert an enum value of an enum containing URI's (either the key or the value) into the URI.
  * The rendered query will always contain the URI. The input of the helper can be an enum value.
  */
-function createToSparqlLiteralHelper(
+function createToSparqlHelper(
   handlebars: typeof Handlebars,
   funcName: string,
   enumObject: Record<string, string>
@@ -34,22 +34,14 @@ function createToSparqlLiteralHelper(
 }
 
 export function addHelpers(handlebars: typeof Handlebars) {
-  createToSparqlLiteralHelper(handlebars, "toJobStatusLiteral", JobStatus);
-  createToSparqlLiteralHelper(handlebars, "toJobTypeLiteral", JobType);
-  createToSparqlLiteralHelper(
+  createToSparqlHelper(handlebars, "toJobStatus", JobStatus);
+  createToSparqlHelper(handlebars, "toJobType", JobType);
+  createToSparqlHelper(handlebars, "toJobTemplateStatus", JobTemplateStatus);
+  createToSparqlHelper(handlebars, "toJobTemplateType", JobTemplateType);
+  createToSparqlHelper(handlebars, "toDayOfWeek", DayOfWeek);
+  createToSparqlHelper(
     handlebars,
-    "toJobTemplateStatusLiteral",
-    JobTemplateStatus
-  );
-  createToSparqlLiteralHelper(
-    handlebars,
-    "toJobTemplateTypeLiteral",
-    JobTemplateType
-  );
-  createToSparqlLiteralHelper(handlebars, "toDayOfWeekLiteral", DayOfWeek);
-  createToSparqlLiteralHelper(
-    handlebars,
-    "toDatamonitoringFunctionLiteral",
+    "toDatamonitoringFunction",
     DataMonitoringFunction
   );
   handlebars.registerHelper("printUriEnum", function (enumValue: unknown) {

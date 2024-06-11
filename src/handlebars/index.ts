@@ -1,5 +1,6 @@
 import Handlebars from "handlebars";
 import { addHelpers as addEnumHelpers } from "./enumTranslators.js";
+import { addHelpers as addHtmlEnumHelpers } from "./html-enumTranslators.js";
 import { addHelpers as addLiteralHelpers } from "./toLiteral.js";
 import { addHelpers as addSparqlHelpers } from "./sparql.js";
 import { addHelpers as addHtmlHelpers } from "./html.js";
@@ -14,7 +15,8 @@ addSparqlHelpers(sparqlHandlebars);
 addUtilHelpers(sparqlHandlebars);
 
 addHtmlHelpers(htmlHandlebars);
-addUtilHelpers(sparqlHandlebars);
+addHtmlEnumHelpers(htmlHandlebars);
+addUtilHelpers(htmlHandlebars);
 
 export function compileSparql(
   templateString: string

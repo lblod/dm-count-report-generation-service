@@ -2,16 +2,16 @@ import express, { RequestHandler } from "express";
 import { z, ZodSchema } from "zod";
 import { fromError } from "zod-validation-error";
 import fs from "node:fs";
-import Handlebars from "handlebars";
 import { duration } from "../util/util.js";
 import { logger } from "../logger.js";
+import { compileHtml } from "../handlebars/index.js";
 
 // Load templates
 
-const debugResultTemplate = compileSparql(
+const debugResultTemplate = compileHtml(
   fs.readFileSync("./templates/debug-output.hbs", { encoding: "utf-8" })
 );
-const errorResultTemplate = compileSparql(
+const errorResultTemplate = compileHtml(
   fs.readFileSync("./templates/error-output.hbs", { encoding: "utf-8" })
 );
 
