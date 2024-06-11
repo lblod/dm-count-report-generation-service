@@ -34,20 +34,20 @@ export const updateJobTemplateStatusTemplate = compileSparql(
   `\
 {{prefixes}}
 DELETE {
-  GRAPH {{uriToNode jobGraphUri}} {
-    {{uriToNode jobTemplateUri}}
+  GRAPH {{toNode jobGraphUri}} {
+    {{toNode jobTemplateUri}}
       adms:status ?status;
       dct:modified ?modified.
   }
 } INSERT {
-  GRAPH {{uriToNode jobGraphUri}} {
-    {{uriToNode jobTemplateUri}}
+  GRAPH {{toNode jobGraphUri}} {
+    {{toNode jobTemplateUri}}
       adms:status {{toJobTemplateStatus status}};
       dct:modified {{toDateTime modifiedAt}}.
   }
 } WHERE {
-  GRAPH {{uriToNode jobGraphUri}} {
-    {{uriToNode jobTemplateUri}} a cogs:Job,datamonitoring:DatamonitoringTemplateJob;
+  GRAPH {{toNode jobGraphUri}} {
+    {{toNode jobTemplateUri}} a cogs:Job,datamonitoring:DatamonitoringTemplateJob;
       adms:status ?status;
       dct:modified ?modified.
   }
@@ -76,8 +76,8 @@ export const insertPeriodicJobTemplateTemplate = compileSparql(
   `\
 {{prefixes}}
 INSERT {
-  GRAPH {{uriToNode jobGraphUri}} {
-    {{uriToNode newJobTemplateUri}} a cogs:Job, datamonitoring:DatamonitoringTemplateJob;
+  GRAPH {{toNode jobGraphUri}} {
+    {{toNode newJobTemplateUri}} a cogs:Job, datamonitoring:DatamonitoringTemplateJob;
       mu:uuid {{toUuid uuid}};
       dct:creator <{{resourcesUriPrefix}}job-creator/dm-count-report-generation-service>;
       adms:status {{toJobTemplateStatus status}};
@@ -85,9 +85,9 @@ INSERT {
       dct:modified {{toDateTime createdAt}};
       datamonitoring:description {{toString description}};
       datamonitoring:jobType {{toJobTemplateType jobTemplateType}};
-      datamonitoring:jobParameters {{uriToNode jobParametersUri}}.
+      datamonitoring:jobParameters {{toNode jobParametersUri}}.
 
-      {{uriToNode jobParametersUri}} a datamonitoring:PeriodicJobTemplateParameters;
+      {{toNode jobParametersUri}} a datamonitoring:PeriodicJobTemplateParameters;
         mu:uuid "{{jobParametersUuid}}";
         datamonitoring:timeOfInvocation {{toTime timeOfInvocation}};
         datamonitoring:function {{toDatamonitoringFunction datamonitoringFunction}};
@@ -110,13 +110,13 @@ const deleteJobTemplateInput = compileSparql(
   `\
 {{prefixes}}
 DELETE {
-  GRAPH {{uriToNode jobGraphUri}} {
-    {{uriToNode uri}} ?p ?o.
+  GRAPH {{toNode jobGraphUri}} {
+    {{toNode uri}} ?p ?o.
     ?paramRes ?pp ?po.
   }
 } WHERE {
-  GRAPH {{uriToNode jobGraphUri}} {
-    {{uriToNode uri}} datamonitoring:jobParameters ?paramRes.
+  GRAPH {{toNode jobGraphUri}} {
+    {{toNode uri}} datamonitoring:jobParameters ?paramRes.
   }
 }
 `
@@ -324,18 +324,18 @@ export const insertRestJobTemplateTemplate = compileSparql(
   `\
 {{prefixes}}
 INSERT {
-  GRAPH {{uriToNode jobGraphUri}} {
-    {{uriToNode newJobTemplateUri}} a cogs:Job, datamonitoring:DatamonitoringTemplateJob;
+  GRAPH {{toNode jobGraphUri}} {
+    {{toNode newJobTemplateUri}} a cogs:Job, datamonitoring:DatamonitoringTemplateJob;
       mu:uuid {{toUuid uuid}};
-      dct:creator {{uriToNode creatorUri}};
+      dct:creator {{toNode creatorUri}};
       adms:status {{toJobTemplateStatus status}};
       dct:created {{toDateTime createdAt}};
       dct:modified {{toDateTime createdAt}};
       datamonitoring:description {{toString description}};
       datamonitoring:jobType {{toJobTemplateType jobTemplateType}};
-      datamonitoring:jobParameters {{uriToNode jobParametersUri}}.
+      datamonitoring:jobParameters {{toNode jobParametersUri}}.
 
-      {{uriToNode jobParametersUri}} a datamonitoring:restJobTemplateParameters;
+      {{toNode jobParametersUri}} a datamonitoring:restJobTemplateParameters;
         mu:uuid "{{jobParametersUuid}}";
         datamonitoring:function {{toDatamonitoringFunction datamonitoringFunction}};
         datamonitoring:urlPath "{{urlPath}}".
@@ -545,7 +545,7 @@ const getPeriodicJobTemplatesTemplate = compileSparql(
   `\
 {{prefixes}}
 SELECT * WHERE {
-  GRAPH {{uriToNode jobGraphUri}} {
+  GRAPH {{toNode jobGraphUri}} {
     ?jobTemplateUri a cogs:Job, datamonitoring:DatamonitoringTemplateJob;
       mu:uuid ?uuid;
       adms:status ?status;
@@ -567,7 +567,7 @@ export const getRestJobTemplatesTemplate = compileSparql(
   `\
 {{prefixes}}
 SELECT * WHERE {
-  GRAPH {{uriToNode jobGraphUri}} {
+  GRAPH {{toNode jobGraphUri}} {
     ?jobUri a cogs:Job, datamonitoring:DatamonitoringTemplateJob;
       mu:uuid ?uuid;
       adms:status ?status;
@@ -652,12 +652,12 @@ export const deleteAllJobTemplatesTemplate = compileSparql(
   `\
 {{prefixes}}
 DELETE {
-  GRAPH {{uriToNode jobGraphUri}} {
+  GRAPH {{toNode jobGraphUri}} {
     ?blind ?pb ?ob.
     ?job ?p ?o.
   }
 } WHERE {
-  GRAPH {{uriToNode jobGraphUri}} {
+  GRAPH {{toNode jobGraphUri}} {
     ?job a cogs:Job, datamonitoring:DatamonitoringTemplateJob;
       datamonitoring:jobParameters ?blind.
     {{#if (listPopulated jobTemplateTypes)}}

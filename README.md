@@ -165,7 +165,7 @@ export const mySelectQueryTemplate = compileSparql(`\
 {{prefixes}}
 
 SELECT ?resourceUri ?label WHERE {
-  ?resourceUri a {{uriToNode classUri}};
+  ?resourceUri a {{toNode classUri}};
     skos:prefLabel ?label;
     example:day {{toDate day}};
     example:time ?time;
@@ -174,7 +174,28 @@ SELECT ?resourceUri ?label WHERE {
 `);
 ```
 
-It's important to add two typescript types together with a SELECT query and export them: one for the input and one for the output. For INSERT queries you will only need an input type.
+Please note that in the query templates quotation marks for literals should NEVER be used! The helpers will render them for you and you should always use the helpers. The `compileSparql` is specifically to compile handlebars intended for SPARQL queries. Another one is available to render HTML called `compileHtml` but the associated runtime does not provide SPARQL specific helpers.
+
+Include ANY variable referenced in the template in the input type. In ALL cases you will need a literal helper function which converts the variable to a string which is a valid RDF literal (shaped like `"serialnotation"^^"xsd:Type"`) OR a valid URI notation (shaped like `<http://valid-uri.com#resource>`). Whenever you expect the user of your query to input an URI make sure to use `uri` in the name of the variable and use the `toNode` helper to render it. In the future we may use RDFJS integration but now it's pure text wrangling. In order to maximize robustness you should NEVER include a SPARQL literal value directly but always use a helper when inserting a value of a javascript variable. The `toString` helper might seem stupid because you could just do `"{{theStringVar}}"` but this is not the case. The `toString` helper makes sure that illegal characters are properly escaped.
+
+| Variabele type | Helper | Type Notation in typescript | Handlebars notation |
+| :--- | :--- | :--- | :--- |
+| `DateOnly` | `toDate` | `exampleDate:DateOnly;` | `{{toDate exampleDate}}` |
+| `TimeOnly` | `toTime` | `exampleTime:TimeOnly;` | `{{toDate exampleTime}}` |
+| `DateTime` | `toDateTime` | `exampleDateTime:DayJs;` | `{{toDateTime exampleDateTime}}` |
+| `number` | `toInteger` | `int:number;` | `{{toInteger int}}` |
+| `number` | `toFloat` | `float:number;` | `{{toFloat float}}` |
+| `boolean` | `toBoolean` | `yesNo:boolean;` | `{{toBoolean yesNo}}` |
+| `string` | `toString` | `message:string;` | `{{toString message}}` |
+| `JobStatus` | `toJobStatus` | `exampleStatus:JobStatus;` | `{{toJobStatus exampleStatus}}` |
+
+The last row in the table is an enum value. Other enums such as `JobType`, `JobStatus`, `JobTemplateType`, `JobTemplateStatus`, `DayOfWeek` and `DatamonitoringFunction` are also supported in a similar way.
+
+Additional remarks:
+* Because javascript numbers are 64 bit floating point numbers all float literals get the `xsd:double` datatype when using the `toFloat`. `NaN`, `Number.POSITIVE_INFINITY` and `-Number.POSITIVE_INFINITY` are valid values. If you want to throw on `NaN` you'll need to do your own check.
+* The `toInteger` helper will throw an error if the number is not a safe integer. It will not round automatically to the nearest integer.
+
+It's important to add **two typescript types together with a SELECT query and export them**: one for the input and one for the output. For INSERT queries you will only need an input type.
 
 The input is what will be passed to the handlebars templating system. In this case:
 
@@ -183,24 +204,9 @@ export type MySelectQueryInput = {
   prefixes: string;
   classUri: string;
   day: DateOnly;
-  stringValueWithQuotes: string; // If this string contains quotes they need to be escaped...
-  // ... using the 'escape' helper function.
+  stringValueWithQuotes: string; // Quotes are no problem because the toString helper will escape them.
 }
 ```
-
-Include ANY variable referenced in the template in the input type. In many cases you will need a literal helper function which converts the variable to a string with a valid RDF literal (shaped like `"serialnotation"^^"xsd:Type"`). Whenever you expect the user of your query to input an URI make sure to use `uri` in the name. In the future we may use RDFJS integration but now it's pure text wrangling.
-
-Feel free to use types like 'DateOnly' of 'TimeOnly' or some enums. To format specific types of variables to the correct SPARQL format you'll need these helpers in the query:
-
-| Variabele type | Helper | Type Notation in typescript | Handlebars notation |
-| :--- | :--- | :--- | :--- |
-| `DateOnly` | `toDateLiteral` | `exampleDate:DateOnly;` | `{{toDate exampleDate}}` |
-| `TimeOnly` | `toTimeLiteral` | `exampleTime:TimeOnly;` | `{{toDate exampleTime}}` |
-| `DateTime` | `toDateTimeLiteral` | `exampleDateTime:DayJs;` | `{{toDateTime exampleDateTime}}` |
-| `JobStatus` | `toJobStatusLiteral` | `exampleStatus:JobStatus;` | `{{toJobStatus exampleStatus}}` |
-
-The last row in the table is an enum value. Other enums such as `JobType`, `JobStatus`, `JobTemplateType`, `JobTemplateStatus`, `DayOfWeek` and `DatamonitoringFunction` are also supported in a similar way.
-
 The output is linked to the selected variables after the `SELECT` keyword. In this case.
 
 ```typescript
@@ -211,7 +217,7 @@ export type MySelectQueryOutput = {
 }
 ```
 
-In this type structure you can also use TimeOnly, DateOnly, DateTime(Dayjs)(modeling a timestamp) and enums. When parsing the bindings after invoking the `objects` or `records` method of the `TemplatedSelect` instance will automatically convert the variables to the correct type because the linked data has type information. Of course you can just use strings and number without helpers. Remember that Handlebars is 'dumb'. Whatever template you write will need to generate correct SPARQL. So putting URI's in your query will require you not to forget the `<` and `>` characters. When rendering plain text strings as objects please use the `escape` helper which escapes `"` and `'` like this: `{{escape stringVariable}}`.
+In this type structure you can also use TimeOnly, DateOnly, DateTime(Dayjs)(modeling a timestamp) and enums. When parsing the bindings after invoking the `objects` or `records` method of the `TemplatedSelect` instance will automatically convert the variables to the correct type because the linked data has type information. Of course you can just use strings and number without helpers. Remember that Handlebars is 'dumb'. Whatever template you write will need to generate correct SPARQL. So putting URI's in your query will require you to use the `toNode` helper which renders the `<` and `>` characters and performs a sanity check.
 
 Then, in another file where you want to execute the query, you'll instantiate the `TemplatedSelect` class.
 

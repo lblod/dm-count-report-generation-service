@@ -27,7 +27,7 @@ export const getOrganisationsTemplate = compileSparql(
   `\
 {{prefixes}}
 SELECT ?organisationUri ?label ?id WHERE {
-  GRAPH {{uriToNode graphUri}} {
+  GRAPH {{toNode graphUri}} {
     {
       SELECT ?organisationUri WHERE {
         ?organisationUri a besluit:Bestuurseenheid;
@@ -53,7 +53,7 @@ SELECT * WHERE {
   {{#each classes}}
   {
     SELECT (COUNT(DISTINCT ?res{{@index}}) as ?resCount{{@index}}) WHERE {
-      ?res{{@index}} a {{uriToNode this}}.
+      ?res{{@index}} a {{toNode this}}.
     }
   }
   {{/each}}
@@ -76,9 +76,9 @@ export const getGoverningBodiesOfAdminUnitTemplate = compileSparql(
   `\
 {{prefixes}}
 SELECT ?goveringBodyUri ?classLabel WHERE {
-  GRAPH {{uriToNode graphUri}} {
+  GRAPH {{toNode graphUri}} {
     ?goveringBodyUri a besluit:Bestuursorgaan;
-      besluit:bestuurt {{uriToNode adminitrativeUnitUri}};
+      besluit:bestuurt {{toNode adminitrativeUnitUri}};
       org:classification [
         a skos:Concept;
         skos:prefLabel ?classLabel;

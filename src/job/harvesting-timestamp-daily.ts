@@ -61,20 +61,20 @@ const insertLastExecutedReportTemplate = compileSparql(
   `\
 {{prefixes}}
 INSERT {
-  GRAPH {{uriToNode reportGraphUri}} {
-    {{uriToNode reportUri}} a datamonitoring:LastHarvestingExecutionReport;
+  GRAPH {{toNode reportGraphUri}} {
+    {{toNode reportUri}} a datamonitoring:LastHarvestingExecutionReport;
       datamonitoring:day {{toDate day}};
       skos:prefLabel {{toString prefLabel}};
       datamonitoring:createdAt {{toDateTime createdAt}};
       mu:uuid {{toUuid uuid}};
       datamonitoring:adminUnitLastExecutionRecords
-        {{#each times}}{{uriToNode this.resultUri}}{{#unless @last}},{{/unless}}{{/each}}.
+        {{#each times}}{{toNode this.resultUri}}{{#unless @last}},{{/unless}}{{/each}}.
 
     {{#each times}}
-    {{uriToNode this.resultUri}}
+    {{toNode this.resultUri}}
       a datamonitoring:LastHarvestingExecutionRecord;
       mu:uuid {{toUuid this.uuid}};
-      datamonitoring:targetAdministrativeUnit {{uriToNode this.organisationUri}};
+      datamonitoring:targetAdministrativeUnit {{toNode this.organisationUri}};
       skos:prefLabel "Last execution of harvesting job for organisation \\'{{escape this.organisationLabel}}\\'";
       datamonitoring:lastExecutionTime {{toDateTime this.lastExecutionTimestamp}}.
     {{/each}}

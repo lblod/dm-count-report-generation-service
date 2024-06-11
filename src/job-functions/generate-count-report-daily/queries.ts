@@ -19,13 +19,13 @@ export const countSessionsQueryTemplate = compileSparql(
 SELECT (COUNT(DISTINCT ?session) as ?count) WHERE {
   {
     ?session a besluit:Zitting;
-      besluit:isGehoudenDoor {{uriToNode governingBodyUri}}.
+      besluit:isGehoudenDoor {{toNode governingBodyUri}}.
   } UNION {
     ?session a besluit:Zitting;
       besluit:isGehoudenDoor ?governingBodyTimeSpecified.
 
     ?governingBodyTimeSpecified a besluit:Bestuursorgaan;
-        mandaat:isTijdspecialisatieVan {{uriToNode governingBodyUri}}.
+        mandaat:isTijdspecialisatieVan {{toNode governingBodyUri}}.
   }
   ?session besluit:geplandeStart ?plannedStart.
   {{#unless noFilterForDebug}}
@@ -33,7 +33,6 @@ SELECT (COUNT(DISTINCT ?session) as ?count) WHERE {
   FILTER(?plannedStart < {{toDateTime to}})
   {{/unless}}
 }
-
 `
 );
 
@@ -56,14 +55,14 @@ SELECT (COUNT(DISTINCT ?agendaItem) as ?count) WHERE {
   {
     ?session a besluit:Zitting;
       besluit:behandelt ?agendaItem;
-      besluit:isGehoudenDoor {{uriToNode governingBodyUri}}.
+      besluit:isGehoudenDoor {{toNode governingBodyUri}}.
   } UNION {
     ?session a besluit:Zitting;
       besluit:behandelt ?agendaItem;
       besluit:isGehoudenDoor ?governingBodyTimeSpecified.
 
     ?governingBodyTimeSpecified a besluit:Bestuursorgaan;
-      mandaat:isTijdspecialisatieVan {{uriToNode governingBodyUri}}.
+      mandaat:isTijdspecialisatieVan {{toNode governingBodyUri}}.
   }
   ?agendaItem a besluit:Agendapunt.
   ?session besluit:geplandeStart ?plannedStart.
@@ -102,14 +101,14 @@ SELECT (COUNT(DISTINCT ?resolution) as ?count) WHERE {
   {
     ?session a besluit:Zitting;
       besluit:behandelt ?agendaItem;
-      besluit:isGehoudenDoor {{uriToNode governingBodyUri}}.
+      besluit:isGehoudenDoor {{toNode governingBodyUri}}.
   } UNION {
     ?session a besluit:Zitting;
       besluit:behandelt ?agendaItem;
       besluit:isGehoudenDoor ?governingBodyTimeSpecified.
 
     ?governingBodyTimeSpecified a besluit:Bestuursorgaan;
-      mandaat:isTijdspecialisatieVan {{uriToNode governingBodyUri}}.
+      mandaat:isTijdspecialisatieVan {{toNode governingBodyUri}}.
   }
   ?agendaItem a besluit:Agendapunt.
   ?session besluit:geplandeStart ?plannedStart.
@@ -197,22 +196,22 @@ export const writeCountReportQueryTemplate = compileSparql(
   `\
 {{prefixes}}
 INSERT {
-  GRAPH {{uriToNode reportGraphUri}} {
-    {{uriToNode reportUri}} a datamonitoring:GoverningBodyCountReport;
+  GRAPH {{toNode reportGraphUri}} {
+    {{toNode reportUri}} a datamonitoring:GoverningBodyCountReport;
       datamonitoring:createdAt {{toDateTime createdAt}};
       datamonitoring:day {{toDate day}};
-      datamonitoring:targetAdministrativeUnit {{uriToNode adminUnitUri}};
-      datamonitoring:targetGoverningBody {{uriToNode govBodyUri}};
+      datamonitoring:targetAdministrativeUnit {{toNode adminUnitUri}};
+      datamonitoring:targetGoverningBody {{toNode govBodyUri}};
       skos:prefLabel {{toString prefLabel}};
       mu:uuid {{toUuid uuid}};
       datamonitoring:istest "true"^^xsd:boolean;
       datamonitoring:publicationCountReports
-        {{#each counts}}{{uriToNode this.countUri}}{{#unless @last}},{{/unless}}{{/each}}.
+        {{#each counts}}{{toNode this.countUri}}{{#unless @last}},{{/unless}}{{/each}}.
 
     {{#each counts}}
-    {{uriToNode this.countUri}} a datamonitoring:PublicationCountReport;
+    {{toNode this.countUri}} a datamonitoring:PublicationCountReport;
       mu:uuid {{toUuid this.uuid}};
-      datamonitoring:targetClass {{uriToNode this.classUri}};
+      datamonitoring:targetClass {{toNode this.classUri}};
       skos:prefLabel {{toString this.prefLabel}};
       datamonitoring:count {{toInteger this.count}}.
     {{/each}}
@@ -239,10 +238,10 @@ export const writeAdminUnitCountReportTemplate = compileSparql(
   `\
 {{prefixes}}
 INSERT {
-  GRAPH {{uriToNode reportGraphUri}} {
-    {{uriToNode reportUri}} a datamonitoring:AdminUnitCountReport;
+  GRAPH {{toNode reportGraphUri}} {
+    {{toNode reportUri}} a datamonitoring:AdminUnitCountReport;
       skos:prefLabel {{toString prefLabel}};
-      datamonitoring:targetAdministrativeUnit {{uriToNode adminUnitUri}};
+      datamonitoring:targetAdministrativeUnit {{toNode adminUnitUri}};
       datamonitoring:createdAt {{toDateTime createdAt}};
       datamonitoring:day {{toDate day}};
       mu:uuid {{toUuid uuid}};
@@ -251,7 +250,7 @@ INSERT {
       ;
       datamonitoring:governingBodyReports
       {{#each reportUris}}
-        {{uriToNode this}}
+        {{toNode this}}
         {{#unless @last}},{{/unless}}
       {{/each}}
       .

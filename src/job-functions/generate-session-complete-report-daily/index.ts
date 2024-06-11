@@ -1,5 +1,6 @@
 import { QueryEngine } from "@comunica/query-sparql";
 import { v4 as uuidv4 } from "uuid";
+import { config } from "../../configuration.js";
 import { getOrgResoucesCached } from "../../job/get-org-data.js";
 import { JobFunction } from "../../job/job.js";
 import { PREFIXES } from "../../local-constants.js";
@@ -11,64 +12,73 @@ import {
 import { DateOnly, now } from "../../util/date-time.js";
 import { duration } from "../../util/util.js";
 import {
-  WriteReportInput,
-  writeCountReportQueryTemplate,
+  AnalyseAgendaItemsInput,
+  AnalyseAgendaItemsOutput,
+  BadAgendaItemInput,
+  CountSessionUnitsPerAdminUnitOutput,
+  CountSessionsPerAdminUnitInput,
+  GetSessionsInput,
+  GetSessionsOuput,
+  SessionCheckReportInput,
   WriteAdminUnitReportInput,
-  writeAdminUnitCountReportTemplate,
-  CountSessionsQueryInput,
-  CountSessionsQueryOutput,
-  countSessionsQueryTemplate,
-  CountResolutionsQueryInput,
-  CountResolutionsQueryOutput,
-  countResolutionsQueryTemplate,
-  countAgendaItemsQueryTemplate,
-  CountVoteQueryInput,
-  CountVoteQueryOutput,
-  countVoteQueryTemplate,
+  WriteGoveringBodyReportInput,
+  analyseAgendaItemsTemplate,
+  countSessionsPerAdminUnitTemplate,
+  getSessionsTemplate,
+  writeAdminUnitReportTemplate,
+  writeGoverningBodyReportTemplate,
 } from "./queries.js";
-import { config } from "../../configuration.js";
 
 function getQueriesForWriting(queryEngine: QueryEngine, endpoint: string) {
-  const writeCountReportQuery = new TemplatedInsert<WriteReportInput>(
-    queryEngine,
-    endpoint,
-    writeCountReportQueryTemplate
-  );
-  const writeAdminUnitCountReportQuery =
+  const writeGoverningBodyReportQuery =
+    new TemplatedInsert<WriteGoveringBodyReportInput>(
+      queryEngine,
+      endpoint,
+      writeGoverningBodyReportTemplate
+    );
+  const writeAdminUnitReportQuery =
     new TemplatedInsert<WriteAdminUnitReportInput>(
       queryEngine,
       endpoint,
-      writeAdminUnitCountReportTemplate
+      writeAdminUnitReportTemplate
     );
   return {
-    writeCountReportQuery,
-    writeAdminUnitCountReportQuery,
+    writeGoverningBodyReportQuery,
+    writeAdminUnitReportQuery,
   };
 }
+
 function getQueriesForAnalysis(queryEngine: QueryEngine, endpoint: string) {
-  const countSessionsQuery = new TemplatedSelect<
-    CountSessionsQueryInput,
-    CountSessionsQueryOutput
-  >(queryEngine, endpoint, countSessionsQueryTemplate);
-  const countResolutionsQuery = new TemplatedSelect<
-    CountResolutionsQueryInput,
-    CountResolutionsQueryOutput
-  >(queryEngine, endpoint, countResolutionsQueryTemplate);
-  const countAgendaItemsQuery = new TemplatedSelect<
-    CountSessionsQueryInput,
-    CountSessionsQueryOutput
-  >(queryEngine, endpoint, countAgendaItemsQueryTemplate);
-  const countVoteQuery = new TemplatedSelect<
-    CountVoteQueryInput,
-    CountVoteQueryOutput
-  >(queryEngine, endpoint, countVoteQueryTemplate);
+  const getSessionsQuery = new TemplatedSelect<
+    GetSessionsInput,
+    GetSessionsOuput
+  >(queryEngine, endpoint, getSessionsTemplate);
+  const analyseAgendaItemsQuery = new TemplatedSelect<
+    AnalyseAgendaItemsInput,
+    AnalyseAgendaItemsOutput
+  >(queryEngine, endpoint, analyseAgendaItemsTemplate);
 
   return {
-    countSessionsQuery,
-    countAgendaItemsQuery,
-    countResolutionsQuery,
-    countVoteQuery,
+    getSessionsQuery,
+    analyseAgendaItemsQuery,
   };
+}
+
+function extractDocuments(
+  queryObject: AnalyseAgendaItemsOutput | undefined
+): string[] {
+  if (!queryObject) return [];
+  if (Array.isArray(queryObject.documentUri)) {
+    return queryObject.documentUri;
+  }
+  if (typeof queryObject.documentUri === "string") {
+    return [queryObject.documentUri];
+  }
+  return [];
+}
+
+function someIncludes(list: string[], word: string): boolean {
+  return list.some((s) => s.includes(word));
 }
 
 /**
@@ -82,21 +92,44 @@ export const generateReportsDaily: JobFunction = async (
 ) => {
   const defaultedDay = day ?? DateOnly.yesterday();
   progress.update(
-    `Report function invoked with day ${defaultedDay.toString()}`
+    `Document presence check report function invoked with day ${defaultedDay.toString()}`
   );
-  // Init some functions making use of the progress
-  async function performCount<
-    I extends Record<string, any>,
-    O extends Record<string, any>
-  >(resource: string, query: TemplatedSelect<I, O>, input: I): Promise<O> {
-    const result = await duration(query.result.bind(query))(input);
+  progress.update(`Getting org resources`);
+  const orgResources = await getOrgResoucesCached(queryEngine);
 
-    progress.progress(++queries, queryCount, result.durationMilliseconds);
-    progress.update(
-      `Performed count query for resource "${resource}" in ${result.durationMilliseconds} ms.`
-    );
-    return result.result;
+  // First we determine the total amount of queries to be done
+  let queryCount = 0;
+  let queries = 0;
+  let governingBodiesCount = 0;
+
+  for (const endpoint of config.file.endpoints) {
+    const countSessionsQuery = new TemplatedSelect<
+      CountSessionsPerAdminUnitInput,
+      CountSessionUnitsPerAdminUnitOutput
+    >(queryEngine, endpoint.url, countSessionsPerAdminUnitTemplate);
+    for (const adminUnit of orgResources.adminUnits) {
+      const sessionCountRecords = await countSessionsQuery.records({
+        prefixes: PREFIXES,
+        governingBodyUris: adminUnit.govBodies.map((gb) => gb.uri),
+        noFilterForDebug: config.env.NO_TIME_FILTER,
+        from: defaultedDay.localStartOfDay,
+        to: defaultedDay.localEndOfDay,
+      });
+      queryCount += adminUnit.govBodies.length; // Write gov unit report body report
+      governingBodiesCount += adminUnit.govBodies.length;
+      for (const sessionCountRecord of sessionCountRecords) {
+        queryCount += sessionCountRecord.sessionCount; // One query per session
+      }
+      queryCount++; // Write admin unit report body report
+    }
   }
+  // End of determining total query count
+
+  progress.progress(0, queryCount);
+  progress.update(
+    `Got org resources. ${queryCount} queries to perform for ${governingBodiesCount} governing bodies and ${orgResources.adminUnits.length} admin units for ${config.file.endpoints.length} endpoints.`
+  );
+  // Helper function
   async function performInsert<I extends Record<string, any>>(
     resource: string,
     query: TemplatedInsert<I>,
@@ -109,149 +142,176 @@ export const generateReportsDaily: JobFunction = async (
     );
   }
 
-  progress.update(`Getting org resources`);
-  const orgResources = await getOrgResoucesCached(queryEngine);
-  const governingBodiesCount = orgResources.adminUnits.reduce<number>(
-    (acc, curr) => acc + curr.govBodies.length,
-    0
-  );
-  const queryCount =
-    orgResources.adminUnits.reduce<number>(
-      (acc, curr) => acc + curr.govBodies.length * 5 + 1,
-      0
-    ) * config.file.endpoints.length;
-  progress.progress(0, queryCount);
-  progress.update(
-    `Got org resources. ${queryCount} queries to perform for ${governingBodiesCount} governing bodies and ${orgResources.adminUnits.length} admin units for ${config.file.endpoints.length} endpoints.`
-  );
-  let queries = 0;
-  const { writeCountReportQuery, writeAdminUnitCountReportQuery } =
+  async function performSelectObjects<
+    I extends Record<string, any>,
+    O extends Record<string, any>
+  >(query: TemplatedSelect<I, O>, uriKey: string, input: I): Promise<O[]> {
+    const result = await duration(query.objects.bind(query))(uriKey, input);
+    progress.progress(++queries, queryCount, result.durationMilliseconds);
+    progress.update(
+      `Performed select query in ${result.durationMilliseconds} ms. Returned ${result.result.length} objects.`
+    );
+    return result.result;
+  }
+  async function performSelectRecords<
+    I extends Record<string, any>,
+    O extends Record<string, any>
+  >(query: TemplatedSelect<I, O>, input: I): Promise<O[]> {
+    const result = await duration(query.records.bind(query))(input);
+    progress.progress(++queries, queryCount, result.durationMilliseconds);
+    progress.update(
+      `Performed select query in ${result.durationMilliseconds} ms. Returned ${result.result.length} Records.`
+    );
+    return result.result;
+  }
+  async function performSelectResult<
+    I extends Record<string, any>,
+    O extends Record<string, any>
+  >(query: TemplatedSelect<I, O>, input: I): Promise<O> {
+    const result = await duration(query.result.bind(query))(input);
+    progress.progress(++queries, queryCount, result.durationMilliseconds);
+    progress.update(
+      `Performed select query (one row) in ${result.durationMilliseconds} ms. Returned a result.`
+    );
+    return result.result;
+  }
+
+  const { writeGoverningBodyReportQuery, writeAdminUnitReportQuery } =
     getQueriesForWriting(queryEngine, config.env.REPORT_ENDPOINT);
   // Now perform the query machine gun
   for (const endpoint of config.file.endpoints) {
-    const {
-      countSessionsQuery,
-      countAgendaItemsQuery,
-      countResolutionsQuery,
-      countVoteQuery,
-    } = getQueriesForAnalysis(queryEngine, endpoint.url);
+    const { getSessionsQuery, analyseAgendaItemsQuery } = getQueriesForAnalysis(
+      queryEngine,
+      endpoint.url
+    );
 
     for (const adminUnit of orgResources.adminUnits) {
       const governingBodyReportUriList: string[] = [];
       // TODO: make a catalog of query machines for each resource type eventually
+      let badGoverningBodies = 0;
       for (const goveringBody of adminUnit.govBodies) {
-        // Count the resources
-        const sessionsResult = await performCount(
-          "Session",
-          countSessionsQuery,
-          {
-            prefixes: PREFIXES,
-            governingBodyUri: goveringBody.uri,
-            from: defaultedDay.localStartOfDay,
-            to: defaultedDay.localEndOfDay,
-            noFilterForDebug: config.env.NO_TIME_FILTER,
-          }
-        );
-
-        const agendaItemResult = await performCount(
-          "AgendaPunt",
-          countAgendaItemsQuery,
-          {
-            prefixes: PREFIXES,
-            governingBodyUri: goveringBody.uri,
-            from: defaultedDay.localStartOfDay,
-            to: defaultedDay.localEndOfDay,
-            noFilterForDebug: config.env.NO_TIME_FILTER,
-          }
-        );
-
-        const resolutionResult = await performCount(
-          "Besluit",
-          countResolutionsQuery,
-          {
-            prefixes: PREFIXES,
-            governingBodyUri: goveringBody.uri,
-            from: defaultedDay.localStartOfDay,
-            to: defaultedDay.localEndOfDay,
-            noFilterForDebug: config.env.NO_TIME_FILTER,
-          }
-        );
-
-        const voteResult = await performCount("Stemming", countVoteQuery, {
+        const newSessions = await performSelectRecords(getSessionsQuery, {
           prefixes: PREFIXES,
           governingBodyUri: goveringBody.uri,
-          from: defaultedDay.localStartOfDay,
-          to: defaultedDay.localEndOfDay,
           noFilterForDebug: config.env.NO_TIME_FILTER,
+          from: defaultedDay.localEndOfDay,
+          to: defaultedDay.localEndOfDay,
         });
+
+        const sessionCheckReports: SessionCheckReportInput[] = [];
+        let badSessions = 0;
+
+        for (const sessionRecord of newSessions) {
+          // For each session we need to check which URL's are present with all the associated agenda items
+          const agendaItems = await performSelectObjects(
+            analyseAgendaItemsQuery,
+            "agendaItemUri",
+            {
+              prefixes: PREFIXES,
+              sessionUri: sessionRecord.sessionUri,
+            }
+          );
+          progress.progress(queries++, queryCount);
+          // For each agenda item; check what url's are present.
+          // If an agenda item is NOT ok then add it to the list of bad agenda items of this session
+          const urls = new Set<string>();
+          const badAgendaItems: BadAgendaItemInput[] = [];
+          for (const agendaItemQueryResult of agendaItems) {
+            const agendaItemUrls = extractDocuments(agendaItemQueryResult);
+
+            const hasResolutions = someIncludes(
+              agendaItemUrls,
+              "besluitenlijst"
+            );
+            const hasAgenda = someIncludes(agendaItemUrls, "agendapunten");
+            const hasNotes = someIncludes(agendaItemUrls, "notulen");
+            const hasAllDocuments = hasResolutions && hasAgenda && hasNotes;
+
+            if (!hasAllDocuments) {
+              const uuid = uuidv4();
+              const agendaItemCheckUri = `${config.env.URI_PREFIX_RESOURCES}${uuid}`;
+              badAgendaItems.push({
+                agendaItemCheckUri,
+                uuid,
+                hasAgenda,
+                hasNotes,
+                hasResolutions,
+                urls: agendaItemUrls,
+              });
+            }
+            agendaItemUrls.forEach((u) => urls.add(u));
+          }
+          // Done checking agenda items
+          const uuid = uuidv4();
+          const sessionCheckUri = `${config.env.URI_PREFIX_RESOURCES}${uuid}`;
+          const ok = badAgendaItems.length === 0;
+          const reportLabel = ok
+            ? `All agenda items (${agendaItems.length}) have associed notes, resolutions and agenda item documents.`
+            : `Not all agenda items habe associated notes, resolutions and agenda item documents. ${badAgendaItems.length} of ${agendaItems.length} are incomplete.`;
+          sessionCheckReports.push({
+            sessionCheckUri,
+            uuid,
+            documentsPresent: ok,
+            urls: [...urls],
+            badAgendaItems,
+            prefLabel: `Document presence check of session with uuid "${sessionRecord.uuid}": ${reportLabel}`,
+            sessionUri: sessionRecord.sessionUri,
+          });
+
+          if (!ok) badSessions++;
+        }
+        // Done checking session
 
         const uuid = uuidv4();
         const reportUri = `${config.env.URI_PREFIX_RESOURCES}${uuid}`;
         governingBodyReportUriList.push(reportUri);
 
-        const uuids = new Array(4).fill(null).map(() => uuidv4());
-
         // Write govering body report
-        await performInsert("GoverningBodyCountReport", writeCountReportQuery, {
-          prefixes: PREFIXES,
-          govBodyUri: goveringBody.uri,
-          createdAt: now(),
-          reportUri,
-          reportGraphUri: config.env.REPORT_GRAPH_URI,
-          adminUnitUri: adminUnit.uri,
-          prefLabel: `Count report for governing body of class '${goveringBody.classLabel}' on ${defaultedDay} for admin unit '${adminUnit.label}'`,
-          day: defaultedDay,
-          uuid,
-          counts: [
-            {
-              countUri: `${config.env.URI_PREFIX_RESOURCES}${uuids[0]}`,
-              uuid: uuids[0],
-              classUri: `http://data.vlaanderen.be/ns/besluit#Zitting`,
-              count: sessionsResult.count,
-              prefLabel: `Count of 'Zitting'`,
-            },
-            {
-              countUri: `${config.env.URI_PREFIX_RESOURCES}${uuids[1]}`,
-              uuid: uuids[1],
-              classUri: `http://data.vlaanderen.be/ns/besluit#Agendapunt`,
-              count: agendaItemResult.count,
-              prefLabel: `Count of 'Agendapunt'`,
-            },
-            {
-              countUri: `${config.env.URI_PREFIX_RESOURCES}${uuids[2]}`,
-              uuid: uuids[2],
-              classUri: `http://data.vlaanderen.be/ns/besluit#Besluit`,
-              count: resolutionResult.count,
-              prefLabel: `Count of 'Besluit'`,
-            },
-            {
-              countUri: `${config.env.URI_PREFIX_RESOURCES}${uuids[3]}`,
-              uuid: uuids[3],
-              classUri: `http://data.vlaanderen.be/ns/besluit#Stemming`,
-              count: voteResult.count,
-              prefLabel: `Count of 'Stemming'`,
-            },
-          ],
-        });
+        await performInsert(
+          "GoverningBodyDocumentPresenceCheckReport",
+          writeGoverningBodyReportQuery,
+          {
+            prefixes: PREFIXES,
+            reportGraphUri: config.env.REPORT_GRAPH_URI,
+            reportUri,
+            createdAt: now(),
+            day: defaultedDay,
+            govBodyUri: goveringBody.uri,
+            adminUnitUri: adminUnit.uri,
+            prefLabel: `Document presence check of all new sessions associated with the governing body "${goveringBody.classLabel}" of admin unit "${adminUnit.label}".`,
+            uuid,
+            totalSessions: sessionCheckReports.length,
+            totalBadSessions: badSessions,
+            sessionCheckReports,
+          }
+        );
+        progress.progress(queries++, queryCount);
+
+        if (badSessions > 0) badGoverningBodies++;
       }
       // Write admin unit report
       const uuid = uuidv4();
       await performInsert(
-        "AdminUnitCountReport",
-        writeAdminUnitCountReportQuery,
+        "AdminUnitDocumentPresenceCheckReport",
+        writeAdminUnitReportQuery,
         {
           prefixes: PREFIXES,
           reportGraphUri: config.env.REPORT_GRAPH_URI,
           adminUnitUri: adminUnit.uri,
-          prefLabel: `Count report for admin unit '${adminUnit.label}' on ${defaultedDay}`,
+          prefLabel: `Session document present check reportfor admin unit '${adminUnit.label}' on ${defaultedDay}`,
           reportUri: `${config.env.URI_PREFIX_RESOURCES}${uuid}`,
           uuid,
           createdAt: now(),
           day: defaultedDay,
+          totalBadGoverningBodies: badGoverningBodies,
           reportUris: governingBodyReportUriList,
         }
       );
+      progress.progress(queries++, queryCount);
+      // Done writing admin unit
     }
-    progress.update(`All reports written for endpoint "${endpoint.url}"`);
+    progress.update(
+      `All document presence reports written for endpoint "${endpoint.url}"`
+    );
   }
 };
