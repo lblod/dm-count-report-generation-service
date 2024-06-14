@@ -18,21 +18,22 @@ export const countSessionsPerAdminUnitTemplate = compileSparql(
   `\
 {{prefixes}}
 
-SELECT ?goveringBodyUri (COUNT(?sessionUri) as ?sessionCount) WHERE {
-  VALUES ?goveringBodyUri {
-    {{#each governingBodyUris}}{{toNode this}}{{#unless @last}},{{/unless}}
+SELECT ?governingBodyUri (COUNT(?sessionUri) as ?sessionCount) WHERE {
+  VALUES ?governingBodyUri {
+    {{#each governingBodyUris}}{{toNode this}}
     {{/each}}
   }
 
   ?sessionUri a besluit:Zitting;
-    besluit:isGehoudenDoor ?goveringBodyUri;
+    besluit:isGehoudenDoor ?governingBodyUri;
     besluit:geplandeStart ?plannedStart.
+
 
   {{#unless noFilterForDebug}}
   FILTER(?plannedStart >= {{toDateTime from}})
   FILTER(?plannedStart < {{toDateTime to}})
   {{/unless}}
-}
+} GROUP BY ?governingBodyUri
 `
 );
 
@@ -42,27 +43,29 @@ export type GetSessionsInput = {
   noFilterForDebug: boolean;
   from: DateTime;
   to: DateTime;
+  limit: number;
 };
 
 export type GetSessionsOuput = {
   sessionUri: string;
   uuid: string;
+  documentUri: string[] | undefined;
 };
 
 export const getSessionsTemplate = compileSparql(
   `\
 {{prefixes}}
-SELECT ?sessionUri ?uuid WHERE {
+SELECT ?sessionUri ?uuid ?documentUri WHERE {
   ?sessionUri a besluit:Zitting;
-    besluit:isGehoudenDoor {{toNode governingBodyUri}};
-    besluit:geplandeStart ?plannedStart;
-    mu:uuid ?uuid.
-
+      besluit:isGehoudenDoor {{toNode governingBodyUri}};
+      besluit:geplandeStart ?plannedStart;
+      mu:uuid ?uuid;
+      prov:wasDerivedFrom ?documentUri.
   {{#unless noFilterForDebug}}
   FILTER(?plannedStart >= {{toDateTime from}})
   FILTER(?plannedStart < {{toDateTime to}})
   {{/unless}}
-}
+} {{limitClause limit}}
 `
 );
 
@@ -74,28 +77,26 @@ export type AnalyseAgendaItemsInput = {
 export type AnalyseAgendaItemsOutput = {
   agendaItemUri: string;
   documentUri: string[] | string;
-  documentClassUri: string[] | string;
 };
 
 export const analyseAgendaItemsTemplate = compileSparql(`\
 {{prefixes}}
-SELECT ?agendaItemUri ?documentUri ?documentClassUri WHERE {
+SELECT ?agendaItemUri ?documentUri WHERE {
   {{toNode sessionUri}} besluit:behandelt ?agendaItemUri.
 
-  ?agendaItemUri a besluit:AgendaPunt;
+  ?agendaItemUri a besluit:Agendapunt;
     prov:wasDerivedFrom ?documentUri.
-
-  ?documentUri a ?documentClassUri.
 }
 `);
 
-export type BadAgendaItemInput = {
+export type AgendaItemReportInput = {
   agendaItemCheckUri: string;
   uuid: string;
   hasResolutions: boolean;
   hasAgenda: boolean;
   hasNotes: boolean;
   urls: string[];
+  targetAgendaPointUri: string;
 };
 
 export type SessionCheckReportInput = {
@@ -105,7 +106,7 @@ export type SessionCheckReportInput = {
   uuid: string;
   documentsPresent: boolean;
   urls: string[];
-  badAgendaItems: BadAgendaItemInput[];
+  agendaItemReports: AgendaItemReportInput[];
 };
 
 export type WriteGoveringBodyReportInput = {
@@ -148,7 +149,6 @@ INSERT {
     {{toNode this.sessionCheckUri}} a datamonitoring:DocumentPresenceSessionCheck;
       mu:uuid {{toUuid this.uuid}};
       skos:prefLabel {{toString this.prefLabel}};
-      datamonitoring:hasAllDocuments {{toBoolean this.hasAllDocuments}};
       datamonitoring:targetSession {{toNode this.sessionUri}};
       datamonitoring:documentsPresent {{toBoolean this.documentsPresent}}.
     {{#if (listPopulated this.urls)}}
@@ -156,17 +156,18 @@ INSERT {
       datamonitoring:documentUrl
         {{#each this.urls}}{{toString this}}{{#unless @last}},{{/unless}}{{/each}}.
     {{/if}}
-    {{#if (listPopulated this.badAgendaItems)}}
+    {{#if (listPopulated this.agendaItemReports)}}
     {{toNode this.sessionCheckUri}}
-      datamonitoring:badAgendaItems
-        {{#each this.badAgendaItems}}{{toNode this.agendaItemCheckUri}}{{#unless @last}},{{/unless}}{{/each}}.
+      datamonitoring:agendaItemReports
+        {{#each this.agendaItemReports}}{{toNode this.agendaItemCheckUri}}{{#unless @last}},{{/unless}}{{/each}}.
 
-    {{#each this.badAgendaItems}}
+    {{#each this.agendaItemReports}}
     {{toNode this.agendaItemCheckUri}} a datamonitoring:DocumentPresenceAgendaItemCheck;
       mu:uuid {{toUuid this.uuid}};
-      datamonitoring:hasResolutions this.hasResolutions;
-      datamonitoring:hasNotes this.hasNotes;
-      datamonitoring:hasAgenda this.hasAgenda.
+      datamonitoring:hasResolutions {{toBoolean this.hasResolutions}};
+      datamonitoring:hasNotes {{toBoolean this.hasNotes}};
+      datamonitoring:hasAgenda {{toBoolean this.hasAgenda}};
+      datamonitoring:targetAgendaPoint {{toNode this.targetAgendaPointUri}}.
 
     {{#if (listPopulated this.urls)}}
     {{toNode this.agendaItemCheckUri}}

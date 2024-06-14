@@ -13,15 +13,18 @@ import { TemplatedSelect } from "../queries/templated-query.js";
 import { delay } from "../util/util.js";
 import { logger } from "../logger.js";
 
+type GoverningBodyRecord = {
+  uri: string;
+  classLabel: string;
+  type: "abstract" | "time-specific";
+};
+
 type OrganisationsAndGovBodies = {
   adminUnits: {
     uri: string;
     label: string;
     id: string;
-    govBodies: {
-      uri: string;
-      classLabel: string;
-    }[];
+    govBodies: GoverningBodyRecord[];
   }[];
 };
 
@@ -48,13 +51,14 @@ async function getOrgResouces(
   >(
     queryEngine,
     config.env.ADMIN_UNIT_ENDPOINT,
-    getGoverningBodiesOfAdminUnitTemplate
+    getGoverningBodiesOfAdminUnitTemplate,
+    true
   );
 
   const orgs = await getOrganisationsQuery.objects("organisationUri", {
     prefixes: PREFIXES,
-    limit: config.env.LIMIT_NUMBER_ADMIN_UNITS, // 0 means infinite
     graphUri: config.env.ADMIN_UNIT_GRAPH_URI,
+    adminUnitSelection: config.file.adminUnitOverride, // Undefined value in production means all admin units
   });
   await delay(config.env.SLEEP_BETWEEN_QUERIES_MS);
 
@@ -92,7 +96,7 @@ async function getOrgResouces(
 
   for (const org of cleanOrgs) {
     const govBodies = await getGoveringBodiesOfAdminUnitQuery.objects(
-      "goveringBodyUri",
+      "abstractGoverningBodyUri",
       {
         prefixes: PREFIXES,
         adminitrativeUnitUri: org.organisationUri, // uri
@@ -102,16 +106,37 @@ async function getOrgResouces(
     logger.debug(
       `Got ${govBodies.length} governing bodies for org ${org.organisationUri}`
     );
+    const goveringBodiesFlatList: GoverningBodyRecord[] = govBodies.reduce(
+      (acc, curr) => {
+        acc.push({
+          uri: curr.abstractGoverningBodyUri,
+          type: "abstract",
+          classLabel: curr.classLabel,
+        });
+        if (Array.isArray(curr.timeSpecificGoveringBodyUri)) {
+          curr.timeSpecificGoveringBodyUri.forEach((uri) =>
+            acc.push({
+              uri,
+              classLabel: curr.classLabel,
+              type: "time-specific",
+            })
+          );
+        } else {
+          acc.push({
+            uri: curr.timeSpecificGoveringBodyUri,
+            type: "time-specific",
+            classLabel: curr.classLabel,
+          });
+        }
+        return acc;
+      },
+      [] as GoverningBodyRecord[]
+    );
     result.adminUnits.push({
       uri: org.organisationUri,
       label: org.label,
       id: org.id,
-      govBodies: govBodies.map((record) => {
-        return {
-          uri: record.goveringBodyUri,
-          classLabel: record.classLabel,
-        };
-      }),
+      govBodies: goveringBodiesFlatList,
     });
     // Awaiting and/or delaying in for loop is icky. But here we have no choice.
     // We are deliberately not looking for performance of this application or we risk overloading the database

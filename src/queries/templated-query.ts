@@ -23,6 +23,22 @@ export function logQuery(endpoint: string, query: string, noPrefixes = true) {
   );
 }
 
+const outputReplacer = (_key: string, value: any) => {
+  if (typeof value === "string" && value.length > 400) {
+    return `${value.slice(0, 400)}...(truncated from ${
+      value.length
+    } to 400 chars)`;
+  }
+  return value;
+};
+
+export function logOutput(methodName: string, output: object) {
+  const toPrint = JSON.stringify(output, outputReplacer, 3);
+  logger.verbose(
+    `SPARQL query output (${methodName}):\n- - - - - - \n${toPrint}\n- - - - - - `
+  );
+}
+
 export type GetOrganisationsInput = {
   prefixes: string;
 };
@@ -167,20 +183,31 @@ class TemplatedQueryBase<T extends Record<string, any>> {
   queryEngine: QueryEngine;
   endpoint: string;
   template: HandlebarsTemplateDelegate<T>;
+  private logOverride: boolean | undefined;
+
+  get isLoggingQueries() {
+    return config.env.SHOW_SPARQL_QUERIES || this.logOverride;
+  }
+
+  get isLoggingOutputs() {
+    return config.env.SHOW_SPARQL_QUERY_OUTPUTS || this.logOverride;
+  }
   /**
    * Construct a new templated query
-   * @param queryEngine
+   * @param queryEngineg
    * @param endpoint An URL to send the sparql query to
    * @param template Handlebars template which will be rendered on each invocation
    */
   constructor(
     queryEngine: QueryEngine,
     endpoint: string,
-    template: HandlebarsTemplateDelegate<T>
+    template: HandlebarsTemplateDelegate<T>,
+    logOverride: boolean | undefined = undefined
   ) {
     this.queryEngine = queryEngine;
     this.endpoint = endpoint;
     this.template = template;
+    this.logOverride = logOverride;
   }
   /**
    *
@@ -214,7 +241,7 @@ class VoidBase<T extends Record<string, any>> extends TemplatedQueryBase<T> {
         httpRetryCount: maxRetries ?? config.env.QUERY_MAX_RETRIES,
         httpRetryDelay: waitMilliseconds ?? config.env.QUERY_MAX_RETRIES,
       });
-      if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint, query);
+      if (this.isLoggingQueries) logQuery(this.endpoint, query);
     } catch (e) {
       logQuery(this.endpoint, query, false);
       logger.error(`Last query logged failed`);
@@ -312,8 +339,13 @@ export class TemplatedSelect<
         httpRetryCount: maxRetries ?? config.env.QUERY_MAX_RETRIES,
         httpRetryDelay: waitMilliseconds ?? config.env.QUERY_MAX_RETRIES,
       });
-      if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint, query);
-      return bindingsStream.toArray();
+      const result = bindingsStream.toArray();
+      if (this.isLoggingQueries) logQuery(this.endpoint, query);
+      if (this.isLoggingOutputs)
+        logOutput("bindings", {
+          bindings: result,
+        });
+      return result;
     } catch (e) {
       logQuery(this.endpoint, query, false);
       logger.error(`Last query logged failed`);
@@ -342,7 +374,7 @@ export class TemplatedSelect<
           httpRetryCount: maxRetries ?? config.env.QUERY_MAX_RETRIES,
           httpRetryDelay: waitMilliseconds ?? config.env.QUERY_MAX_RETRIES,
         });
-        if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint, query);
+        if (this.isLoggingQueries) logQuery(this.endpoint, query);
         return bindings;
       } catch (e) {
         logQuery(this.endpoint, query, false);
@@ -358,6 +390,7 @@ export class TemplatedSelect<
       }
       result.push(output as U);
     }
+    if (this.isLoggingOutputs) logOutput("records", result);
     return result;
   }
 
@@ -388,7 +421,7 @@ export class TemplatedSelect<
           httpRetryCount: maxRetries ?? config.env.QUERY_MAX_RETRIES,
           httpRetryDelay: waitMilliseconds ?? config.env.QUERY_MAX_RETRIES,
         });
-        if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint, query);
+        if (this.isLoggingQueries) logQuery(this.endpoint, query);
         return bindings;
       } catch (e) {
         logQuery(this.endpoint, query, false);
@@ -442,6 +475,7 @@ export class TemplatedSelect<
       }
       return output as U;
     });
+    if (this.isLoggingOutputs) logOutput("objects", result);
     return result;
   }
 
@@ -465,7 +499,7 @@ export class TemplatedSelect<
           httpRetryCount: maxRetries ?? config.env.QUERY_MAX_RETRIES,
           httpRetryDelay: waitMilliseconds ?? config.env.QUERY_MAX_RETRIES,
         });
-        if (config.env.SHOW_SPARQL_QUERIES) logQuery(this.endpoint, query);
+        if (this.isLoggingQueries) logQuery(this.endpoint, query);
         return bindings;
       } catch (e) {
         logQuery(this.endpoint, query, false);
@@ -491,6 +525,7 @@ export class TemplatedSelect<
       throw new Error(
         `Result method is only for sparql queries that return only a single row. Received empty result set.`
       );
+    if (this.isLoggingOutputs) logOutput("result", result);
     return result as unknown as U;
   }
 }

@@ -83,6 +83,11 @@
 
       performanceChart.data.labels.push(counter++);
       performanceChart.data.datasets[0].data.push(lastDurationMilliseconds);
+      // Prevent overflowing
+      if (performanceChart.data.labels.length > 200) {
+        performanceChart.data.labels.shift();
+        performanceChart.data.datasets[0].data.shift();
+      }
       performanceChart.update('none');
       return;
 

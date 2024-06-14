@@ -13,8 +13,8 @@ SELECT (1+1 as ?result) WHERE {}
 
 export type GetOrganisationsInput = {
   prefixes: string;
-  limit: number;
   graphUri: string;
+  adminUnitSelection: string[] | undefined;
 };
 
 export type GetOrganisationsOutput = {
@@ -27,13 +27,22 @@ export const getOrganisationsTemplate = compileSparql(
   `\
 {{prefixes}}
 SELECT ?organisationUri ?label ?id WHERE {
+  {{#if (listPopulated adminUnitSelection)}}
+  VALUES ?organisationUri {
+    {{#each adminUnitSelection}}
+    {{toNode this}}
+    {{/each}}
+  }
+  {{/if}}
   GRAPH {{toNode graphUri}} {
+    {{#unless (listPopulated adminUnitSelection)}}
     {
       SELECT ?organisationUri WHERE {
         ?organisationUri a besluit:Bestuurseenheid;
         org:classification <http://data.vlaanderen.be/id/concept/BestuurseenheidClassificatieCode/5ab0e9b8a3b2ca7c5e000001>.
-      } {{limitClause limit}}
+      }
     }
+    {{/unless}}
     ?organisationUri mu:uuid ?id;
       skos:prefLabel ?label.
   }
@@ -68,21 +77,24 @@ export type GetGoveringBodiesInput = {
 };
 
 export type GetGoveringBodiesOutput = {
-  goveringBodyUri: string;
+  abstractGoverningBodyUri: string;
   classLabel: string;
+  timeSpecificGoveringBodyUri: string | string[];
 };
 
 export const getGoverningBodiesOfAdminUnitTemplate = compileSparql(
   `\
 {{prefixes}}
-SELECT ?goveringBodyUri ?classLabel WHERE {
+SELECT ?abstractGoverningBodyUri ?timeSpecificGoveringBodyUri ?classLabel WHERE {
   GRAPH {{toNode graphUri}} {
-    ?goveringBodyUri a besluit:Bestuursorgaan;
+    ?abstractGoverningBodyUri a besluit:Bestuursorgaan;
       besluit:bestuurt {{toNode adminitrativeUnitUri}};
       org:classification [
         a skos:Concept;
-        skos:prefLabel ?classLabel;
+        skos:prefLabel ?classLabel
       ].
+
+    ?timeSpecificGoveringBodyUri mandaat:isTijdspecialisatieVan ?abstractGoveringBodyUri.
   }
 }
 `

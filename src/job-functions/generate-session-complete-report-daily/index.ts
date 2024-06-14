@@ -14,7 +14,7 @@ import { duration } from "../../util/util.js";
 import {
   AnalyseAgendaItemsInput,
   AnalyseAgendaItemsOutput,
-  BadAgendaItemInput,
+  AgendaItemReportInput,
   CountSessionUnitsPerAdminUnitOutput,
   CountSessionsPerAdminUnitInput,
   GetSessionsInput,
@@ -90,9 +90,9 @@ export const generateReportsDaily: JobFunction = async (
   progress,
   day: DateOnly | undefined = undefined
 ) => {
-  const defaultedDay = day ?? DateOnly.yesterday();
+  const defaultedDay = day ?? config.env.OVERRIDE_DAY ?? DateOnly.yesterday();
   progress.update(
-    `Document presence check report function invoked with day ${defaultedDay.toString()}`
+    `Document presence check report function invoked with day ${defaultedDay.toString()}\n(from:"${defaultedDay.localStartOfDay.format()}" to:"${defaultedDay.localEndOfDay.format()}")`
   );
   progress.update(`Getting org resources`);
   const orgResources = await getOrgResoucesCached(queryEngine);
@@ -108,17 +108,29 @@ export const generateReportsDaily: JobFunction = async (
       CountSessionUnitsPerAdminUnitOutput
     >(queryEngine, endpoint.url, countSessionsPerAdminUnitTemplate);
     for (const adminUnit of orgResources.adminUnits) {
+      const timeSpecificGovBodies = adminUnit.govBodies.filter(
+        (r) => r.type === "time-specific"
+      );
+
       const sessionCountRecords = await countSessionsQuery.records({
         prefixes: PREFIXES,
-        governingBodyUris: adminUnit.govBodies.map((gb) => gb.uri),
+        governingBodyUris: timeSpecificGovBodies.map((gb) => gb.uri),
         noFilterForDebug: config.env.NO_TIME_FILTER,
         from: defaultedDay.localStartOfDay,
         to: defaultedDay.localEndOfDay,
       });
-      queryCount += adminUnit.govBodies.length; // Write gov unit report body report
-      governingBodiesCount += adminUnit.govBodies.length;
+      queryCount += timeSpecificGovBodies.length; // Write gov unit report body report
+      governingBodiesCount += timeSpecificGovBodies.length;
       for (const sessionCountRecord of sessionCountRecords) {
-        queryCount += sessionCountRecord.sessionCount; // One query per session
+        // One query per session. Cap it off at the limit when a limit is set.
+        if (config.env.LIMIT_NUMBER_SESSIONS > 0) {
+          queryCount += Math.min(
+            sessionCountRecord.sessionCount,
+            config.env.LIMIT_NUMBER_SESSIONS
+          );
+        } else {
+          queryCount += sessionCountRecord.sessionCount;
+        }
       }
       queryCount++; // Write admin unit report body report
     }
@@ -153,6 +165,7 @@ export const generateReportsDaily: JobFunction = async (
     );
     return result.result;
   }
+
   async function performSelectRecords<
     I extends Record<string, any>,
     O extends Record<string, any>
@@ -164,17 +177,18 @@ export const generateReportsDaily: JobFunction = async (
     );
     return result.result;
   }
-  async function performSelectResult<
-    I extends Record<string, any>,
-    O extends Record<string, any>
-  >(query: TemplatedSelect<I, O>, input: I): Promise<O> {
-    const result = await duration(query.result.bind(query))(input);
-    progress.progress(++queries, queryCount, result.durationMilliseconds);
-    progress.update(
-      `Performed select query (one row) in ${result.durationMilliseconds} ms. Returned a result.`
-    );
-    return result.result;
-  }
+
+  // async function performSelectResult<
+  //   I extends Record<string, any>,
+  //   O extends Record<string, any>
+  // >(query: TemplatedSelect<I, O>, input: I): Promise<O> {
+  //   const result = await duration(query.result.bind(query))(input);
+  //   progress.progress(++queries, queryCount, result.durationMilliseconds);
+  //   progress.update(
+  //     `Performed select query (one row) in ${result.durationMilliseconds} ms. Returned a result.`
+  //   );
+  //   return result.result;
+  // }
 
   const { writeGoverningBodyReportQuery, writeAdminUnitReportQuery } =
     getQueriesForWriting(queryEngine, config.env.REPORT_ENDPOINT);
@@ -186,17 +200,33 @@ export const generateReportsDaily: JobFunction = async (
     );
 
     for (const adminUnit of orgResources.adminUnits) {
+      const timeSpecificGovBodies = adminUnit.govBodies.filter(
+        (r) => r.type === "time-specific"
+      );
       const governingBodyReportUriList: string[] = [];
       // TODO: make a catalog of query machines for each resource type eventually
       let badGoverningBodies = 0;
-      for (const goveringBody of adminUnit.govBodies) {
+      for (const goveringBody of timeSpecificGovBodies) {
         const newSessions = await performSelectRecords(getSessionsQuery, {
           prefixes: PREFIXES,
           governingBodyUri: goveringBody.uri,
           noFilterForDebug: config.env.NO_TIME_FILTER,
-          from: defaultedDay.localEndOfDay,
+          from: defaultedDay.localStartOfDay,
           to: defaultedDay.localEndOfDay,
+          limit: config.env.LIMIT_NUMBER_SESSIONS, // 0 is infinite
         });
+
+        progress.update(
+          `Got sessions for govening body "${
+            goveringBody.classLabel
+          }" of admin unit "${adminUnit.label}". Got ${
+            newSessions.length
+          } sessions ${
+            config.env.LIMIT_NUMBER_SESSIONS === 0
+              ? ``
+              : `(LIMITED TO ${config.env.LIMIT_NUMBER_SESSIONS})`
+          }`
+        );
 
         const sessionCheckReports: SessionCheckReportInput[] = [];
         let badSessions = 0;
@@ -212,52 +242,52 @@ export const generateReportsDaily: JobFunction = async (
             }
           );
           progress.progress(queries++, queryCount);
+          progress.update(
+            `Found ${agendaItems.length} for session with uuid "${sessionRecord.uuid}". Checking them.`
+          );
           // For each agenda item; check what url's are present.
           // If an agenda item is NOT ok then add it to the list of bad agenda items of this session
           const urls = new Set<string>();
-          const badAgendaItems: BadAgendaItemInput[] = [];
+          const agendaItemReports: AgendaItemReportInput[] = [];
           for (const agendaItemQueryResult of agendaItems) {
             const agendaItemUrls = extractDocuments(agendaItemQueryResult);
-
+            const hasAgenda = someIncludes(agendaItemUrls, "agenda");
+            const hasNotes = someIncludes(agendaItemUrls, "notulen");
             const hasResolutions = someIncludes(
               agendaItemUrls,
               "besluitenlijst"
             );
-            const hasAgenda = someIncludes(agendaItemUrls, "agendapunten");
-            const hasNotes = someIncludes(agendaItemUrls, "notulen");
-            const hasAllDocuments = hasResolutions && hasAgenda && hasNotes;
 
-            if (!hasAllDocuments) {
-              const uuid = uuidv4();
-              const agendaItemCheckUri = `${config.env.URI_PREFIX_RESOURCES}${uuid}`;
-              badAgendaItems.push({
-                agendaItemCheckUri,
-                uuid,
-                hasAgenda,
-                hasNotes,
-                hasResolutions,
-                urls: agendaItemUrls,
-              });
-            }
+            const uuid = uuidv4();
+            const agendaItemCheckUri = `${config.env.URI_PREFIX_RESOURCES}${uuid}`;
+            agendaItemReports.push({
+              agendaItemCheckUri,
+              uuid,
+              hasAgenda,
+              hasNotes,
+              hasResolutions,
+              urls: agendaItemUrls,
+              targetAgendaPointUri: agendaItemQueryResult.agendaItemUri,
+            });
             agendaItemUrls.forEach((u) => urls.add(u));
           }
           // Done checking agenda items
+          const ok = agendaItemReports.length === 0;
           const uuid = uuidv4();
           const sessionCheckUri = `${config.env.URI_PREFIX_RESOURCES}${uuid}`;
-          const ok = badAgendaItems.length === 0;
+
           const reportLabel = ok
             ? `All agenda items (${agendaItems.length}) have associed notes, resolutions and agenda item documents.`
-            : `Not all agenda items habe associated notes, resolutions and agenda item documents. ${badAgendaItems.length} of ${agendaItems.length} are incomplete.`;
+            : `Not all agenda items habe associated notes, resolutions and agenda item documents. ${agendaItemReports.length} of ${agendaItems.length} are incomplete.`;
           sessionCheckReports.push({
             sessionCheckUri,
             uuid,
             documentsPresent: ok,
             urls: [...urls],
-            badAgendaItems,
+            agendaItemReports,
             prefLabel: `Document presence check of session with uuid "${sessionRecord.uuid}": ${reportLabel}`,
             sessionUri: sessionRecord.sessionUri,
           });
-
           if (!ok) badSessions++;
         }
         // Done checking session

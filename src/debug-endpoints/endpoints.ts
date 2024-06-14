@@ -77,7 +77,7 @@ export function setupDebugEndpoints(app: Express) {
   addSimpleDebugEndpoint(
     app,
     "GET",
-    "/delete-all-jobs",
+    "/delete-all-job-templates",
     emptySchema,
     deleteAllJobTemplates
   );
@@ -151,10 +151,28 @@ export function setupDebugEndpoints(app: Express) {
     }
   );
 
-  addSimpleDebugEndpoint(app, "GET", "/clean-jobs", emptySchema, async () => {
-    await deleteJobs([JobStatus.ERROR, JobStatus.FINISHED]);
-    return `Jobs with status error and finished removed from the database`;
-  });
+  const cleanJobSchema = z
+    .object({
+      all: z.literal("true").optional(),
+    })
+    .optional();
+
+  addSimpleDebugEndpoint(
+    app,
+    "GET",
+    "/clean-jobs",
+    cleanJobSchema,
+    async (query: z.infer<typeof cleanJobSchema>) => {
+      const all = !!query?.all;
+      if (all) {
+        await deleteJobs([JobStatus.ERROR, JobStatus.FINISHED]);
+        return `Jobs with status error and finished removed from the database`;
+      } else {
+        await deleteJobs();
+        return `All jobs are removed from the database. Restart the service.`;
+      }
+    }
+  );
 
   // COMPLEX ENDPOINTS. INVOKE EXPRESS REQUEST HANDLER (imported from functions.ts)
 

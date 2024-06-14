@@ -80,7 +80,7 @@ export const generateReportsDaily: JobFunction = async (
   progress,
   day: DateOnly | undefined = undefined
 ) => {
-  const defaultedDay = day ?? DateOnly.yesterday();
+  const defaultedDay = day ?? config.env.OVERRIDE_DAY ?? DateOnly.yesterday();
   progress.update(
     `Report function invoked with day ${defaultedDay.toString()}`
   );
