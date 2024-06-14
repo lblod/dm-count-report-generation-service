@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/lblod/dm-count-report-generation-service/master/config-schema.json",
   "adminUnitOverride": [
-    "http://data.lblod.info/id/bestuurseenheden/c73ee91f068da28ed1f16fb057f38808e7c0d29f4c5b8b9d7b2eec235ed4d5a4"
+    "http://data.lblod.info/id/bestuurseenheden/bc50bb1ff28814ab2441a22fe111d895742098d8a61d7f648efbd9ffd48446ed"
   ],
   "endpoints": [
     {

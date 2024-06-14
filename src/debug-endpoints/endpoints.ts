@@ -200,11 +200,6 @@ export function setupDebugEndpoints(app: Express) {
       Record<string, (messageObject: Record<string, any>) => void>
     >((acc, curr) => {
       acc[curr] = function (messageObject: Record<string, any>) {
-        logger.debug(
-          `Event of kind ${curr} received. MessageObject is ${JSON.stringify({
-            messageObject,
-          })} and sent to event stream.`
-        );
         res.write(`data: ${JSON.stringify({ [curr]: messageObject })}\n\n`); // The double NEWLINE is very important
       };
       return acc;

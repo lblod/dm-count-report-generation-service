@@ -205,7 +205,6 @@ export const generateReportsDaily: JobFunction = async (
       );
       const governingBodyReportUriList: string[] = [];
       // TODO: make a catalog of query machines for each resource type eventually
-      let badGoverningBodies = 0;
       for (const goveringBody of timeSpecificGovBodies) {
         const newSessions = await performSelectRecords(getSessionsQuery, {
           prefixes: PREFIXES,
@@ -229,7 +228,6 @@ export const generateReportsDaily: JobFunction = async (
         );
 
         const sessionCheckReports: SessionCheckReportInput[] = [];
-        let badSessions = 0;
 
         for (const sessionRecord of newSessions) {
           // For each session we need to check which URL's are present with all the associated agenda items
@@ -246,7 +244,6 @@ export const generateReportsDaily: JobFunction = async (
             `Found ${agendaItems.length} for session with uuid "${sessionRecord.uuid}". Checking them.`
           );
           // For each agenda item; check what url's are present.
-          // If an agenda item is NOT ok then add it to the list of bad agenda items of this session
           const urls = new Set<string>();
           const agendaItemReports: AgendaItemReportInput[] = [];
           for (const agendaItemQueryResult of agendaItems) {
@@ -272,23 +269,20 @@ export const generateReportsDaily: JobFunction = async (
             agendaItemUrls.forEach((u) => urls.add(u));
           }
           // Done checking agenda items
-          const ok = agendaItemReports.length === 0;
           const uuid = uuidv4();
           const sessionCheckUri = `${config.env.URI_PREFIX_RESOURCES}${uuid}`;
 
-          const reportLabel = ok
-            ? `All agenda items (${agendaItems.length}) have associed notes, resolutions and agenda item documents.`
-            : `Not all agenda items habe associated notes, resolutions and agenda item documents. ${agendaItemReports.length} of ${agendaItems.length} are incomplete.`;
+          const reportLabel = agendaItemReports.length
+            ? `Multiple agenda items (${agendaItems.length}) have been found.`
+            : `No agenda items were found`;
           sessionCheckReports.push({
             sessionCheckUri,
             uuid,
-            documentsPresent: ok,
             urls: [...urls],
             agendaItemReports,
             prefLabel: `Document presence check of session with uuid "${sessionRecord.uuid}": ${reportLabel}`,
             sessionUri: sessionRecord.sessionUri,
           });
-          if (!ok) badSessions++;
         }
         // Done checking session
 
@@ -311,13 +305,10 @@ export const generateReportsDaily: JobFunction = async (
             prefLabel: `Document presence check of all new sessions associated with the governing body "${goveringBody.classLabel}" of admin unit "${adminUnit.label}".`,
             uuid,
             totalSessions: sessionCheckReports.length,
-            totalBadSessions: badSessions,
             sessionCheckReports,
           }
         );
         progress.progress(queries++, queryCount);
-
-        if (badSessions > 0) badGoverningBodies++;
       }
       // Write admin unit report
       const uuid = uuidv4();
@@ -328,12 +319,11 @@ export const generateReportsDaily: JobFunction = async (
           prefixes: PREFIXES,
           reportGraphUri: config.env.REPORT_GRAPH_URI,
           adminUnitUri: adminUnit.uri,
-          prefLabel: `Session document present check reportfor admin unit '${adminUnit.label}' on ${defaultedDay}`,
+          prefLabel: `Session document present check report for admin unit '${adminUnit.label}' on ${defaultedDay}`,
           reportUri: `${config.env.URI_PREFIX_RESOURCES}${uuid}`,
           uuid,
           createdAt: now(),
           day: defaultedDay,
-          totalBadGoverningBodies: badGoverningBodies,
           reportUris: governingBodyReportUriList,
         }
       );

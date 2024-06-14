@@ -104,7 +104,6 @@ export type SessionCheckReportInput = {
   sessionUri: string;
   prefLabel: string;
   uuid: string;
-  documentsPresent: boolean;
   urls: string[];
   agendaItemReports: AgendaItemReportInput[];
 };
@@ -120,7 +119,6 @@ export type WriteGoveringBodyReportInput = {
   prefLabel: string;
   uuid: string;
   totalSessions: number;
-  totalBadSessions: number;
   sessionCheckReports: SessionCheckReportInput[];
 };
 export const writeGoverningBodyReportTemplate = compileSparql(
@@ -136,8 +134,7 @@ INSERT {
       skos:prefLabel {{toString prefLabel}};
       mu:uuid {{toUuid uuid}};
       datamonitoring:istest "true"^^xsd:boolean;
-      datamonitoring:totalSessions {{toInteger totalSessions}};
-      datamonitoring:totalBadSessions {{toInteger totalBadSessions}}.
+      datamonitoring:totalSessions {{toInteger totalSessions}}.
 
 
     {{#if (listPopulated sessionCheckReports)}}
@@ -149,8 +146,7 @@ INSERT {
     {{toNode this.sessionCheckUri}} a datamonitoring:DocumentPresenceSessionCheck;
       mu:uuid {{toUuid this.uuid}};
       skos:prefLabel {{toString this.prefLabel}};
-      datamonitoring:targetSession {{toNode this.sessionUri}};
-      datamonitoring:documentsPresent {{toBoolean this.documentsPresent}}.
+      datamonitoring:targetSession {{toNode this.sessionUri}}.
     {{#if (listPopulated this.urls)}}
     {{toNode this.sessionCheckUri}}
       datamonitoring:documentUrl
@@ -194,7 +190,6 @@ export type WriteAdminUnitReportInput = {
   adminUnitUri: string;
   day: DateOnly;
   uuid: string;
-  totalBadGoverningBodies: number;
   reportUris: string[];
 };
 
@@ -209,8 +204,7 @@ INSERT {
       datamonitoring:createdAt {{toDateTime createdAt}};
       datamonitoring:day {{toDate day}};
       mu:uuid {{toUuid uuid}};
-      datamonitoring:istest "true"^^xsd:boolean;
-      datamonitoring:badGoverningBodies {{toInteger totalBadGoverningBodies}}
+      datamonitoring:istest "true"^^xsd:boolean
       {{#if (listPopulated reportUris)}}
       ;
       datamonitoring:governingBodyReports
