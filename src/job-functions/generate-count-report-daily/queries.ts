@@ -3,7 +3,7 @@ import { DateOnly, DateTime } from "../../util/date-time.js";
 
 export type CountSessionsQueryInput = {
   prefixes: string;
-  governingBodyUri: string;
+  abstractGoverningBodyUri: string;
   from: DateTime;
   to: DateTime;
   noFilterForDebug: boolean;
@@ -17,17 +17,12 @@ export const countSessionsQueryTemplate = compileSparql(
   `\
 {{prefixes}}
 SELECT (COUNT(DISTINCT ?session) as ?count) WHERE {
-  {
-    ?session a besluit:Zitting;
-      besluit:isGehoudenDoor {{toNode governingBodyUri}}.
-  } UNION {
-    ?session a besluit:Zitting;
-      besluit:isGehoudenDoor ?governingBodyTimeSpecified.
+  ?timeSpecificGoveringBodyUri mandaat:isTijdspecialisatieVan {{toNode abstractGoverningBodyUri}}.
 
-    ?governingBodyTimeSpecified a besluit:Bestuursorgaan;
-        mandaat:isTijdspecialisatieVan {{toNode governingBodyUri}}.
-  }
-  ?session besluit:geplandeStart ?plannedStart.
+  ?session a besluit:Zitting;
+    besluit:isGehoudenDoor ?timeSpecificGoveringBodyUri;
+    besluit:geplandeStart ?plannedStart.
+
   {{#unless noFilterForDebug}}
   FILTER(?plannedStart >= {{toDateTime from}})
   FILTER(?plannedStart < {{toDateTime to}})
@@ -38,7 +33,7 @@ SELECT (COUNT(DISTINCT ?session) as ?count) WHERE {
 
 export type CountAgendaItemsQueryInput = {
   prefixes: string;
-  governingBodyUri: string;
+  abstractGoverningBodyUri: string;
   from: DateTime;
   to: DateTime;
   noFilterForDebug: boolean;
@@ -52,26 +47,14 @@ export const countAgendaItemsQueryTemplate = compileSparql(
   `\
 {{prefixes}}
 SELECT (COUNT(DISTINCT ?agendaItem) as ?count) WHERE {
-  {
-    ?session a besluit:Zitting;
-      besluit:behandelt ?agendaItem;
-      besluit:isGehoudenDoor {{toNode governingBodyUri}}.
-  } UNION {
-    ?session a besluit:Zitting;
-      besluit:behandelt ?agendaItem;
-      besluit:isGehoudenDoor ?governingBodyTimeSpecified.
+  ?timeSpecificGoveringBodyUri mandaat:isTijdspecialisatieVan {{toNode abstractGoverningBodyUri}}.
 
-    ?governingBodyTimeSpecified a besluit:Bestuursorgaan;
-      mandaat:isTijdspecialisatieVan {{toNode governingBodyUri}}.
-  }
+  ?session a besluit:Zitting;
+    besluit:behandelt ?agendaItem;
+    besluit:isGehoudenDoor ?timeSpecificGoveringBodyUri;
+    besluit:geplandeStart ?plannedStart.
+
   ?agendaItem a besluit:Agendapunt.
-  ?session besluit:geplandeStart ?plannedStart.
-
-
-  ?agendaItemHandling a besluit:BehandelingVanAgendapunt;
-    dct:subject ?agendaItem;
-    prov:generated ?anyBesluit.
-  ?anyBesluit a besluit:Besluit.
 
   {{#unless noFilterForDebug}}
   FILTER(?plannedStart >= {{toDateTime from}})
@@ -84,7 +67,7 @@ SELECT (COUNT(DISTINCT ?agendaItem) as ?count) WHERE {
 
 export type CountResolutionsQueryInput = {
   prefixes: string;
-  governingBodyUri: string;
+  abstractGoverningBodyUri: string;
   from: DateTime;
   to: DateTime;
   noFilterForDebug: boolean;
@@ -98,20 +81,14 @@ export const countResolutionsQueryTemplate = compileSparql(
   `\
 {{prefixes}}
 SELECT (COUNT(DISTINCT ?resolution) as ?count) WHERE {
-  {
-    ?session a besluit:Zitting;
-      besluit:behandelt ?agendaItem;
-      besluit:isGehoudenDoor {{toNode governingBodyUri}}.
-  } UNION {
-    ?session a besluit:Zitting;
-      besluit:behandelt ?agendaItem;
-      besluit:isGehoudenDoor ?governingBodyTimeSpecified.
+  ?timeSpecificGoveringBodyUri mandaat:isTijdspecialisatieVan {{toNode abstractGoverningBodyUri}}.
 
-    ?governingBodyTimeSpecified a besluit:Bestuursorgaan;
-      mandaat:isTijdspecialisatieVan {{toNode governingBodyUri}}.
-  }
+  ?session a besluit:Zitting;
+    besluit:behandelt ?agendaItem;
+    besluit:isGehoudenDoor ?timeSpecificGoveringBodyUri;
+    besluit:geplandeStart ?plannedStart.
+
   ?agendaItem a besluit:Agendapunt.
-  ?session besluit:geplandeStart ?plannedStart.
 
   ?agendaItemHandling a besluit:BehandelingVanAgendapunt;
     dct:subject ?agendaItem;
@@ -131,7 +108,7 @@ SELECT (COUNT(DISTINCT ?resolution) as ?count) WHERE {
 
 export type CountVoteQueryInput = {
   prefixes: string;
-  governingBodyUri: string;
+  abstractGoverningBodyUri: string;
   from: DateTime;
   to: DateTime;
   noFilterForDebug: boolean;
@@ -145,18 +122,13 @@ export const countVoteQueryTemplate = compileSparql(
   `\
 {{prefixes}}
 SELECT (COUNT(DISTINCT ?vote) as ?count) WHERE {
-  {
-    ?session a besluit:Zitting;
-      besluit:behandelt ?agendaItem.
-  } UNION {
-    ?session a besluit:Zitting;
-      besluit:behandelt ?agendaItem;
-      besluit:isGehoudenDoor ?governingBodyTimeSpecified.
+  ?timeSpecificGoveringBodyUri mandaat:isTijdspecialisatieVan {{toNode abstractGoverningBodyUri}}.
 
-    ?governingBodyTimeSpecified a besluit:Bestuursorgaan;
-        mandaat:isTijdspecialisatieVan ?governingBodyAbstract.
-  }
-  ?session besluit:geplandeStart ?plannedStart.
+  ?session a besluit:Zitting;
+    besluit:behandelt ?agendaItem;
+    besluit:isGehoudenDoor ?timeSpecificGoveringBodyUri;
+    besluit:geplandeStart ?plannedStart.
+
   ?agendaItem a besluit:Agendapunt.
 
   ?agendaItemHandling a besluit:BehandelingVanAgendapunt;

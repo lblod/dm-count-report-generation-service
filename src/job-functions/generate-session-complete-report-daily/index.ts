@@ -200,15 +200,15 @@ export const generateReportsDaily: JobFunction = async (
     );
 
     for (const adminUnit of orgResources.adminUnits) {
-      const timeSpecificGovBodies = adminUnit.govBodies.filter(
-        (r) => r.type === "time-specific"
+      const abstractGoverningBodies = adminUnit.govBodies.filter(
+        (r) => r.type === "abstract"
       );
       const governingBodyReportUriList: string[] = [];
       // TODO: make a catalog of query machines for each resource type eventually
-      for (const goveringBody of timeSpecificGovBodies) {
+      for (const abstractGoverningBody of abstractGoverningBodies) {
         const newSessions = await performSelectRecords(getSessionsQuery, {
           prefixes: PREFIXES,
-          governingBodyUri: goveringBody.uri,
+          abstractGoverningBodyUri: abstractGoverningBody.uri,
           noFilterForDebug: config.env.NO_TIME_FILTER,
           from: defaultedDay.localStartOfDay,
           to: defaultedDay.localEndOfDay,
@@ -217,7 +217,7 @@ export const generateReportsDaily: JobFunction = async (
 
         progress.update(
           `Got sessions for govening body "${
-            goveringBody.classLabel
+            abstractGoverningBody.classLabel
           }" of admin unit "${adminUnit.label}". Got ${
             newSessions.length
           } sessions ${
@@ -300,9 +300,9 @@ export const generateReportsDaily: JobFunction = async (
             reportUri,
             createdAt: now(),
             day: defaultedDay,
-            govBodyUri: goveringBody.uri,
+            govBodyUri: abstractGoverningBody.uri,
             adminUnitUri: adminUnit.uri,
-            prefLabel: `Document presence check of all new sessions associated with the governing body "${goveringBody.classLabel}" of admin unit "${adminUnit.label}".`,
+            prefLabel: `Document presence check of all new sessions associated with the governing body "${abstractGoverningBody.classLabel}" of admin unit "${adminUnit.label}".`,
             uuid,
             totalSessions: sessionCheckReports.length,
             sessionCheckReports,

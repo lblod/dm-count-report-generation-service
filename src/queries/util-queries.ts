@@ -79,7 +79,6 @@ export type GetGoveringBodiesInput = {
 export type GetGoveringBodiesOutput = {
   abstractGoverningBodyUri: string;
   classLabel: string;
-  timeSpecificGoveringBodyUri: string | string[];
 };
 
 export const getGoverningBodiesOfAdminUnitTemplate = compileSparql(
@@ -99,3 +98,35 @@ SELECT ?abstractGoverningBodyUri ?timeSpecificGoveringBodyUri ?classLabel WHERE 
 }
 `
 );
+
+export type DeleteAllReportsInput = {
+  prefixes: string;
+  reportGraphUri: string;
+};
+
+export const deleteAllReportsTemplate = compileSparql(`\
+{{prefixes}}
+
+DELETE {
+  GRAPH {{toNode reportGraphUri}} {
+    ?res ?p ?o.
+  }
+} WHERE {
+   VALUES ?class {
+    datamonitoring:LastHarvestingExecutionReport
+    datamonitoring:LastHarvestingExecutionRecord
+    datamonitoring:GoverningBodyCountReport
+    datamonitoring:PublicationCountReport
+    datamonitoring:AdminUnitCountReport
+    datamonitoring:GoverningBodyDocumentPresenceCheckReport
+    datamonitoring:DocumentPresenceSessionCheck
+    datamonitoring:DocumentPresenceAgendaItemCheck
+    datamonitoring:AdminUnitDocumentPresenceCheckReport
+  }
+  GRAPH {{toNode reportGraphUri}} {
+    ?res a ?class;
+      ?p ?o.
+  }
+}
+
+`);

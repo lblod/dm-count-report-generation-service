@@ -21,8 +21,14 @@ import { deleteJobs, getJobs } from "../job/job.js";
 import { logger } from "../logger.js";
 import { now } from "../util/date-time.js";
 import { JobStatus } from "../types.js";
-import { ALL_DAYS_OF_WEEK } from "../local-constants.js";
+import { ALL_DAYS_OF_WEEK, PREFIXES } from "../local-constants.js";
 import { compileHtml } from "../handlebars/index.js";
+import { TemplatedInsert } from "../queries/templated-query.js";
+import {
+  DeleteAllReportsInput,
+  deleteAllReportsTemplate,
+} from "../queries/util-queries.js";
+import { queryEngine } from "../queries/query-engine.js";
 
 const debugIndexHtml = compileHtml(
   fs.readFileSync("./templates/debug.hbs", {
@@ -171,6 +177,25 @@ export function setupDebugEndpoints(app: Express) {
         await deleteJobs();
         return `All jobs are removed from the database. Restart the service.`;
       }
+    }
+  );
+
+  const removeAllReportsQuery = new TemplatedInsert<DeleteAllReportsInput>(
+    queryEngine,
+    config.env.REPORT_ENDPOINT,
+    deleteAllReportsTemplate
+  );
+
+  addSimpleDebugEndpoint(
+    app,
+    "GET",
+    "/delete-all-reports",
+    emptySchema,
+    async () => {
+      await removeAllReportsQuery.execute({
+        prefixes: PREFIXES,
+        reportGraphUri: config.env.REPORT_GRAPH_URI,
+      });
     }
   );
 
