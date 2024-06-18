@@ -118,7 +118,7 @@ IF IS_JOB_UPDATE(delta):
 | ROOT_URL_PATH<br>(string, url path) | `""` | When generating absolute url paths this root path will be pasted at the beginning of the url path. Example: if ROOT_PATH is `/counting-service` then the queue debug endpoint will have the following link: `https://<domain>/counting-service/queue`. The value needs to start with a slash. And empty string is also acceptable for local testing in which case the queue endpoint is `http://localhost:<port>/queue`. |
 | ADD_DUMMY_REST_JOB_TEMPLATE<br>(boolean) | `"false"` | If true a dummy rest job template will be added. This is useful to test the execution logic of this microservice. Any jobs of type 'serial' should never be executed in parallel. |
 | SKIP_ENDPOINT_CHECK<br>(boolean) | `"false"` | If true the test checking if all SPARQL endpoints respond will be skipped. In production this should be 'true' because it's important to know of endpoints are up before starting operations. |
-| OVERRIDE_DAY<br>(DateOnly) | `undefined` | If set then the service will generate reports for the specified day instead of yesterday. Used for debugging |
+| OVERRIDE_DAY<br>(DateOnly) | `undefined` | If set then the service will generate reports for the specified day instead of yesterday. Used for debugging. Example value is `"2024-06-17"`. |
 
 
 * Boolean: "true" for `true`, "false" for `false` (e.g. `DISABLE_DEBUG_ENDPOINT="true"`).
@@ -170,7 +170,7 @@ Contains a list of endpoints specifying a SPARQL endpoint URL and a list of reso
 Contains a list of harvester SPARQL endpoints for the last harvested task
 
 * `"periodic-function-invocation-times"`:
-An object modeling a record. The key needs to be a name of a data monitoring function and the value is another object containing a time and a comma separated list of days. The service will create periodic job templates automatically when they are not present in accordance with these definitions. When they are already present the microservice will NOT change them because they are ment to be changed by updating the job records using a delta message. Delta message processing has not been developed yet.
+An object modeling a record. The key needs to be a name of a data monitoring function and the value is another object containing a time and a comma separated list of days. The service will create periodic job templates automatically when they are not present in accordance with these definitions. When they are already present the microservice will NOT change them because they are ment to be changed by updating the job records using a delta message. Delta message processing has not been developed yet. You'll need to pass values for the keys `time` and `days`. `time` requires a valid formatted time `HH:mm` (interpreted as time of the day in the local timezone). The `days` requires a string with is a comma separated list of weekdays.
 
 There is a JSON schema so you should not make any mistaktes. If you do mess up the schema though the program will crash on startup and you'll get a slap on the wrist. If I messed up the schema please let me know.
 
