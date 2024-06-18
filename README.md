@@ -1,5 +1,10 @@
 # Data monitoring count report generation service
 
+TODO Nordine:
+* Headers should be exactly the same as mu-auth-sudo
+* Mention it should be compatible with delta notifier
+* Update docker publishing. Not use dennis etc.
+
 This was a microservice emulating the functionality of a future microservice to be built. It will be called `dm-report-generation-service`. This service is to be embedded in [Data monitoring](https://github.com/lblod/app-data-monitoring) which is under development.
 
 For now this service executes experimental report generation jobs. To build `dm-report-generation-service` this service will act as a template.

@@ -128,6 +128,7 @@ export type WriteGoveringBodyReportInput = {
 export const writeGoverningBodyReportTemplate = compileSparql(
   `\
 {{prefixes}}
+
 INSERT {
   GRAPH {{toNode reportGraphUri}} {
     {{toNode reportUri}} a datamonitoring:GoverningBodyDocumentPresenceCheckReport;
