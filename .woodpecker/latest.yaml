@@ -8,4 +8,4 @@ steps:
     secrets: [docker_username, docker_password]
 when:
   event: push
-  branch: [master, main]
+  branch: [poc-working-refactor]
