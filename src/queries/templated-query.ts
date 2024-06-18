@@ -152,7 +152,7 @@ function getCustomFetchFunction(
       throw new Error(
         `Custom fetch function only for comunica fetches. Wrong user agent.`
       );
-
+    // Headers are overwritten to fake mu-auth-sudo
     const headers = new Headers();
     headers.append("mu-auth-sudo", "true");
     headers.append("Content-Type", "application/x-www-form-urlencoded");
