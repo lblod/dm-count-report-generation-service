@@ -47,18 +47,18 @@ This is just the first function. As of today there are three functions in existe
 This service just uses node and not mu-javascript-template because:
 
 * When this project was started it was posed that **federated queries** would be necessary. For this the comunica library is needed and this is not included in mu-javascript template.
-* This function contains many queries which can be difficult to debug. Making the same queries using javascript templates would be very difficult to maintain.
+* This function contains many queries which can be difficult to debug. Making the same queries using javascript templates would be very difficult to maintain and to develop. Basically I did not dare to develop this without some type of validation, checking and defensive programming.
 * No type safe query functions in mu-javascript-template
 
 Because it's a PoC it's **simpler** than mu-javascript template. Hence the container size of just 67MB compared to mu-javascript-template's 456MB.
 
-It should also be stressed that for INSERT queries a custom fetch function is used so comunica uses the same headers (`mu-auth-sudo:true`, `Content-Type: application/x-www-form-urlencoded`, `Accept: application/json`) and request structure (POST method, url endpoint in the body and the query using URL encoding) as mu-auth-sudo.
+It should also be stressed that for INSERT queries a custom fetch function is used so comunica uses **the same headers** (`mu-auth-sudo:true`, `Content-Type: application/x-www-form-urlencoded`, `Accept: application/json`) and request structure (POST method, url endpoint in the body and the query using URL encoding) **as mu-auth-sudo**.
 
 ### Job templates and jobs
 
 ABB uses the Mu semtech higher order framework. In this framework the concept of 'jobs' exists which models an amount of work. For each job a corresponding job resource in the database exists with a status.
 
-Eventually delta processing will be included. When a delta changes a job the service should be able to react to it.
+Eventually delta processing will need be included. When a delta changes a job the service should be able to react to it.
 
 In this microservice two kinds of jobs exist; each of which are associated with a mu-semtech compatible job resource in the jobs graph of the database connected to the report writing endpoint.
 
@@ -71,16 +71,16 @@ To see a list of job templates go the the `/job-templates` page. You can trigger
 
 A job is associated with a data monitoring function enum value defining the function the job should execute. Jobs are created in this microservice by job templates.
 
-From the perspective of other mu-semtech services both the jobs and the job templates are 'jobs' (as in `cogs:Job`). Because of this a template job has TWO classes:
+From the perspective of other mu-semtech services both the jobs and the job templates are 'jobs' (as in `cogs:Job`). Because of this a job in this service has TWO classes:
 
 ```handlebars
 {{toNode newJobTemplateUri}} a cogs:Job, datamonitoring:DatamonitoringTemplateJob.
 {{toNode jobUri}} a cogs:Job, datamonitoring:DatamonitoringJob.
 ```
 
-The service expects a `datamonitoring:DatamonitoringTemplateJob` OR a `datamonitoring:DatamonitoringJob` because there are specific attributes in them. Other mu semtech services just expect a `cogs:Job` and both are. They wont see the difference because all standard attributes are there: (`mu:uuid`,`dct:creator`,`adms:status`,`dct:created`,`dct:modified`,`task:operation`,`dct:isPartOf` (optional)). 
+The service expects a `datamonitoring:DatamonitoringTemplateJob` OR a `datamonitoring:DatamonitoringJob` because there are specific attributes in them that this service uses. Other mu semtech services just expect a `cogs:Job` and this is present. They wont see the difference because all standard attributes are there: (`mu:uuid`,`dct:creator`,`adms:status`,`dct:created`,`dct:modified`,`task:operation`,`dct:isPartOf` (optional)). 
 
-Because of this this service was made to be as compatible as possible with mu-semtech (programming errors aside). But because it's a PoC the delta function was not implemented yet; which brings us to the next point.
+**Because of this the service was made to be as compatible as possible with mu-semtech (programming errors aside). But because it's a PoC the delta processing was not implemented yet; which brings us to the next point.**
 
 ### Future adoption
 
@@ -108,17 +108,18 @@ IF IS_JOB_UPDATE(delta):
 | CONFIG_FILE_LOCATION<br>(string, directory) | `"/config"` | The directory where the config file can be found. Useful for development. Default value is the normal location in the container. For local testing you may point to a folder on your host's filesystem containing a specific configuration.  |
 | SLEEP_BETWEEN_QUERIES_MS<br>(integer) | `0` | Value in milliseconds. Setting this higher than 0 means the service will wait the specified number of milliseconds after each query before the next query. This may be needed in order to prevent the service from overloading the database. |
 | SHOW_SPARQL_QUERIES<br>(boolean) | `"false"` | Set to true to print the queries to the console (`verbose` log level). Prefixes are not printed for successful queries. |
+| SHOW_SPARQL_QUERY_OUTPUTS<br>(boolean) | `"false"` | Set to true to print the outputs of the queries to the console (`verbose` log level).|
 | ORG_RESOURCES_TTL_S<br>(integer) | `300` | Value in seconds. Data concerning admin units and governing bodies are kept in a cache with a Time To Live (TTL). This prevents unnecessary load during repeated test invocations of report generation. After this time has elapsed the cache is cleared and new data needs to be queried. |
 | SERVER_PORT<br>(integer) | `80` | HTTP port the server listens on. For debugging locally I suggest port 4199. |
-| LOG_LEVEL<br>(string) | `"info"` | Level of the logs. Accepted values are "error","warn","info","http","verbose","debug" and "silly". For production set to "error". For development set to "info", "debug" or "silly" depending on your preference. |
+| LOG_LEVEL<br>(string) | `"info"` | Level of the logs. Accepted values are "error","warn","info","http","verbose","debug" and "silly". For production set to "error" or "info". For development set to "info", "debug" or "silly" depending on your preference. |
 | NO_TIME_FILTER<br>(boolean) | `"false"` | Set to true in some test cases. This disabled the date related filtering when counting. This can be useful when no new data was posted and too many queries yield 0. |
 | DUMP_FILES_LOCATION<br>(string, directory) | `"/dump"` | Only relevant if DISABLE_DEBUG_ENDPOINT is `false`. This specifies the directory where the service will save the dump files for debugging. Typically this is a docker volume. |
 | QUERY_MAX_RETRIES<br>(integer) | `3` | Amount of times the making a query is retried. |
 | QUERY_WAIT_TIME_ON_FAIL_MS<br>(integer) | `1000` | Amount of time in milliseconds to wait after a query has failed before retrying. |
 | ROOT_URL_PATH<br>(string, url path) | `""` | When generating absolute url paths this root path will be pasted at the beginning of the url path. Example: if ROOT_PATH is `/counting-service` then the queue debug endpoint will have the following link: `https://<domain>/counting-service/queue`. The value needs to start with a slash. And empty string is also acceptable for local testing in which case the queue endpoint is `http://localhost:<port>/queue`. |
-| ADD_DUMMY_REST_JOB_TEMPLATE<br>(boolean) | `"false"` | If true a dummy rest job template will be added. This is useful to test the execution logic of this microservice. Any jobs of type 'serial' should never be executed in parallel. |
-| SKIP_ENDPOINT_CHECK<br>(boolean) | `"false"` | If true the test checking if all SPARQL endpoints respond will be skipped. In production this should be 'true' because it's important to know of endpoints are up before starting operations. |
-| OVERRIDE_DAY<br>(DateOnly) | `undefined` | If set then the service will generate reports for the specified day instead of yesterday. Used for debugging. Example value is `"2024-06-17"`. |
+| ADD_DUMMY_REST_JOB_TEMPLATE<br>(boolean) | `"false"` | If true a dummy rest job template will be added. This is useful to test the execution logic of this microservice. |
+| SKIP_ENDPOINT_CHECK<br>(boolean) | `"false"` | If true the test checking if all SPARQL endpoints respond will be skipped. In production this should be 'false' because it's important to know of endpoints are up before starting operations. |
+| OVERRIDE_DAY<br>(DateOnly) | `undefined` | If set then the service will generate reports for the specified day instead of yesterday. Used for debugging. Example value is `"2024-06-17"`. Omitted in normal operation. |
 
 
 * Boolean: "true" for `true`, "false" for `false` (e.g. `DISABLE_DEBUG_ENDPOINT="true"`).
@@ -170,7 +171,7 @@ Contains a list of endpoints specifying a SPARQL endpoint URL and a list of reso
 Contains a list of harvester SPARQL endpoints for the last harvested task
 
 * `"periodic-function-invocation-times"`:
-An object modeling a record. The key needs to be a name of a data monitoring function and the value is another object containing a time and a comma separated list of days. The service will create periodic job templates automatically when they are not present in accordance with these definitions. When they are already present the microservice will NOT change them because they are ment to be changed by updating the job records using a delta message. Delta message processing has not been developed yet. You'll need to pass values for the keys `time` and `days`. `time` requires a valid formatted time `HH:mm` (interpreted as time of the day in the local timezone). The `days` requires a string with is a comma separated list of weekdays.
+An object modeling a record. The key needs to be a name of a data monitoring function and the value is another object containing a time and a comma separated list of days. The service will create periodic job templates automatically when they are not present in accordance with these definitions. When they are already present the microservice will NOT change them because they are ment to be changed by updating the job records using a delta message. Delta message processing has not been developed yet. You'll need to pass values for the keys `time` and `days`. `time` requires a valid formatted time `"HH:mm"` (e.g. `"10:00"` interpreted as time of the day in the local timezone). The `days` requires a string with is a comma separated list of weekdays.
 
 There is a JSON schema so you should not make any mistaktes. If you do mess up the schema though the program will crash on startup and you'll get a slap on the wrist. If I messed up the schema please let me know.
 
@@ -276,7 +277,7 @@ SELECT ?resourceUri ?label WHERE {
     skos:prefLabel ?label;
     example:day {{toDate day}};
     example:time ?time;
-    example:fixedTextObjectExamplePredicate {{escape stringValueWithQuotes}}.
+    example:fixedTextObjectExamplePredicate {{toString stringValueWithQuotes}}.
 }
 `);
 ```
@@ -327,7 +328,7 @@ Additional remarks:
 * The `toInteger` helper will throw an error if the number is not a safe integer. It will not round automatically to the nearest integer.
 * Use the `toNode` helper to print URI's in the query. It will check if the URI is valid and add the `<` and `>` for you. (e.g. `{{toNode abstractGoverningBodyUri}}`).
 
-It's important to add **two typescript types together with a SELECT query and export them**: one for the input and one for the output. For INSERT queries you will only need an input type.
+It's important to add **two typescript types together with a SELECT query and export them**: one for the input and one for the output. For INSERT queries you will only need an input type. Keep the type and query close in the code for maintainability.
 
 In this type structure you can also use TimeOnly, DateOnly, DateTime(Dayjs, modeling a timestamp) and enums. When parsing the bindings after invoking the `objects` or `records` method of the `TemplatedSelect` instance will automatically convert the variables to the correct type because the linked data has type information. Of course you can just use strings and number without helpers. Remember that Handlebars is 'dumb'. Whatever template you write will need to generate correct SPARQL. So putting URI's in your query will require you to use the `toNode` helper which renders the `<` and `>` characters and performs a sanity check.
 
@@ -507,7 +508,9 @@ A job function looks like this:
 export const myFunction: JobFunction = async (progress) {
   // A great many important statements.
   progress.update(`A log message`);
+  // A great many important statements.
   progress.progress(completedOperations, totalOperations, optionalDuration); // Update progress bar
+  // A great many important statements.
 }
 ```
 
@@ -581,6 +584,41 @@ addSimpleDebugEndpoint(app, "GET", "/dump", storeDumpQuerySchema, storeDump);
 ```
 
 You can do something similar for your functions. The `addSimpleDebugEndpoint` inserts express middleware to help visualize the results.
+
+Want to add a non-async function? Look at the clear store function for an example:
+
+```typescript
+addSimpleDebugEndpoint(app, "GET", "/configuration", emptySchema, () =>
+  Promise.resolve(config)
+);
+```
+
+The `addDebugEndpoint` function is similar but requires an actual Express handler function that outputs some HTML.
+
+Take the show Queue function as an example:
+
+```typescript
+const showQueueTemplate = compileHtml(
+  fs.readFileSync("./templates/queue.hbs", { encoding: "utf-8" })
+);
+
+async function showQueue(
+  _req: Request,
+  res: Response,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _next: NextFunction
+): Promise<void> {
+  const queue = getQueue();
+  const html = showQueueTemplate({
+    title: "Current jobs in queue",
+    queue,
+  });
+  res.send(html);
+}
+addDebugEndpoint(app, "GET", "/queue", emptySchema, showQueue);
+```
+
+Render some handlebars... Easy right?
 
 ### Execution queue
 

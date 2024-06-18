@@ -75,7 +75,7 @@ export function setupDebugEndpoints(app: Express) {
     Promise.resolve(config)
   );
   addSimpleDebugEndpoint(app, "GET", "/clear-store", emptySchema, () =>
-    Promise.resolve(clearStore)
+    Promise.resolve(clearStore())
   );
   addSimpleDebugEndpoint(app, "GET", "/force-error", emptySchema, async () => {
     throw new Error("Forced error by debug action.");
