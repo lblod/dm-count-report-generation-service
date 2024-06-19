@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Debug endpoints</title>
+  {{>styling}}
   <style>
     pre {
       display: inline;
@@ -57,6 +58,10 @@
       <pre>uuid</pre>. Just pass the uuid of the job template and it'll be removed.</p>
     </li>
     <li>
+      <p><a href="{{rel '/delete-all-reports'}}">/delete-all-reports</a></p>
+      <p>Delete ALL reports in the database!</p>
+    </li>
+    <li>
       <p><a href="{{rel '/clean-jobs'}}">/clean-jobs</a></p>
       <p>Removes jobs from the database with status finished or error to save some space.</p>
       <p>In the future a date filter will be added.</p>
@@ -76,7 +81,7 @@
       <p>Clear the write cache where the last reports are cached</p>
     </li>
     <li>
-      <p><a href="{{rel '/delete-all-jobs'}}">/delete-all-jobs</a></p>
+      <p><a href="{{rel '/delete-all-job-templates'}}">/delete-all-job-templates</a></p>
       <p>Delete all jobs from the database and from memory.</p>
     </li>
 

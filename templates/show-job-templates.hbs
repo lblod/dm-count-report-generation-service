@@ -5,9 +5,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{title}}</title>
+  {{>styling}}
   <style>
     li>pre {
-      display: inline-block;
+      display: inline;
     }
   </style>
 </head>
@@ -24,18 +25,20 @@
         <li>uuid:
           <pre>{{this.uuid}}</pre>
         </li>
-        <li>status:
-          <pre>{{printUriEnum this.status}} </pre>
+        <li>
+          <p>status:&nbsp;{{{toJobTemplateStatus this.status}}}</p>
         </li>
-        <li>jobType:
-          <pre>{{printUriEnum this.jobTemplateType}}</pre>
+        <li>
+          <p>jobType:{{{toJobTemplateType this.jobTemplateType}}}</p>
         </li>
-        <li>function:
-          <pre>{{printUriEnum this.datamonitoringFunction}}</pre>
+        <li>
+          <p>function:{{{toDatamonitoringFunction this.datamonitoringFunction}}}</p>
         </li>
         {{#if (eq this.jobTemplateType @root.periodicValue)}}
         <li>Invocation time:
+          <p>
           <pre>{{this.information.timeOfInvocationInformation}}</pre>
+          </p>
         </li>
         {{/if}}
         {{#if (eq this.jobTemplateType @root.restValue)}}

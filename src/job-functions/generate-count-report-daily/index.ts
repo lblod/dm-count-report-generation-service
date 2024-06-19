@@ -1,32 +1,32 @@
 import { QueryEngine } from "@comunica/query-sparql";
-import {
-  CountResolutionsQueryInput,
-  CountResolutionsQueryOutput,
-  CountSessionsQueryInput,
-  CountSessionsQueryOutput,
-  CountVoteQueryInput,
-  CountVoteQueryOutput,
-  WriteAdminUnitReportInput,
-  WriteReportInput,
-  countAgendaItemsQueryTemplate,
-  countResolutionsQueryTemplate,
-  countSessionsQueryTemplate,
-  countVoteQueryTemplate,
-  writeAdminUnitCountReportTemplate,
-  writeCountReportQueryTemplate,
-} from "../queries/queries.js";
+import { v4 as uuidv4 } from "uuid";
+import { getOrgResoucesCached } from "../../job/get-org-data.js";
+import { JobFunction } from "../../job/job.js";
+import { PREFIXES } from "../../local-constants.js";
+import { queryEngine } from "../../queries/query-engine.js";
 import {
   TemplatedInsert,
   TemplatedSelect,
-} from "../queries/templated-query.js";
-import { getOrgResoucesCached } from "./get-org-data.js";
-import { queryEngine } from "../queries/query-engine.js";
-import { config } from "../configuration.js";
-import { duration } from "../util/util.js";
-import { PREFIXES } from "../local-constants.js";
-import { DateOnly, now } from "../util/date-time.js";
-import { v4 as uuidv4 } from "uuid";
-import { JobFunction } from "./job.js";
+} from "../../queries/templated-query.js";
+import { DateOnly, now } from "../../util/date-time.js";
+import { duration } from "../../util/util.js";
+import {
+  WriteReportInput,
+  writeCountReportQueryTemplate,
+  WriteAdminUnitReportInput,
+  writeAdminUnitCountReportTemplate,
+  CountSessionsQueryInput,
+  CountSessionsQueryOutput,
+  countSessionsQueryTemplate,
+  CountResolutionsQueryInput,
+  CountResolutionsQueryOutput,
+  countResolutionsQueryTemplate,
+  countAgendaItemsQueryTemplate,
+  CountVoteQueryInput,
+  CountVoteQueryOutput,
+  countVoteQueryTemplate,
+} from "./queries.js";
+import { config } from "../../configuration.js";
 
 function getQueriesForWriting(queryEngine: QueryEngine, endpoint: string) {
   const writeCountReportQuery = new TemplatedInsert<WriteReportInput>(
@@ -80,7 +80,7 @@ export const generateReportsDaily: JobFunction = async (
   progress,
   day: DateOnly | undefined = undefined
 ) => {
-  const defaultedDay = day ?? DateOnly.yesterday();
+  const defaultedDay = day ?? config.env.OVERRIDE_DAY ?? DateOnly.yesterday();
   progress.update(
     `Report function invoked with day ${defaultedDay.toString()}`
   );
@@ -140,13 +140,16 @@ export const generateReportsDaily: JobFunction = async (
       const governingBodyReportUriList: string[] = [];
       // TODO: make a catalog of query machines for each resource type eventually
       for (const goveringBody of adminUnit.govBodies) {
+        progress.update(
+          `Counting for  "${adminUnit.label}":"${goveringBody.classLabel}". (${goveringBody.uri})`
+        );
         // Count the resources
         const sessionsResult = await performCount(
           "Session",
           countSessionsQuery,
           {
             prefixes: PREFIXES,
-            governingBodyUri: goveringBody.uri,
+            abstractGoverningBodyUri: goveringBody.uri,
             from: defaultedDay.localStartOfDay,
             to: defaultedDay.localEndOfDay,
             noFilterForDebug: config.env.NO_TIME_FILTER,
@@ -158,7 +161,7 @@ export const generateReportsDaily: JobFunction = async (
           countAgendaItemsQuery,
           {
             prefixes: PREFIXES,
-            governingBodyUri: goveringBody.uri,
+            abstractGoverningBodyUri: goveringBody.uri,
             from: defaultedDay.localStartOfDay,
             to: defaultedDay.localEndOfDay,
             noFilterForDebug: config.env.NO_TIME_FILTER,
@@ -170,7 +173,7 @@ export const generateReportsDaily: JobFunction = async (
           countResolutionsQuery,
           {
             prefixes: PREFIXES,
-            governingBodyUri: goveringBody.uri,
+            abstractGoverningBodyUri: goveringBody.uri,
             from: defaultedDay.localStartOfDay,
             to: defaultedDay.localEndOfDay,
             noFilterForDebug: config.env.NO_TIME_FILTER,
@@ -179,7 +182,7 @@ export const generateReportsDaily: JobFunction = async (
 
         const voteResult = await performCount("Stemming", countVoteQuery, {
           prefixes: PREFIXES,
-          governingBodyUri: goveringBody.uri,
+          abstractGoverningBodyUri: goveringBody.uri,
           from: defaultedDay.localStartOfDay,
           to: defaultedDay.localEndOfDay,
           noFilterForDebug: config.env.NO_TIME_FILTER,
@@ -190,6 +193,10 @@ export const generateReportsDaily: JobFunction = async (
         governingBodyReportUriList.push(reportUri);
 
         const uuids = new Array(4).fill(null).map(() => uuidv4());
+
+        progress.update(
+          `Sessions: ${sessionsResult.count}, Agendapunt: ${agendaItemResult.count}, Besluit: ${resolutionResult.count}, Stemming: ${voteResult.count}`
+        );
 
         // Write govering body report
         await performInsert("GoverningBodyCountReport", writeCountReportQuery, {

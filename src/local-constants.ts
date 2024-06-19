@@ -5,6 +5,7 @@ This module only contains constants
 */
 
 // Will be broken down and used to create namespaces for RDFJS as well. Syntax needs to be 100% correct.
+// TODO: Only generate prefixes that are necassary to save bandwidth
 export const PREFIXES = `\
 PREFIX besluittype: <https://data.vlaanderen.be/id/concept/BesluitType/>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>

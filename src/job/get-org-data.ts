@@ -8,20 +8,24 @@ import {
   GetOrganisationsOutput,
   getGoverningBodiesOfAdminUnitTemplate,
   getOrganisationsTemplate,
-} from "../queries/queries.js";
+} from "../queries/util-queries.js";
 import { TemplatedSelect } from "../queries/templated-query.js";
 import { delay } from "../util/util.js";
 import { logger } from "../logger.js";
+import fs from "node:fs/promises";
+
+type GoverningBodyRecord = {
+  uri: string;
+  classLabel: string;
+  type: "abstract" | "time-specific";
+};
 
 type OrganisationsAndGovBodies = {
   adminUnits: {
     uri: string;
     label: string;
     id: string;
-    govBodies: {
-      uri: string;
-      classLabel: string;
-    }[];
+    govBodies: GoverningBodyRecord[];
   }[];
 };
 
@@ -48,13 +52,14 @@ async function getOrgResouces(
   >(
     queryEngine,
     config.env.ADMIN_UNIT_ENDPOINT,
-    getGoverningBodiesOfAdminUnitTemplate
+    getGoverningBodiesOfAdminUnitTemplate,
+    true
   );
 
   const orgs = await getOrganisationsQuery.objects("organisationUri", {
     prefixes: PREFIXES,
-    limit: config.env.LIMIT_NUMBER_ADMIN_UNITS, // 0 means infinite
     graphUri: config.env.ADMIN_UNIT_GRAPH_URI,
+    adminUnitSelection: config.file.adminUnitOverride, // Undefined value in production means all admin units
   });
   await delay(config.env.SLEEP_BETWEEN_QUERIES_MS);
 
@@ -92,7 +97,7 @@ async function getOrgResouces(
 
   for (const org of cleanOrgs) {
     const govBodies = await getGoveringBodiesOfAdminUnitQuery.objects(
-      "goveringBodyUri",
+      "abstractGoverningBodyUri",
       {
         prefixes: PREFIXES,
         adminitrativeUnitUri: org.organisationUri, // uri
@@ -102,14 +107,16 @@ async function getOrgResouces(
     logger.debug(
       `Got ${govBodies.length} governing bodies for org ${org.organisationUri}`
     );
+
     result.adminUnits.push({
       uri: org.organisationUri,
       label: org.label,
       id: org.id,
-      govBodies: govBodies.map((record) => {
+      govBodies: govBodies.map((gb) => {
         return {
-          uri: record.goveringBodyUri,
-          classLabel: record.classLabel,
+          type: "abstract",
+          classLabel: gb.classLabel,
+          uri: gb.abstractGoverningBodyUri,
         };
       }),
     });
@@ -122,6 +129,10 @@ async function getOrgResouces(
   timer = setTimeout(() => {
     orgResourcesCache = null;
   }, config.env.ORG_RESOURCES_TTL_S * 1000);
+  await fs.writeFile(
+    config.env.DUMP_FILES_LOCATION + "/orgs.json",
+    JSON.stringify(result, undefined, 3)
+  );
   return result;
 }
 

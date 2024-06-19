@@ -7,7 +7,7 @@ import {
   TestQueryInput,
   TestQueryOutput,
   testQueryTemplate,
-} from "./queries/queries.js";
+} from "./queries/util-queries.js";
 import {
   createPeriodicJobTemplate,
   createRestJobTemplate,
@@ -112,20 +112,24 @@ async function startupProcedure() {
     const restInvokedJobs = getJobTemplates().filter(
       (job) => job.jobTemplateType === JobTemplateType.REST_INVOKED
     );
+    const desiredAmountOfRestJobs =
+      3 + (config.env.ADD_DUMMY_REST_JOB_TEMPLATE ? 1 : 0);
     const recreate = await (async () => {
       switch (restInvokedJobs.length) {
         case 0:
           logger.info(`Debug jobs do not exist. Creating them.`);
           return true;
-        case 1:
+        case desiredAmountOfRestJobs:
+          logger.info(
+            `Debug jobs exist in the database (${restInvokedJobs.length}). OK.`
+          );
+          return false;
+        default:
           logger.warn(
-            `Only one rest job was found and that is very strange. There should be two. Deleting all rest jobs and recreating them`
+            `Inssuficient rest jobs found (${restInvokedJobs.length}) and that is very strange. There should be two. Deleting all rest jobs and recreating them`
           );
           await deleteAllJobTemplates([JobTemplateType.REST_INVOKED]);
           return true;
-        default:
-          logger.info(`Debug jobs exist in the database. OK.`);
-          return false;
       }
     })();
     if (recreate) {
@@ -137,6 +141,11 @@ async function startupProcedure() {
       await createRestJobTemplate(
         DataMonitoringFunction.CHECK_HARVESTING_EXECUTION_TIME,
         "start-harvesting-exec-time-report",
+        JobTemplateStatus.ACTIVE
+      );
+      await createRestJobTemplate(
+        DataMonitoringFunction.CHECK_SESSION_COMPLETENESS,
+        "check-session-completeness",
         JobTemplateStatus.ACTIVE
       );
     }

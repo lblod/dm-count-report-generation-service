@@ -8,7 +8,12 @@ import {
   LOG_LEVELS,
   stringToDayOfWeek,
 } from "./types.js";
-import { TimeOnly, TIME_ANY_NOTATION_REGEX } from "./util/date-time.js";
+import {
+  TimeOnly,
+  TIME_ANY_NOTATION_REGEX,
+  DATE_ISO_REGEX,
+  DateOnly,
+} from "./util/date-time.js";
 
 // Extract namespaces and build a conversion function to convert short URI's to full ones
 
@@ -74,6 +79,10 @@ export const invocationTimeSchema = z
   .string()
   .regex(TIME_ANY_NOTATION_REGEX)
   .transform((x) => new TimeOnly(x));
+export const envDateOnlySchema = z
+  .string()
+  .regex(DATE_ISO_REGEX)
+  .transform((x) => new DateOnly(x));
 export const invocationDaysSchema = z
   .string()
   .transform((x, ctx) => {
@@ -109,6 +118,7 @@ export const datamonitoringFunctionSchema = z
   .pipe(z.nativeEnum(DataMonitoringFunction));
 
 const dmReportGenerationServiceConfigFileSchema = z.object({
+  adminUnitOverride: z.array(uriSchema).optional(),
   endpoints: z.array(
     z.object({
       url: z.string().url(),
@@ -141,7 +151,8 @@ const dmReportGenerationServiceEnvSchema = z.object({
   CONFIG_FILE_LOCATION: z.string().optional(),
   SLEEP_BETWEEN_QUERIES_MS: envIntegerSchema.optional(),
   SHOW_SPARQL_QUERIES: envBooleanSchema.optional(),
-  LIMIT_NUMBER_ADMIN_UNITS: envIntegerSchema.optional(),
+  SHOW_SPARQL_QUERY_OUTPUTS: envBooleanSchema.optional(),
+  LIMIT_NUMBER_SESSIONS: envIntegerSchema.optional(),
   ORG_RESOURCES_TTL_S: envIntegerSchema.optional(),
   SERVER_PORT: envIntegerSchema.optional(),
   LOG_LEVEL: z.enum(LOG_LEVELS).optional(),
@@ -167,6 +178,7 @@ const dmReportGenerationServiceEnvSchema = z.object({
       "Make sure the root URL path starts with a /. Another acceptable value is empty string",
   }),
   SKIP_ENDPOINT_CHECK: envBooleanSchema.optional(),
+  OVERRIDE_DAY: envDateOnlySchema.optional(),
 });
 
 export type DmReportGenerationServiceConfigFile = z.infer<
@@ -178,12 +190,16 @@ export type EndpointConfig = {
   classes: readonly string[];
 };
 
-export type DmReportGenerationServiceEnv = z.infer<
-  typeof dmReportGenerationServiceEnvSchema
+type PickOptional<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
+
+export type DmReportGenerationServiceEnv = PickOptional<
+  Required<z.infer<typeof dmReportGenerationServiceEnvSchema>>,
+  "OVERRIDE_DAY" // Override day can be undefined; the default value is undefined
 >;
 
 export type DmReportGenerationServiceConfig = {
   file: {
+    adminUnitOverride: string[] | undefined;
     endpoints: EndpointConfig[];
     harvesterEndpoints: { url: string }[];
     periodicFunctionInvocationTimes: Partial<
@@ -196,7 +212,7 @@ export type DmReportGenerationServiceConfig = {
       >
     >;
   };
-  env: Required<DmReportGenerationServiceEnv>;
+  env: DmReportGenerationServiceEnv;
 };
 
 // Manage and parse environment
@@ -209,7 +225,8 @@ const defaultEnv = {
   CONFIG_FILE_LOCATION: "/config",
   SLEEP_BETWEEN_QUERIES_MS: 0,
   SHOW_SPARQL_QUERIES: false,
-  LIMIT_NUMBER_ADMIN_UNITS: 0, // Default value of 0 means no limit. In production this should always be 0
+  SHOW_SPARQL_QUERY_OUTPUTS: false,
+  LIMIT_NUMBER_SESSIONS: 0, // Default value of 0 means no limit. In production this should always be 0
   ORG_RESOURCES_TTL_S: 300, // Default cache TTL is five minutes
   SERVER_PORT: 80, // HTTP (TODO add HTTPS port)
   LOG_LEVEL: "info" as const,
@@ -222,6 +239,7 @@ const defaultEnv = {
   URI_PREFIX_NAMESPACES: "http://lblod.data.gift/vocabularies/datamonitoring/",
   ADD_DUMMY_REST_JOB_TEMPLATE: false,
   SKIP_ENDPOINT_CHECK: false,
+  OVERRIDE_DAY: undefined,
 };
 
 const envResult = dmReportGenerationServiceEnvSchema.safeParse(process.env);
@@ -230,7 +248,7 @@ if (!envResult.success) {
   throw fromError(envResult.error);
 }
 
-const defaultedEnv: Required<DmReportGenerationServiceEnv> = {
+const defaultedEnv = {
   ...defaultEnv,
   ...envResult.data,
 };
@@ -262,6 +280,7 @@ const endpointConfig: EndpointConfig[] = fileResult.data.endpoints.map(
 export const config: DmReportGenerationServiceConfig = {
   env: defaultedEnv,
   file: {
+    adminUnitOverride: fileResult.data.adminUnitOverride,
     endpoints: endpointConfig,
     harvesterEndpoints: fileResult.data["harvester-endpoints"],
     periodicFunctionInvocationTimes:

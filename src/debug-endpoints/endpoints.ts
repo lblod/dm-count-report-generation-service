@@ -9,7 +9,6 @@ import fs from "node:fs";
 import { clearStore, dumpStore } from "../queries/store.js";
 import { z } from "zod";
 import { addDebugEndpoint, addSimpleDebugEndpoint } from "./middleware.js";
-import Handlebars from "handlebars";
 import {
   RestJobTemplate,
   createPeriodicJobTemplate,
@@ -22,15 +21,22 @@ import { deleteJobs, getJobs } from "../job/job.js";
 import { logger } from "../logger.js";
 import { now } from "../util/date-time.js";
 import { JobStatus } from "../types.js";
-import { ALL_DAYS_OF_WEEK } from "../local-constants.js";
+import { ALL_DAYS_OF_WEEK, PREFIXES } from "../local-constants.js";
+import { compileHtml } from "../handlebars/index.js";
+import { TemplatedInsert } from "../queries/templated-query.js";
+import {
+  DeleteAllReportsInput,
+  deleteAllReportsTemplate,
+} from "../queries/util-queries.js";
+import { queryEngine } from "../queries/query-engine.js";
 
-const debugIndexHtml = Handlebars.compile(
+const debugIndexHtml = compileHtml(
   fs.readFileSync("./templates/debug.hbs", {
     encoding: "utf-8",
   })
 )({});
 
-const staticIndexTemplate = Handlebars.compile(
+const staticIndexTemplate = compileHtml(
   fs.readFileSync("./templates/static-index.hbs", { encoding: "utf-8" })
 );
 
@@ -69,7 +75,7 @@ export function setupDebugEndpoints(app: Express) {
     Promise.resolve(config)
   );
   addSimpleDebugEndpoint(app, "GET", "/clear-store", emptySchema, () =>
-    Promise.resolve(clearStore)
+    Promise.resolve(clearStore())
   );
   addSimpleDebugEndpoint(app, "GET", "/force-error", emptySchema, async () => {
     throw new Error("Forced error by debug action.");
@@ -77,7 +83,7 @@ export function setupDebugEndpoints(app: Express) {
   addSimpleDebugEndpoint(
     app,
     "GET",
-    "/delete-all-jobs",
+    "/delete-all-job-templates",
     emptySchema,
     deleteAllJobTemplates
   );
@@ -151,10 +157,47 @@ export function setupDebugEndpoints(app: Express) {
     }
   );
 
-  addSimpleDebugEndpoint(app, "GET", "/clean-jobs", emptySchema, async () => {
-    await deleteJobs([JobStatus.ERROR, JobStatus.FINISHED]);
-    return `Jobs with status error and finished removed from the database`;
-  });
+  const cleanJobSchema = z
+    .object({
+      all: z.literal("true").optional(),
+    })
+    .optional();
+
+  addSimpleDebugEndpoint(
+    app,
+    "GET",
+    "/clean-jobs",
+    cleanJobSchema,
+    async (query: z.infer<typeof cleanJobSchema>) => {
+      const all = !!query?.all;
+      if (all) {
+        await deleteJobs([JobStatus.ERROR, JobStatus.FINISHED]);
+        return `Jobs with status error and finished removed from the database`;
+      } else {
+        await deleteJobs();
+        return `All jobs are removed from the database. Restart the service.`;
+      }
+    }
+  );
+
+  const removeAllReportsQuery = new TemplatedInsert<DeleteAllReportsInput>(
+    queryEngine,
+    config.env.REPORT_ENDPOINT,
+    deleteAllReportsTemplate
+  );
+
+  addSimpleDebugEndpoint(
+    app,
+    "GET",
+    "/delete-all-reports",
+    emptySchema,
+    async () => {
+      await removeAllReportsQuery.execute({
+        prefixes: PREFIXES,
+        reportGraphUri: config.env.REPORT_GRAPH_URI,
+      });
+    }
+  );
 
   // COMPLEX ENDPOINTS. INVOKE EXPRESS REQUEST HANDLER (imported from functions.ts)
 
@@ -182,11 +225,6 @@ export function setupDebugEndpoints(app: Express) {
       Record<string, (messageObject: Record<string, any>) => void>
     >((acc, curr) => {
       acc[curr] = function (messageObject: Record<string, any>) {
-        logger.debug(
-          `Event of kind ${curr} received. MessageObject is ${JSON.stringify({
-            messageObject,
-          })} and sent to event stream.`
-        );
         res.write(`data: ${JSON.stringify({ [curr]: messageObject })}\n\n`); // The double NEWLINE is very important
       };
       return acc;

@@ -20,7 +20,7 @@ import { v4 as uuidv4 } from "uuid";
 import { createJob as createJob } from "./job.js";
 import { retry } from "../util/util.js";
 import { logger } from "../logger.js";
-import Handlebars from "handlebars";
+import { compileSparql } from "../handlebars/index.js";
 
 export type UpdateJobTemplateStatusInput = {
   prefixes: string;
@@ -30,30 +30,29 @@ export type UpdateJobTemplateStatusInput = {
   modifiedAt: DateTime;
 };
 
-export const updateJobTemplateStatusTemplate = Handlebars.compile(
+export const updateJobTemplateStatusTemplate = compileSparql(
   `\
 {{prefixes}}
 DELETE {
-  GRAPH <{{jobGraphUri}}> {
-    <{{jobTemplateUri}}>
+  GRAPH {{toNode jobGraphUri}} {
+    {{toNode jobTemplateUri}}
       adms:status ?status;
       dct:modified ?modified.
   }
 } INSERT {
-  GRAPH <{{jobGraphUri}}> {
-    <{{jobTemplateUri}}>
-      adms:status {{toJobTemplateStatusLiteral status}};
-      dct:modified {{toDateTimeLiteral modifiedAt}}.
+  GRAPH {{toNode jobGraphUri}} {
+    {{toNode jobTemplateUri}}
+      adms:status {{toJobTemplateStatus status}};
+      dct:modified {{toDateTime modifiedAt}}.
   }
 } WHERE {
-  GRAPH <{{jobGraphUri}}> {
-    <{{jobTemplateUri}}> a cogs:Job,datamonitoring:DatamonitoringTemplateJob;
+  GRAPH {{toNode jobGraphUri}} {
+    {{toNode jobTemplateUri}} a cogs:Job,datamonitoring:DatamonitoringTemplateJob;
       adms:status ?status;
       dct:modified ?modified.
   }
 }
-`,
-  { noEscape: true }
+`
 );
 
 export type WriteNewPeriodicJobTemplateInput = {
@@ -73,33 +72,32 @@ export type WriteNewPeriodicJobTemplateInput = {
   daysOfInvocation: DayOfWeek[];
 };
 
-export const insertPeriodicJobTemplateTemplate = Handlebars.compile(
+export const insertPeriodicJobTemplateTemplate = compileSparql(
   `\
 {{prefixes}}
 INSERT {
-  GRAPH <{{jobGraphUri}}> {
-    <{{newJobTemplateUri}}> a cogs:Job, datamonitoring:DatamonitoringTemplateJob;
-      mu:uuid "{{uuid}}";
+  GRAPH {{toNode jobGraphUri}} {
+    {{toNode newJobTemplateUri}} a cogs:Job, datamonitoring:DatamonitoringTemplateJob;
+      mu:uuid {{toUuid uuid}};
       dct:creator <{{resourcesUriPrefix}}job-creator/dm-count-report-generation-service>;
-      adms:status {{toJobTemplateStatusLiteral status}};
-      dct:created {{toDateTimeLiteral createdAt}};
-      dct:modified {{toDateTimeLiteral createdAt}};
-      datamonitoring:description "{{escape description}}";
-      datamonitoring:jobType {{toJobTemplateTypeLiteral jobTemplateType}};
-      datamonitoring:jobParameters <{{jobParametersUri}}>.
+      adms:status {{toJobTemplateStatus status}};
+      dct:created {{toDateTime createdAt}};
+      dct:modified {{toDateTime createdAt}};
+      datamonitoring:description {{toString description}};
+      datamonitoring:jobType {{toJobTemplateType jobTemplateType}};
+      datamonitoring:jobParameters {{toNode jobParametersUri}}.
 
-      <{{jobParametersUri}}> a datamonitoring:PeriodicJobTemplateParameters;
+      {{toNode jobParametersUri}} a datamonitoring:PeriodicJobTemplateParameters;
         mu:uuid "{{jobParametersUuid}}";
-        datamonitoring:timeOfInvocation {{toTimeLiteral timeOfInvocation}};
-        datamonitoring:function {{toDatamonitoringFunctionLiteral datamonitoringFunction}};
+        datamonitoring:timeOfInvocation {{toTime timeOfInvocation}};
+        datamonitoring:function {{toDatamonitoringFunction datamonitoringFunction}};
         datamonitoring:daysOfInvocation
-          {{#each daysOfInvocation}}{{toDayOfWeekLiteral this}}{{#unless @last}},{{/unless}}{{/each}}.
+          {{#each daysOfInvocation}}{{toDayOfWeek this}}{{#unless @last}},{{/unless}}{{/each}}.
   }
 } WHERE {
 
 }
-`,
-  { noEscape: true }
+`
 );
 
 type DeleteJobTemplateInput = {
@@ -108,21 +106,20 @@ type DeleteJobTemplateInput = {
   uri: string;
 };
 
-const deleteJobTemplateInput = Handlebars.compile(
+const deleteJobTemplateInput = compileSparql(
   `\
 {{prefixes}}
 DELETE {
-  GRAPH <{{jobGraphUri}}> {
-    <{{uri}}> ?p ?o.
+  GRAPH {{toNode jobGraphUri}} {
+    {{toNode uri}} ?p ?o.
     ?paramRes ?pp ?po.
   }
 } WHERE {
-  GRAPH <{{jobGraphUri}}> {
-    <{{uri}}> datamonitoring:jobParameters ?paramRes.
+  GRAPH {{toNode jobGraphUri}} {
+    {{toNode uri}} datamonitoring:jobParameters ?paramRes.
   }
 }
-`,
-  { noEscape: true }
+`
 );
 
 export class JobTemplate {
@@ -323,31 +320,30 @@ export type WriteNewRestJobTemplateInput = {
   datamonitoringFunction: DataMonitoringFunction;
 };
 
-export const insertRestJobTemplateTemplate = Handlebars.compile(
+export const insertRestJobTemplateTemplate = compileSparql(
   `\
 {{prefixes}}
 INSERT {
-  GRAPH <{{jobGraphUri}}> {
-    <{{newJobTemplateUri}}> a cogs:Job, datamonitoring:DatamonitoringTemplateJob;
-      mu:uuid "{{uuid}}";
-      dct:creator <{{creatorUri}}>;
-      adms:status {{toJobTemplateStatusLiteral status}};
-      dct:created {{toDateTimeLiteral createdAt}};
-      dct:modified {{toDateTimeLiteral createdAt}};
-      datamonitoring:description "{{escape description}}";
-      datamonitoring:jobType {{toJobTemplateTypeLiteral jobTemplateType}};
-      datamonitoring:jobParameters <{{jobParametersUri}}>.
+  GRAPH {{toNode jobGraphUri}} {
+    {{toNode newJobTemplateUri}} a cogs:Job, datamonitoring:DatamonitoringTemplateJob;
+      mu:uuid {{toUuid uuid}};
+      dct:creator {{toNode creatorUri}};
+      adms:status {{toJobTemplateStatus status}};
+      dct:created {{toDateTime createdAt}};
+      dct:modified {{toDateTime createdAt}};
+      datamonitoring:description {{toString description}};
+      datamonitoring:jobType {{toJobTemplateType jobTemplateType}};
+      datamonitoring:jobParameters {{toNode jobParametersUri}}.
 
-      <{{jobParametersUri}}> a datamonitoring:restJobTemplateParameters;
+      {{toNode jobParametersUri}} a datamonitoring:restJobTemplateParameters;
         mu:uuid "{{jobParametersUuid}}";
-        datamonitoring:function {{toDatamonitoringFunctionLiteral datamonitoringFunction}};
+        datamonitoring:function {{toDatamonitoringFunction datamonitoringFunction}};
         datamonitoring:urlPath "{{urlPath}}".
   }
 } WHERE {
 
 }
-`,
-  { noEscape: true }
+`
 );
 
 export class RestJobTemplate extends JobTemplate {
@@ -545,11 +541,11 @@ export type GetRestJobTemplatesOutput = GetJobTemplatesOutput & {
   urlPath: string;
 };
 
-const getPeriodicJobTemplatesTemplate = Handlebars.compile(
+const getPeriodicJobTemplatesTemplate = compileSparql(
   `\
 {{prefixes}}
 SELECT * WHERE {
-  GRAPH <{{jobGraphUri}}> {
+  GRAPH {{toNode jobGraphUri}} {
     ?jobTemplateUri a cogs:Job, datamonitoring:DatamonitoringTemplateJob;
       mu:uuid ?uuid;
       adms:status ?status;
@@ -564,15 +560,14 @@ SELECT * WHERE {
       ].
   }
 }
-`,
-  { noEscape: true }
+`
 );
 
-export const getRestJobTemplatesTemplate = Handlebars.compile(
+export const getRestJobTemplatesTemplate = compileSparql(
   `\
 {{prefixes}}
 SELECT * WHERE {
-  GRAPH <{{jobGraphUri}}> {
+  GRAPH {{toNode jobGraphUri}} {
     ?jobUri a cogs:Job, datamonitoring:DatamonitoringTemplateJob;
       mu:uuid ?uuid;
       adms:status ?status;
@@ -587,8 +582,7 @@ SELECT * WHERE {
 
   }
 }
-`,
-  { noEscape: true }
+`
 );
 
 /**
@@ -654,22 +648,22 @@ export type DeleteAllJobTemplatesInput = {
   jobTemplateTypes: JobTemplateType[] | undefined;
 };
 
-export const deleteAllJobTemplatesTemplate = Handlebars.compile(
+export const deleteAllJobTemplatesTemplate = compileSparql(
   `\
 {{prefixes}}
 DELETE {
-  GRAPH <{{jobGraphUri}}> {
+  GRAPH {{toNode jobGraphUri}} {
     ?blind ?pb ?ob.
     ?job ?p ?o.
   }
 } WHERE {
-  GRAPH <{{jobGraphUri}}> {
+  GRAPH {{toNode jobGraphUri}} {
     ?job a cogs:Job, datamonitoring:DatamonitoringTemplateJob;
       datamonitoring:jobParameters ?blind.
     {{#if (listPopulated jobTemplateTypes)}}
     {{#each jobTemplateTypes}}
       {
-        ?job datamonitoring:jobType {{toJobTemplateTypeLiteral this}}.
+        ?job datamonitoring:jobType {{toJobTemplateType this}}.
       }
       {{#unless @last}}UNION{{/unless}}
     {{/each}}
@@ -679,8 +673,7 @@ DELETE {
     ?job ?p ?o.
   }
 }
-`,
-  { noEscape: true }
+`
 );
 
 /**
