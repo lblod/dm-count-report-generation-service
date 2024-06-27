@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{title}}</title>
+  {{>styling}}
   <style>
     li>pre {
       display: inline-block;
@@ -20,16 +21,16 @@
   <ol>
     {{#each queue}}
     <li>
-      <h3>URI: &lt;{{this.jobUri}}&gt;</h3>
+      <h3>URI: <span class="uri"></span>{{this.jobUri}}</span></h3>
       <ul>
         <li>uuid:
           <pre>{{this.uuid}}</pre>
         </li>
         <li>status:
-          <pre>{{printUriEnum this.status}} </pre>
+          <span>{{toJobStatus this.status}} </span>
         </li>
         <li>function:
-          <pre>{{printUriEnum this.function}}</pre>
+          <span>{{toDatamonitoringFunction this.function}}</span>
         </li>
         {{#if this.executing}}
         <li>executing:

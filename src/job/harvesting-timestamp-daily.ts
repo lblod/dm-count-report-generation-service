@@ -1,4 +1,3 @@
-import Handlebars from "handlebars";
 import { DateOnly, DateTime, now } from "../util/date-time.js";
 import { QueryEngine } from "@comunica/query-sparql";
 import {
@@ -12,6 +11,7 @@ import { PREFIXES } from "../local-constants.js";
 import { duration } from "../util/util.js";
 import { v4 as uuidv4 } from "uuid";
 import { JobFunction } from "./job.js";
+import { compileSparql } from "../handlebars/index.js";
 
 type GetLastModifiedInput = {
   prefixes: string;
@@ -23,7 +23,7 @@ type GetLastModifiedOutput = {
   lastModified: DateTime;
 };
 
-const getLastModifiedTemplate = Handlebars.compile(
+const getLastModifiedTemplate = compileSparql(
   `\
 {{prefixes}}
 SELECT ?scheduledJobUri ?title (MAX(?modified) AS ?lastModified) WHERE {
@@ -34,8 +34,7 @@ SELECT ?scheduledJobUri ?title (MAX(?modified) AS ?lastModified) WHERE {
   ?job <http://purl.org/dc/terms/modified> ?modified.
 }
 GROUP BY ?scheduledJobUri ?title
-`,
-  { noEscape: true }
+`
 );
 
 type HarvestingTimeStampResult = {
@@ -58,33 +57,32 @@ type InsertLastExecutedReportInput = {
 };
 
 // This handlebars query is not robust when the times array is empty. Then it will generate a bad syntax.
-const insertLastExecutedReportTemplate = Handlebars.compile(
+const insertLastExecutedReportTemplate = compileSparql(
   `\
 {{prefixes}}
 INSERT {
-  GRAPH <{{reportGraphUri}}> {
-    <{{reportUri}}> a datamonitoring:LastHarvestingExecutionReport;
-      datamonitoring:day {{toDateLiteral day}};
-      skos:prefLabel "{{escape prefLabel}}";
-      datamonitoring:createdAt {{toDateTimeLiteral createdAt}};
-      mu:uuid "{{uuid}}";
+  GRAPH {{toNode reportGraphUri}} {
+    {{toNode reportUri}} a datamonitoring:LastHarvestingExecutionReport;
+      datamonitoring:day {{toDate day}};
+      skos:prefLabel {{toString prefLabel}};
+      datamonitoring:createdAt {{toDateTime createdAt}};
+      mu:uuid {{toUuid uuid}};
       datamonitoring:adminUnitLastExecutionRecords
-        {{#each times}}<{{this.resultUri}}>{{#unless @last}},{{/unless}}{{/each}}.
+        {{#each times}}{{toNode this.resultUri}}{{#unless @last}},{{/unless}}{{/each}}.
 
     {{#each times}}
-    <{{this.resultUri}}>
+    {{toNode this.resultUri}}
       a datamonitoring:LastHarvestingExecutionRecord;
-      mu:uuid "{{this.uuid}}";
-      datamonitoring:targetAdministrativeUnit <{{this.organisationUri}}>;
+      mu:uuid {{toUuid this.uuid}};
+      datamonitoring:targetAdministrativeUnit {{toNode this.organisationUri}};
       skos:prefLabel "Last execution of harvesting job for organisation \\'{{escape this.organisationLabel}}\\'";
-      datamonitoring:lastExecutionTime {{toDateTimeLiteral this.lastExecutionTimestamp}}.
+      datamonitoring:lastExecutionTime {{toDateTime this.lastExecutionTimestamp}}.
     {{/each}}
   }
 } WHERE {
 
 }
-`,
-  { noEscape: true }
+`
 );
 
 function getQueries(queryEngine: QueryEngine, endpoint: string) {

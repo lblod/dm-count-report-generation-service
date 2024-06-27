@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{title}}</title>
+  {{>styling}}
 </head>
 
 <body>
@@ -12,16 +13,16 @@
   <p>Back to <a href="{{rel '/debug'}}">Debug</a></p>
   <p>Back to <a href="{{rel '/job-templates'}}">Job templates</a></p>
   <p>Job created:
-  <pre>{{toDateTimeString createdAt}}</pre>
+  <pre>{{{toDateTimeString createdAt}}}</pre>
   </p>
   <p>Job modified:
-  <pre>{{toDateTimeString modifiedAt}}</pre>
+  <pre>{{{toDateTimeString modifiedAt}}}</pre>
   </p>
   <p>Job status (updatet):
-  <pre id="status">{{printUriEnum status}}</pre>
+  <pre id="status">{{{toJobStatus status}}}</pre>
   </p>
   <p>Job function:
-  <pre>{{printUriEnum function}}</pre>
+  <pre>{{{toDatamonitoringFunction function}}}</pre>
   </p>
   <label for="progress">Procedure progress:</label>
   <progress id="progress" value="{{done}}" max="{{total}}"></progress>
@@ -82,6 +83,11 @@
 
       performanceChart.data.labels.push(counter++);
       performanceChart.data.datasets[0].data.push(lastDurationMilliseconds);
+      // Prevent overflowing
+      if (performanceChart.data.labels.length > 200) {
+        performanceChart.data.labels.shift();
+        performanceChart.data.datasets[0].data.shift();
+      }
       performanceChart.update('none');
       return;
 

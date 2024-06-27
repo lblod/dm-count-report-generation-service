@@ -61,6 +61,7 @@ export function stringToDayOfWeek(input: string): DayOfWeek | undefined {
 
 export enum DataMonitoringFunction {
   COUNT_RESOURCES = `http://lblod.data.gift/vocabularies/datamonitoring/dm-function/count-resources`,
+  CHECK_SESSION_COMPLETENESS = `http://lblod.data.gift/vocabularies/datamonitoring/dm-function/check-session-completeness`,
   CHECK_HARVESTING_EXECUTION_TIME = `http://lblod.data.gift/vocabularies/datamonitoring/dm-function/check-harvesting-execution-time`,
   DUMMY = `http://lblod.data.gift/vocabularies/datamonitoring/dm-function/dummy`,
 }

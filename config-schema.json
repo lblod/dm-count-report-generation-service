@@ -2,6 +2,12 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
+    "adminUnitOverride": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
     "endpoints": {
       "type": "array",
       "items": {
@@ -42,7 +48,7 @@
     "periodic-function-invocation-times": {
       "type": "object",
       "patternProperties": {
-        "^(COUNT_RESOURCES|CHECK_HARVESTING_EXECUTION_TIME)$": {
+        "^(COUNT_RESOURCES|CHECK_HARVESTING_EXECUTION_TIME|CHECK_SESSION_COMPLETENESS)$": {
           "type": "object",
           "properties": {
             "time": {

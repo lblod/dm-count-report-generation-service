@@ -20,11 +20,11 @@ import { config } from "../configuration.js";
 import { JobTemplate, getJobTemplate } from "./job-template.js";
 import { v4 as uuidv4 } from "uuid";
 import { DateTime, now } from "../util/date-time.js";
-import Handlebars from "handlebars";
 import winston from "winston";
 import { addToQueue } from "./execution-queue.js";
 import { logger } from "../logger.js";
 import { queryEngine } from "../queries/query-engine.js";
+import { compileSparql } from "../handlebars/index.js";
 
 export type JobFunction = (
   progress: JobProgress,
@@ -45,28 +45,27 @@ type WriteNewJobInput = {
   jobTemplateUri: string;
 };
 
-const insertJobTemplate = Handlebars.compile(
+const insertJobTemplate = compileSparql(
   `\
 {{prefixes}}
 INSERT {
-  GRAPH <{{jobGraphUri}}> {
-    <{{jobUri}}> a cogs:Job, datamonitoring:DatamonitoringJob;
-      mu:uuid "{{uuid}}";
+  GRAPH {{toNode jobGraphUri}} {
+    {{toNode jobUri}} a cogs:Job, datamonitoring:DatamonitoringJob;
+      mu:uuid {{toUuid uuid}};
       dct:creator <{{resourcesUriPrefix}}job-creator/dm-count-report-generation-service>;
-      adms:status {{toJobStatusLiteral status}};
-      dct:created {{toDateTimeLiteral createdAt}};
-      dct:modified {{toDateTimeLiteral createdAt}};
-      task:operation {{toDatamonitoringFunctionLiteral datamonitoringFunction}};
-      dct:isPartOf <{{jobTemplateUri}}>;
-      datamonitoring:function {{toDatamonitoringFunctionLiteral datamonitoringFunction}};
-      datamonitoring:description "{{escape description}}";
-      datamonitoring:jobType {{toJobTypeLiteral jobType}}.
+      adms:status {{toJobStatus status}};
+      dct:created {{toDateTime createdAt}};
+      dct:modified {{toDateTime createdAt}};
+      task:operation {{toDatamonitoringFunction datamonitoringFunction}};
+      dct:isPartOf {{toNode jobTemplateUri}};
+      datamonitoring:function {{toDatamonitoringFunction datamonitoringFunction}};
+      datamonitoring:description {{toString description}};
+      datamonitoring:jobType {{toJobType jobType}}.
   }
 } WHERE {
 
 }
-`,
-  { noEscape: true }
+`
 );
 
 type DeleteJobsInput = {
@@ -75,28 +74,27 @@ type DeleteJobsInput = {
   jobStatuses: JobStatus[] | null; // Null will delete all jobs
 };
 
-const deleteJobsTemplate = Handlebars.compile(
+const deleteJobsTemplate = compileSparql(
   `\
 {{prefixes}}
 DELETE {
-  GRAPH <{{jobGraphUri}}> {
+  GRAPH {{toNode jobGraphUri}} {
     ?jobUri ?p ?o.
   }
 }
 WHERE {
-  GRAPH <{{jobGraphUri}}> {
+  GRAPH {{toNode jobGraphUri}} {
     ?jobUri a cogs:Job;
       ?p ?o.
     {{#if (listPopulated jobStatuses)}}{{#each jobStatuses}}
     {
-      ?jobUri adms:status {{toJobStatusLiteral this}}.
+      ?jobUri adms:status {{toJobStatus this}}.
     }
     {{#unless @last}}UNION{{/unless}}
     {{/each}}{{/if}}
   }
 }
-`,
-  { noEscape: true }
+`
 );
 
 export type UpdateJobStatusInput = {
@@ -107,30 +105,29 @@ export type UpdateJobStatusInput = {
   modifiedAt: DateTime;
 };
 
-export const updateJobStatusTemplate = Handlebars.compile(
+export const updateJobStatusTemplate = compileSparql(
   `\
 {{prefixes}}
 DELETE {
-  GRAPH <{{jobGraphUri}}> {
-    <{{jobUri}}>
+  GRAPH {{toNode jobGraphUri}} {
+    {{toNode jobUri}}
       adms:status ?status;
       dct:modified ?modified.
   }
 } INSERT {
-  GRAPH <{{jobGraphUri}}> {
-    <{{jobUri}}>
-      adms:status {{toJobStatusLiteral status}};
-      dct:modified {{toDateTimeLiteral modifiedAt}}.
+  GRAPH {{toNode jobGraphUri}} {
+    {{toNode jobUri}}
+      adms:status {{toJobStatus status}};
+      dct:modified {{toDateTime modifiedAt}}.
   }
 } WHERE {
-  GRAPH <{{jobGraphUri}}> {
-    <{{jobUri}}> a cogs:Job,datamonitoring:DatamonitoringJob;
+  GRAPH {{toNode jobGraphUri}} {
+    {{toNode jobUri}} a cogs:Job,datamonitoring:DatamonitoringJob;
       adms:status ?status;
       dct:modified ?modified.
   }
 }
-`,
-  { noEscape: true }
+`
 );
 
 /**
@@ -563,11 +560,11 @@ export type GetJobsOutput = {
   jobTemplateUri: string;
 };
 
-const getJobQueryTemplate = Handlebars.compile(
+const getJobQueryTemplate = compileSparql(
   `\
 {{prefixes}}
 SELECT * WHERE {
-  GRAPH <{{jobGraphUri}}> {
+  GRAPH {{toNode jobGraphUri}} {
     ?jobUri a cogs:Job, datamonitoring:DatamonitoringJob;
       mu:uuid ?uuid;
       datamonitoring:function ?datamonitoringFunction;
@@ -576,14 +573,13 @@ SELECT * WHERE {
       adms:status ?status.
     {{#each jobStatuses}}
     {
-      ?jobUri adms:status {{toJobStatusLiteral this}}.
+      ?jobUri adms:status {{toJobStatus this}}.
     }
     {{#unless @last}}UNION{{/unless}}
     {{/each}}
   }
 }
-`,
-  { noEscape: true }
+`
 );
 
 /**

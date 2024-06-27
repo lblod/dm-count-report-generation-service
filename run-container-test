@@ -20,7 +20,6 @@ docker run \
   --env ADMIN_UNIT_ENDPOINT="http://localhost:8890/sparql" \
   --env REPORT_ENDPOINT="http://localhost:8890/sparql" \
   --env SHOW_SPARQL_QUERIES="true" \
-  --env LIMIT_NUMBER_ADMIN_UNITS=5 \
   --env SERVER_PORT=4199 \
   --hostname "dm-count-report-generation-service" \
   --network="host" \

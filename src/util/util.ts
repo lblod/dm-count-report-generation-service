@@ -78,7 +78,7 @@ export type TimeResult<R> = {
  * @param logLevel Optional loglevel to print information about the duration with
  * @returns An async function
  */
-export function duration<F extends (...args: any[]) => Promise<any>>(
+export function duration<F extends (...args: any) => Promise<any>>(
   wrapped: F
 ): (...args: Parameters<F>) => Promise<TimeResult<Awaited<ReturnType<F>>>> {
   return async function (...args) {
