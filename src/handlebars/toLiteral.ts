@@ -52,17 +52,18 @@ export function addHelpers(handlebars: typeof Handlebars) {
   handlebars.registerHelper("toNode", function (uri: unknown) {
     if (typeof uri !== "string")
       throw new Error(
-        `'toNode' takes one parameter which must be a string. Got "${uri}".`
+        `'toNode' takes one parameter which must be a string formatted as a URI. Got "${uri}".`
       );
     try {
       const test = new URL(uri); // Fails if bad url.
       if (
+        // Not allow complex URLS for in this project theymay not exist.
         test.password !== "" ||
         test.username !== "" ||
         test.port !== "" ||
         test.search !== ""
       )
-        throw ""; // To catch clause
+        throw ""; // Jump to catch clause
     } catch (e) {
       throw new Error(
         `URI's are supposed to be of a specific format like: http://example.com/ns/example#Item.`
@@ -88,7 +89,7 @@ export function addHelpers(handlebars: typeof Handlebars) {
   handlebars.registerHelper("toDateTime", function (dateTime: unknown) {
     if (!dayjs.isDayjs(dateTime))
       throw new Error(
-        `toDateTimeLiteral only takes a dayjs instance as an argument. Received '${dateTime}'`
+        `toDateTimeLiteral only takes a dayjs (alias: DateTime) instance as an argument. Received '${dateTime}'`
       );
     return `"${dateTime.format()}"^^xsd:dateTime`;
   });
@@ -123,9 +124,9 @@ export function addHelpers(handlebars: typeof Handlebars) {
   handlebars.registerHelper("toInteger", function (integer: unknown) {
     if (typeof integer !== "number" || !Number.isSafeInteger(integer))
       throw new Error(
-        "toInteger only takes a boolean primitive as an argument"
+        "toInteger only takes an integer number primitive as an argument"
       );
-    return `"${integer}"`;
+    return `"${integer}"^^xsd:integer`;
   });
 
   /**
@@ -136,9 +137,7 @@ export function addHelpers(handlebars: typeof Handlebars) {
    */
   handlebars.registerHelper("toFloat", function (float: unknown) {
     if (typeof float !== "number")
-      throw new Error(
-        "toInteger only takes a boolean primitive as an argument"
-      );
+      throw new Error("toFloat only takes a number primitive as an argument");
     if (float === Number.POSITIVE_INFINITY) return `"INF"^^xsd:double`;
     if (float === -Number.POSITIVE_INFINITY) return `"-INF"^^xsd:double`;
     if (Number.isNaN(float)) return `"NaN"^^xsd:double`;

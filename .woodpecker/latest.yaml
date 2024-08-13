@@ -1,0 +1,11 @@
+steps:
+  build:
+    image: woodpeckerci/plugin-docker-buildx
+    settings:
+      platforms: linux/amd64, linux/arm64
+      repo: ${CI_REPO}
+      tags: latest
+    secrets: [docker_username, docker_password]
+when:
+  event: push
+  branch: [poc-working-refactor]

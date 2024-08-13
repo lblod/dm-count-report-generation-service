@@ -10,7 +10,7 @@ export type CountSessionsPerAdminUnitInput = {
 };
 
 export type CountSessionUnitsPerAdminUnitOutput = {
-  govBodyUri: string;
+  abstractGoverningBodyUri: string;
   sessionCount: number;
 };
 
@@ -18,14 +18,16 @@ export const countSessionsPerAdminUnitTemplate = compileSparql(
   `\
 {{prefixes}}
 
-SELECT ?governingBodyUri (COUNT(?sessionUri) as ?sessionCount) WHERE {
-  VALUES ?governingBodyUri {
-    {{#each governingBodyUris}}{{toNode this}}
+SELECT ?abstractGoverningBodyUri (COUNT(?sessionUri) as ?sessionCount) WHERE {
+  VALUES ?abstractGoverningBodyUri {
+    {{#each abstractGoverningBodyUris}}{{toNode this}}
     {{/each}}
   }
 
+  ?timeSpecificGoveringBodyUri mandaat:isTijdspecialisatieVan ?abstractGoveringBodyUri.
+
   ?sessionUri a besluit:Zitting;
-    besluit:isGehoudenDoor ?governingBodyUri;
+    besluit:isGehoudenDoor ?timeSpecificGoveringBodyUri;
     besluit:geplandeStart ?plannedStart.
 
 
@@ -33,13 +35,13 @@ SELECT ?governingBodyUri (COUNT(?sessionUri) as ?sessionCount) WHERE {
   FILTER(?plannedStart >= {{toDateTime from}})
   FILTER(?plannedStart < {{toDateTime to}})
   {{/unless}}
-} GROUP BY ?governingBodyUri
+} GROUP BY ?abstractGoverningBodyUri
 `
 );
 
 export type GetSessionsInput = {
   prefixes: string;
-  governingBodyUri: string;
+  abstractGoverningBodyUri: string;
   noFilterForDebug: boolean;
   from: DateTime;
   to: DateTime;
@@ -56,8 +58,10 @@ export const getSessionsTemplate = compileSparql(
   `\
 {{prefixes}}
 SELECT ?sessionUri ?uuid ?documentUri WHERE {
+  ?timeSpecificGoveringBodyUri mandaat:isTijdspecialisatieVan {{toNode abstractGoverningBodyUri}}.
+
   ?sessionUri a besluit:Zitting;
-      besluit:isGehoudenDoor {{toNode governingBodyUri}};
+      besluit:isGehoudenDoor ?timeSpecificGoveringBodyUri;
       besluit:geplandeStart ?plannedStart;
       mu:uuid ?uuid;
       prov:wasDerivedFrom ?documentUri.
@@ -124,6 +128,7 @@ export type WriteGoveringBodyReportInput = {
 export const writeGoverningBodyReportTemplate = compileSparql(
   `\
 {{prefixes}}
+
 INSERT {
   GRAPH {{toNode reportGraphUri}} {
     {{toNode reportUri}} a datamonitoring:GoverningBodyDocumentPresenceCheckReport;

@@ -12,6 +12,7 @@ import {
 import { TemplatedSelect } from "../queries/templated-query.js";
 import { delay } from "../util/util.js";
 import { logger } from "../logger.js";
+import fs from "node:fs/promises";
 
 type GoverningBodyRecord = {
   uri: string;
@@ -106,37 +107,18 @@ async function getOrgResouces(
     logger.debug(
       `Got ${govBodies.length} governing bodies for org ${org.organisationUri}`
     );
-    const goveringBodiesFlatList: GoverningBodyRecord[] = govBodies.reduce(
-      (acc, curr) => {
-        acc.push({
-          uri: curr.abstractGoverningBodyUri,
-          type: "abstract",
-          classLabel: curr.classLabel,
-        });
-        if (Array.isArray(curr.timeSpecificGoveringBodyUri)) {
-          curr.timeSpecificGoveringBodyUri.forEach((uri) =>
-            acc.push({
-              uri,
-              classLabel: curr.classLabel,
-              type: "time-specific",
-            })
-          );
-        } else {
-          acc.push({
-            uri: curr.timeSpecificGoveringBodyUri,
-            type: "time-specific",
-            classLabel: curr.classLabel,
-          });
-        }
-        return acc;
-      },
-      [] as GoverningBodyRecord[]
-    );
+
     result.adminUnits.push({
       uri: org.organisationUri,
       label: org.label,
       id: org.id,
-      govBodies: goveringBodiesFlatList,
+      govBodies: govBodies.map((gb) => {
+        return {
+          type: "abstract",
+          classLabel: gb.classLabel,
+          uri: gb.abstractGoverningBodyUri,
+        };
+      }),
     });
     // Awaiting and/or delaying in for loop is icky. But here we have no choice.
     // We are deliberately not looking for performance of this application or we risk overloading the database
@@ -147,6 +129,10 @@ async function getOrgResouces(
   timer = setTimeout(() => {
     orgResourcesCache = null;
   }, config.env.ORG_RESOURCES_TTL_S * 1000);
+  await fs.writeFile(
+    config.env.DUMP_FILES_LOCATION + "/orgs.json",
+    JSON.stringify(result, undefined, 3)
+  );
   return result;
 }
 

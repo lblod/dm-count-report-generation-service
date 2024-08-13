@@ -3,7 +3,7 @@ import dayjs from "dayjs";
 import { DEFAULT_TIMEZONE } from "../local-constants.js";
 import timezone from "dayjs/plugin/timezone.js";
 import utc from "dayjs/plugin/utc.js";
-import { z } from "zod";
+import { date, z } from "zod";
 import { DayOfWeek } from "../types.js";
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -69,6 +69,12 @@ const dayOfWeekMap = [
   DayOfWeek.SATURDAY,
 ];
 
+const dateSchema = z.object({
+  day: z.number().int().min(0).max(31),
+  month: z.number().int().min(1).max(12),
+  year: z.number().int().min(1900).max(9999),
+});
+
 /**
  * This immutable class models a date and a date only. This is NOT a timestamp.
  * A date only can be used to model something like a birthday. But the acutual exact time where your birthday starts will depend on the time zone.
@@ -114,11 +120,15 @@ export class DateOnly {
           throw new Error(
             `When constructing an DateOnly object using a string the string must be in the ISO date format YYYY-MM-DD. Received "${args[0]}".`
           );
+        const year = parseInt(match[1])!;
+        const month = parseInt(match[2])!;
+        const day = parseInt(match[3])!;
+        dateSchema.parse({ year, month, day });
         return dayjs()
           .tz(DEFAULT_TIMEZONE, true)
-          .set("year", parseInt(match[1])!)
-          .set("month", parseInt(match[2])! - 1)
-          .set("D", parseInt(match[3])!)
+          .set("year", year)
+          .set("month", month - 1)
+          .set("D", day)
           .set("h", 0)
           .set("m", 0)
           .set("s", 0)

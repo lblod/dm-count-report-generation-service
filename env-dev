@@ -5,7 +5,7 @@ export NODE_INSPECT_RESUME_ON_START=1
 # Microservice test env vars
 export DISABLE_DEBUG_ENDPOINT="false"
 export ADMIN_UNIT_ENDPOINT="http://data-monitoring-tool.s.redhost.be:8890/sparql"
-export REPORT_ENDPOINT="http://localhost:8890/sparql"
+export REPORT_ENDPOINT="http://data-monitoring-tool.s.redhost.be:8890/sparql"
 export CONFIG_FILE_LOCATION="./test-config"
 export SHOW_SPARQL_QUERIES="false"
 export SHOW_SPARQL_QUERY_OUTPUTS="false"
@@ -18,4 +18,5 @@ export SLEEP_BETWEEN_QUERIES_MS=10
 export DUMP_FILES_LOCATION="/Users/dv/Documents/abb/dm-count-report-generation-service/dumps"
 export ROOT_URL_PATH=""
 export ADD_DUMMY_REST_JOB_TEMPLATE="true"
+export OVERRIDE_DAY="2024-06-31"
 
