@@ -75,7 +75,7 @@ INSERT {
       a datamonitoring:LastHarvestingExecutionRecord;
       mu:uuid {{toUuid this.uuid}};
       datamonitoring:targetAdministrativeUnit {{toNode this.organisationUri}};
-      skos:prefLabel "Last execution of harvesting job for organisation \\'{{escape this.organisationLabel}}\\'";
+      skos:prefLabel {{toString this.organisationLabel}};
       datamonitoring:lastExecutionTime {{toDateTime this.lastExecutionTimestamp}}.
     {{/each}}
   }
@@ -137,7 +137,7 @@ export const getHarvestingTimestampDaily: JobFunction = async (
   }
 
   progress.update(
-    `All 4 harvesters queried for modified jobs. Got ${allRecords.length} records. Cross correlating 'titles' of the jobs with the labels of organisations.`
+    `All ${config.file.harvesterEndpoints.length} harvesters queried for modified jobs. Got ${allRecords.length} records. Cross correlating 'titles' of the jobs with the labels of organisations.`
   );
 
   const notFound: string[] = [];
