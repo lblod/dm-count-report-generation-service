@@ -1,89 +1,24 @@
-import { DateOnly, DateTime, now } from "../util/date-time.js";
 import { QueryEngine } from "@comunica/query-sparql";
+import { v4 as uuidv4 } from "uuid";
+import { config } from "../../configuration.js";
+import { getOrgResoucesCached } from "../../job/get-org-data.js";
+import { JobFunction } from "../../job/job.js";
+import { PREFIXES } from "../../local-constants.js";
+import { queryEngine } from "../../queries/query-engine.js";
 import {
   TemplatedInsert,
   TemplatedSelect,
-} from "../queries/templated-query.js";
-import { getOrgResoucesCached } from "./get-org-data.js";
-import { queryEngine } from "../queries/query-engine.js";
-import { config } from "../configuration.js";
-import { PREFIXES } from "../local-constants.js";
-import { duration } from "../util/util.js";
-import { v4 as uuidv4 } from "uuid";
-import { JobFunction } from "./job.js";
-import { compileSparql } from "../handlebars/index.js";
-
-type GetLastModifiedInput = {
-  prefixes: string;
-};
-
-type GetLastModifiedOutput = {
-  scheduledJobUri: string;
-  title: string;
-  lastModified: DateTime;
-};
-
-const getLastModifiedTemplate = compileSparql(
-  `\
-{{prefixes}}
-SELECT ?scheduledJobUri ?title (MAX(?modified) AS ?lastModified) WHERE {
-  ?scheduledJobUri a cogs:ScheduledJob;
-    <http://purl.org/dc/terms/title> ?title.
-  ?job <http://purl.org/dc/terms/creator> ?scheduledJob.
-  ?job <http://www.w3.org/ns/adms#status> <http://redpencil.data.gift/id/concept/JobStatus/success> .
-  ?job <http://purl.org/dc/terms/modified> ?modified.
-}
-GROUP BY ?scheduledJobUri ?title
-`
-);
-
-type HarvestingTimeStampResult = {
-  resultUri: string;
-  uuid: string;
-  organisationUri: string;
-  organisationLabel: string;
-  lastExecutionTimestamp: DateTime;
-};
-
-type InsertLastExecutedReportInput = {
-  prefixes: string;
-  reportGraphUri: string;
-  reportUri: string;
-  day: DateOnly;
-  prefLabel: string;
-  createdAt: DateTime;
-  uuid: string;
-  times: HarvestingTimeStampResult[];
-};
-
-// This handlebars query is not robust when the times array is empty. Then it will generate a bad syntax.
-const insertLastExecutedReportTemplate = compileSparql(
-  `\
-{{prefixes}}
-INSERT {
-  GRAPH {{toNode reportGraphUri}} {
-    {{toNode reportUri}} a datamonitoring:LastHarvestingExecutionReport;
-      datamonitoring:day {{toDate day}};
-      skos:prefLabel {{toString prefLabel}};
-      datamonitoring:createdAt {{toDateTime createdAt}};
-      mu:uuid {{toUuid uuid}};
-      datamonitoring:adminUnitLastExecutionRecords
-        {{#each times}}{{toNode this.resultUri}}{{#unless @last}},{{/unless}}{{/each}}.
-
-    {{#each times}}
-    {{toNode this.resultUri}}
-      a datamonitoring:LastHarvestingExecutionRecord;
-      mu:uuid {{toUuid this.uuid}};
-      datamonitoring:targetAdministrativeUnit {{toNode this.organisationUri}};
-      skos:prefLabel {{toString this.organisationLabel}};
-      datamonitoring:lastExecutionTime {{toDateTime this.lastExecutionTimestamp}}.
-    {{/each}}
-  }
-} WHERE {
-
-}
-`
-);
+} from "../../queries/templated-query.js";
+import { DateOnly, now } from "../../util/date-time.js";
+import { duration } from "../../util/util.js";
+import {
+  GetLastModifiedInput,
+  GetLastModifiedOutput,
+  getLastModifiedTemplate,
+  HarvestingTimeStampResult,
+  InsertLastExecutedReportInput,
+  insertLastExecutedReportTemplate,
+} from "./queries.js";
 
 function getQueries(queryEngine: QueryEngine, endpoint: string) {
   const getLastModifiedQuery = new TemplatedSelect<

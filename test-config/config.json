@@ -9,6 +9,9 @@
       ]
     }
   ],
+  "adminUnitOverride": [
+    "http://data.lblod.info/id/bestuurseenheden/974816591f269bb7d74aa1720922651529f3d3b2a787f5c60b73e5a0384950a4"
+  ],
   "harvester-endpoints": [
     {
       "url": "https://lokaalbeslist-harvester-0.s.redhost.be/sparql"
