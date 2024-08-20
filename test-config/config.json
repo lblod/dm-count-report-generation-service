@@ -1,11 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/lblod/dm-count-report-generation-service/master/config-schema.json",
-  "adminUnitOverride": [
-    "http://data.lblod.info/id/bestuurseenheden/bc50bb1ff28814ab2441a22fe111d895742098d8a61d7f648efbd9ffd48446ed"
-  ],
   "endpoints": [
     {
-      "url": "http://data-monitoring-tool.s.redhost.be:8890/sparql",
+      "url": "http://localhost:18899/sparql",
       "classes": [
         "besluit:Besluit",
         "besluit:Agendapunt"
