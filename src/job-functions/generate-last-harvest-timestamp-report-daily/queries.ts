@@ -54,18 +54,21 @@ INSERT {
       datamonitoring:day {{toDate day}};
       skos:prefLabel {{toString prefLabel}};
       datamonitoring:createdAt {{toDateTime createdAt}};
-      mu:uuid {{toUuid uuid}};
-      datamonitoring:adminUnitLastExecutionRecords
-        {{#each times}}{{toNode this.resultUri}}{{#unless @last}},{{/unless}}{{/each}}.
-
-    {{#each times}}
-    {{toNode this.resultUri}}
-      a datamonitoring:LastHarvestingExecutionRecord;
-      mu:uuid {{toUuid this.uuid}};
-      datamonitoring:targetAdministrativeUnit {{toNode this.organisationUri}};
-      skos:prefLabel {{toString this.organisationLabel}};
-      datamonitoring:lastExecutionTime {{toDateTime this.lastExecutionTimestamp}}.
-    {{/each}}
+      mu:uuid {{toUuid uuid}} {{#unless @times}}.{{else}};{{/unless}}
+    {{#if @times}}
+     datamonitoring:adminUnitLastExecutionRecords
+      {{#each times}}
+        {{toNode this.resultUri}}{{#unless @last}},{{/unless}}
+      {{/each}}.
+      {{#each times}}
+      {{toNode this.resultUri}}
+        a datamonitoring:LastHarvestingExecutionRecord;
+        mu:uuid {{toUuid this.uuid}};
+        datamonitoring:targetAdministrativeUnit {{toNode this.organisationUri}};
+        skos:prefLabel {{toString this.organisationLabel}};
+        datamonitoring:lastExecutionTime {{toDateTime this.lastExecutionTimestamp}}.
+      {{/each}}
+    {{/if}}
   }
 } WHERE {
 
