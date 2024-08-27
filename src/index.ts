@@ -222,7 +222,7 @@ logger.info("Express server setup procedure complete");
 // Start server
 app.listen(config.env.SERVER_PORT, () => {
   logger.info(
-    `Report generation microservice started and listening on ${config.env.SERVER_PORT}.`
+    `Report generation microservice started and listening on http://localhost:${config.env.SERVER_PORT}/debug.`
   );
 });
 
