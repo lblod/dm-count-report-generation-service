@@ -215,7 +215,11 @@ class TemplatedQueryBase<T extends Record<string, any>> {
    * @returns The query as a string; a rendered version of the handlebars template.
    */
   getQuery(input: T): string {
-    return this.template(input);
+    const query = this.template(input);
+    if (config.env.LOG_LEVEL) {
+      logger.debug(query);
+    }
+    return query;
   }
 }
 
@@ -305,6 +309,7 @@ export class TemplatedUpdate<
     waitMilliseconds: number | undefined = undefined
   ): Promise<void> {
     const query = this.getQuery(input);
+    console.log(query);
     // Write to report endpoint using custom fetch
     await this._queryVoidToEndpoint(query, maxRetries, waitMilliseconds);
   }

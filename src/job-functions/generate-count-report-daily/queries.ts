@@ -74,8 +74,8 @@ SELECT (COUNT(DISTINCT ?agendaItem) as ?count) WHERE {
   ?anyBesluit a besluit:Besluit.
 
   {{#unless noFilterForDebug}}
-  FILTER(?plannedStart >= {{toDateTime from}})
-  FILTER(?plannedStart < {{toDateTime to}})
+    FILTER(?plannedStart >= {{toDateTime from}})
+    FILTER(?plannedStart < {{toDateTime to}})
   {{/unless}}
 }
 
@@ -121,8 +121,8 @@ SELECT (COUNT(DISTINCT ?resolution) as ?count) WHERE {
     eli:date_publication ?datePublication.
 
   {{#unless noFilterForDebug}}
-  FILTER(?plannedStart >= {{toDateTime from}})
-  FILTER(?plannedStart < {{toDateTime to}})
+    FILTER(?plannedStart >= {{toDateTime from}})
+    FILTER(?plannedStart < {{toDateTime to}})
   {{/unless}}
 }
 
@@ -145,31 +145,21 @@ export const countVoteQueryTemplate = compileSparql(
   `\
 {{prefixes}}
 SELECT (COUNT(DISTINCT ?vote) as ?count) WHERE {
-  {
-    ?session a besluit:Zitting;
-      besluit:behandelt ?agendaItem.
-  } UNION {
-    ?session a besluit:Zitting;
-      besluit:behandelt ?agendaItem;
-      besluit:isGehoudenDoor ?governingBodyTimeSpecified.
+?zitting a besluit:Zitting ;
+           besluit:isGehoudenDoor ?
+{{toNode governingBodyUri}} ;
+           besluit:behandelt ?agendapunt .
+ ?behandeling a besluit:BehandelingVanAgendapunt ;
+               dcterms:subject ?agendapunt ;
+               besluit:heeftStemming ?vote .
 
-    ?governingBodyTimeSpecified a besluit:Bestuursorgaan;
-        mandaat:isTijdspecialisatieVan ?governingBodyAbstract.
-  }
-  ?session besluit:geplandeStart ?plannedStart.
-  ?agendaItem a besluit:Agendapunt.
+  ?zitting besluit:geplandeStart ?plannedStart.
 
-  ?agendaItemHandling a besluit:BehandelingVanAgendapunt;
-    dct:subject ?agendaItem;
-    besluit:heeftStemming ?vote.
-
-  ?vote a besluit:Stemming.
   {{#unless noFilterForDebug}}
-  FILTER(?plannedStart >= {{toDateTime from}})
-  FILTER(?plannedStart < {{toDateTime to}})
+    FILTER(?plannedStart >= {{toDateTime from}})
+    FILTER(?plannedStart < {{toDateTime to}})
   {{/unless}}
 }
-
 `
 );
 

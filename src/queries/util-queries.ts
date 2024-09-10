@@ -70,22 +70,22 @@ SELECT * WHERE {
 `
 );
 
-export type GetGoveringBodiesInput = {
+export type GetGoverningBodiesInput = {
   prefixes: string;
   adminitrativeUnitUri: string;
   graphUri: string;
 };
 
-export type GetGoveringBodiesOutput = {
+export type GetGoverningBodiesOutput = {
   abstractGoverningBodyUri: string;
   classLabel: string;
-  timeSpecificGoveringBodyUri: string | string[];
+  timeSpecificGoverningBodyUri: string | string[];
 };
 
 export const getGoverningBodiesOfAdminUnitTemplate = compileSparql(
   `\
 {{prefixes}}
-SELECT ?abstractGoverningBodyUri ?timeSpecificGoveringBodyUri ?classLabel WHERE {
+SELECT ?abstractGoverningBodyUri ?timeSpecificGoverningBodyUri ?classLabel WHERE {
   GRAPH {{toNode graphUri}} {
     ?abstractGoverningBodyUri a besluit:Bestuursorgaan;
       besluit:bestuurt {{toNode adminitrativeUnitUri}};
@@ -94,7 +94,7 @@ SELECT ?abstractGoverningBodyUri ?timeSpecificGoveringBodyUri ?classLabel WHERE 
         skos:prefLabel ?classLabel
       ].
 
-    ?timeSpecificGoveringBodyUri mandaat:isTijdspecialisatieVan ?abstractGoveringBodyUri.
+    ?timeSpecificGoverningBodyUri generiek:isTijdspecialisatieVan ?abstractGoverningBodyUri.
   }
 }
 `

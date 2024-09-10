@@ -1,6 +1,10 @@
 import { QueryEngine } from "@comunica/query-sparql";
 import { v4 as uuidv4 } from "uuid";
-import { getOrgResoucesCached } from "../../job/get-org-data.js";
+import {
+  AdminUnitRecord,
+  getOrgResoucesCached,
+  GoverningBodyRecord,
+} from "../../job/get-org-data.js";
 import { JobFunction } from "../../job/job.js";
 import { PREFIXES } from "../../local-constants.js";
 import { queryEngine } from "../../queries/query-engine.js";
@@ -25,8 +29,32 @@ import {
   CountVoteQueryInput,
   CountVoteQueryOutput,
   countVoteQueryTemplate,
+  CountAgendaItemsQueryInput,
+  CountAgendaItemsQueryOutput,
 } from "./queries.js";
-import { config } from "../../configuration.js";
+import { config, EndpointConfig } from "../../configuration.js";
+
+type CountResult = {
+  count: number;
+};
+type CountQueries = {
+  countSessionsQuery: TemplatedSelect<
+    CountSessionsQueryInput,
+    CountSessionsQueryOutput
+  >;
+  countAgendaItemsQuery: TemplatedSelect<
+    CountAgendaItemsQueryInput,
+    CountAgendaItemsQueryOutput
+  >;
+  countResolutionsQuery: TemplatedSelect<
+    CountResolutionsQueryInput,
+    CountResolutionsQueryOutput
+  >;
+  countVoteQuery: TemplatedSelect<CountVoteQueryInput, CountVoteQueryOutput>;
+};
+type Endpoint = {
+  url: string;
+};
 
 function getQueriesForWriting(queryEngine: QueryEngine, endpoint: string) {
   const writeCountReportQuery = new TemplatedInsert<WriteReportInput>(
@@ -62,7 +90,6 @@ function getQueriesForAnalysis(queryEngine: QueryEngine, endpoint: string) {
     CountVoteQueryInput,
     CountVoteQueryOutput
   >(queryEngine, endpoint, countVoteQueryTemplate);
-
   return {
     countSessionsQuery,
     countAgendaItemsQuery,
@@ -90,7 +117,7 @@ export const generateReportsDaily: JobFunction = async (
     O extends Record<string, any>
   >(resource: string, query: TemplatedSelect<I, O>, input: I): Promise<O> {
     const result = await duration(query.result.bind(query))(input);
-
+    console.log(query.result.bind(query));
     progress.progress(++queries, queryCount, result.durationMilliseconds);
     progress.update(
       `Performed count query for resource "${resource}" in ${result.durationMilliseconds} ms.`
@@ -127,121 +154,144 @@ export const generateReportsDaily: JobFunction = async (
   let queries = 0;
   const { writeCountReportQuery, writeAdminUnitCountReportQuery } =
     getQueriesForWriting(queryEngine, config.env.REPORT_ENDPOINT);
-  // Now perform the query machine gun
-  for (const endpoint of config.file.endpoints) {
+
+  await writeAdminUnitReports(
+    orgResources.adminUnits,
+    config.file.endpoints,
+    defaultedDay
+  );
+
+  async function performCountForGoverningBody(
+    governingBody: GoverningBodyRecord,
+    countQueries: CountQueries,
+    defaultedDay: DateOnly
+  ) {
+    const results: Record<string, CountResult> = {};
+
     const {
       countSessionsQuery,
       countAgendaItemsQuery,
       countResolutionsQuery,
       countVoteQuery,
-    } = getQueriesForAnalysis(queryEngine, endpoint.url);
+    } = countQueries;
 
-    for (const adminUnit of orgResources.adminUnits) {
-      const governingBodyReportUriList: string[] = [];
-      // TODO: make a catalog of query machines for each resource type eventually
-      for (const goveringBody of adminUnit.govBodies) {
-        // Count the resources
-        const sessionsResult = await performCount(
-          "Session",
-          countSessionsQuery,
-          {
-            prefixes: PREFIXES,
-            governingBodyUri: goveringBody.uri,
-            from: defaultedDay.localStartOfDay,
-            to: defaultedDay.localEndOfDay,
-            noFilterForDebug: config.env.NO_TIME_FILTER,
-          }
+    const countConfigs = [
+      { type: "Session", query: countSessionsQuery, label: "Zitting" },
+      { type: "AgendaPunt", query: countAgendaItemsQuery, label: "Agendapunt" },
+      { type: "Besluit", query: countResolutionsQuery, label: "Besluit" },
+      { type: "Stemming", query: countVoteQuery, label: "Stemming" },
+    ];
+
+    for (const { type, query, label } of countConfigs) {
+      results[label] = await performCount(type, query, {
+        prefixes: PREFIXES,
+        governingBodyUri: governingBody.uri,
+        from: defaultedDay.localStartOfDay,
+        to: defaultedDay.localEndOfDay,
+        noFilterForDebug: config.env.NO_TIME_FILTER,
+      });
+    }
+
+    return results;
+  }
+
+  async function insertGoverningBodyReport(
+    governingBody: GoverningBodyRecord,
+    adminUnit: AdminUnitRecord,
+    results: Record<string, CountResult>,
+    defaultedDay: DateOnly
+  ): Promise<string> {
+    const uuid = uuidv4();
+    const reportUri = `${config.env.URI_PREFIX_RESOURCES}${uuid}`;
+    const uuids = new Array(4).fill(null).map(() => uuidv4());
+
+    const counts = Object.entries(results)
+      .filter(([label, result]) => result.count !== 0)
+      .map(([label, result], index) => ({
+        countUri: `${config.env.URI_PREFIX_RESOURCES}${uuids[index]}`,
+        uuid: uuids[index],
+        classUri: `http://data.vlaanderen.be/ns/besluit#${label}`,
+        count: result.count,
+        prefLabel: `Count of '${label}'`,
+      }));
+    if (counts && counts.length > 0) {
+      await performInsert("GoverningBodyCountReport", writeCountReportQuery, {
+        prefixes: PREFIXES,
+        govBodyUri: governingBody.uri,
+        createdAt: now(),
+        reportUri,
+        reportGraphUri: `${config.env.REPORT_GRAPH_URI}${adminUnit.id}/DM-AdminUnitAdministratorRole`,
+        adminUnitUri: adminUnit.uri,
+        prefLabel: `Count report for governing body of class '${governingBody.classLabel}' on ${defaultedDay} for admin unit '${adminUnit.label}'`,
+        day: defaultedDay,
+        uuid,
+        counts,
+      });
+    }
+
+    return reportUri;
+  }
+
+  async function processAdminUnitAcrossEndpoints(
+    adminUnit: AdminUnitRecord,
+    endpoints: Endpoint[],
+    defaultedDay: DateOnly
+  ): Promise<string[]> {
+    const governingBodyReportUriList = [];
+
+    for (const endpoint of endpoints) {
+      const countQueries = getQueriesForAnalysis(queryEngine, endpoint.url);
+
+      for (const governingBody of adminUnit.govBodies) {
+        progress.update(
+          `Counting for "${adminUnit.label}":"${governingBody.classLabel}". (${governingBody.uri})`
         );
 
-        const agendaItemResult = await performCount(
-          "AgendaPunt",
-          countAgendaItemsQuery,
-          {
-            prefixes: PREFIXES,
-            governingBodyUri: goveringBody.uri,
-            from: defaultedDay.localStartOfDay,
-            to: defaultedDay.localEndOfDay,
-            noFilterForDebug: config.env.NO_TIME_FILTER,
-          }
+        const results = await performCountForGoverningBody(
+          governingBody,
+          countQueries,
+          defaultedDay
+        );
+        progress.update(
+          `Sessions: ${results.Zitting.count}, Agendapunt: ${results.Agendapunt.count}, Besluit: ${results.Besluit.count}, Stemming: ${results.Stemming.count}`
         );
 
-        const resolutionResult = await performCount(
-          "Besluit",
-          countResolutionsQuery,
-          {
-            prefixes: PREFIXES,
-            governingBodyUri: goveringBody.uri,
-            from: defaultedDay.localStartOfDay,
-            to: defaultedDay.localEndOfDay,
-            noFilterForDebug: config.env.NO_TIME_FILTER,
-          }
+        const reportUri = await insertGoverningBodyReport(
+          governingBody,
+          adminUnit,
+          results,
+          defaultedDay
         );
-
-        const voteResult = await performCount("Stemming", countVoteQuery, {
-          prefixes: PREFIXES,
-          governingBodyUri: goveringBody.uri,
-          from: defaultedDay.localStartOfDay,
-          to: defaultedDay.localEndOfDay,
-          noFilterForDebug: config.env.NO_TIME_FILTER,
-        });
-
-        const uuid = uuidv4();
-        const reportUri = `${config.env.URI_PREFIX_RESOURCES}${uuid}`;
         governingBodyReportUriList.push(reportUri);
-
-        const uuids = new Array(4).fill(null).map(() => uuidv4());
-
-        // Write govering body report
-        await performInsert("GoverningBodyCountReport", writeCountReportQuery, {
-          prefixes: PREFIXES,
-          govBodyUri: goveringBody.uri,
-          createdAt: now(),
-          reportUri,
-          reportGraphUri: config.env.REPORT_GRAPH_URI,
-          adminUnitUri: adminUnit.uri,
-          prefLabel: `Count report for governing body of class '${goveringBody.classLabel}' on ${defaultedDay} for admin unit '${adminUnit.label}'`,
-          day: defaultedDay,
-          uuid,
-          counts: [
-            {
-              countUri: `${config.env.URI_PREFIX_RESOURCES}${uuids[0]}`,
-              uuid: uuids[0],
-              classUri: `http://data.vlaanderen.be/ns/besluit#Zitting`,
-              count: sessionsResult.count,
-              prefLabel: `Count of 'Zitting'`,
-            },
-            {
-              countUri: `${config.env.URI_PREFIX_RESOURCES}${uuids[1]}`,
-              uuid: uuids[1],
-              classUri: `http://data.vlaanderen.be/ns/besluit#Agendapunt`,
-              count: agendaItemResult.count,
-              prefLabel: `Count of 'Agendapunt'`,
-            },
-            {
-              countUri: `${config.env.URI_PREFIX_RESOURCES}${uuids[2]}`,
-              uuid: uuids[2],
-              classUri: `http://data.vlaanderen.be/ns/besluit#Besluit`,
-              count: resolutionResult.count,
-              prefLabel: `Count of 'Besluit'`,
-            },
-            {
-              countUri: `${config.env.URI_PREFIX_RESOURCES}${uuids[3]}`,
-              uuid: uuids[3],
-              classUri: `http://data.vlaanderen.be/ns/besluit#Stemming`,
-              count: voteResult.count,
-              prefLabel: `Count of 'Stemming'`,
-            },
-          ],
-        });
       }
-      // Write admin unit report
+
+      progress.update(
+        `All reports processed for endpoint "${endpoint.url}" for admin unit "${adminUnit.label}"`
+      );
+    }
+
+    return governingBodyReportUriList;
+  }
+
+  async function writeAdminUnitReports(
+    adminUnits: AdminUnitRecord[],
+    endpoints: EndpointConfig[],
+    defaultedDay: DateOnly
+  ) {
+    for (const adminUnit of adminUnits) {
+      const governingBodyReportUriList = await processAdminUnitAcrossEndpoints(
+        adminUnit,
+        endpoints,
+        defaultedDay
+      );
+
       const uuid = uuidv4();
       await performInsert(
         "AdminUnitCountReport",
         writeAdminUnitCountReportQuery,
         {
           prefixes: PREFIXES,
-          reportGraphUri: config.env.REPORT_GRAPH_URI,
+          reportGraphUri: `${config.env.REPORT_GRAPH_URI}${adminUnit.id}/DM-AdminUnitAdministratorRole`,
           adminUnitUri: adminUnit.uri,
           prefLabel: `Count report for admin unit '${adminUnit.label}' on ${defaultedDay}`,
           reportUri: `${config.env.URI_PREFIX_RESOURCES}${uuid}`,
@@ -251,7 +301,8 @@ export const generateReportsDaily: JobFunction = async (
           reportUris: governingBodyReportUriList,
         }
       );
+
+      progress.update(`Admin unit report written for "${adminUnit.label}"`);
     }
-    progress.update(`All reports written for endpoint "${endpoint.url}"`);
   }
 };

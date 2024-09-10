@@ -13,8 +13,8 @@ docker build \
   .
 
 docker run \
-  --volume /Users/dv/Documents/abb/dm-count-report-generation-service/test-config:/config/ \
-  --volume /Users/dv/Documents/abb/dm-count-report-generation-service/dumps:/dump/ \
+  --volume $(pwd)/test-config:/config/ \
+  --volume $(pwd)/dumps:/dump/ \
   --env NODE_ENV="development" \
   --env DISABLE_DEBUG_ENDPOINT="false" \
   --env ADMIN_UNIT_ENDPOINT="http://localhost:8890/sparql" \

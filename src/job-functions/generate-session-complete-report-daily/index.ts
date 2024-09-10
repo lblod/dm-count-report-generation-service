@@ -21,7 +21,7 @@ import {
   GetSessionsOuput,
   SessionCheckReportInput,
   WriteAdminUnitReportInput,
-  WriteGoveringBodyReportInput,
+  WriteGoverningBodyReportInput,
   analyseAgendaItemsTemplate,
   countSessionsPerAdminUnitTemplate,
   getSessionsTemplate,
@@ -31,7 +31,7 @@ import {
 
 function getQueriesForWriting(queryEngine: QueryEngine, endpoint: string) {
   const writeGoverningBodyReportQuery =
-    new TemplatedInsert<WriteGoveringBodyReportInput>(
+    new TemplatedInsert<WriteGoverningBodyReportInput>(
       queryEngine,
       endpoint,
       writeGoverningBodyReportTemplate
@@ -205,10 +205,10 @@ export const generateReportsDaily: JobFunction = async (
       );
       const governingBodyReportUriList: string[] = [];
       // TODO: make a catalog of query machines for each resource type eventually
-      for (const goveringBody of timeSpecificGovBodies) {
+      for (const GoverningBody of timeSpecificGovBodies) {
         const newSessions = await performSelectRecords(getSessionsQuery, {
           prefixes: PREFIXES,
-          governingBodyUri: goveringBody.uri,
+          governingBodyUri: GoverningBody.uri,
           noFilterForDebug: config.env.NO_TIME_FILTER,
           from: defaultedDay.localStartOfDay,
           to: defaultedDay.localEndOfDay,
@@ -217,7 +217,7 @@ export const generateReportsDaily: JobFunction = async (
 
         progress.update(
           `Got sessions for govening body "${
-            goveringBody.classLabel
+            GoverningBody.classLabel
           }" of admin unit "${adminUnit.label}". Got ${
             newSessions.length
           } sessions ${
@@ -290,7 +290,7 @@ export const generateReportsDaily: JobFunction = async (
         const reportUri = `${config.env.URI_PREFIX_RESOURCES}${uuid}`;
         governingBodyReportUriList.push(reportUri);
 
-        // Write govering body report
+        // Write Governing body report
         await performInsert(
           "GoverningBodyDocumentPresenceCheckReport",
           writeGoverningBodyReportQuery,
@@ -300,9 +300,9 @@ export const generateReportsDaily: JobFunction = async (
             reportUri,
             createdAt: now(),
             day: defaultedDay,
-            govBodyUri: goveringBody.uri,
+            govBodyUri: GoverningBody.uri,
             adminUnitUri: adminUnit.uri,
-            prefLabel: `Document presence check of all new sessions associated with the governing body "${goveringBody.classLabel}" of admin unit "${adminUnit.label}".`,
+            prefLabel: `Document presence check of all new sessions associated with the governing body "${GoverningBody.classLabel}" of admin unit "${adminUnit.label}".`,
             uuid,
             totalSessions: sessionCheckReports.length,
             sessionCheckReports,

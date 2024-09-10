@@ -2,8 +2,8 @@ import { QueryEngine } from "@comunica/query-sparql";
 import { config } from "../configuration.js";
 import { PREFIXES } from "../local-constants.js";
 import {
-  GetGoveringBodiesInput,
-  GetGoveringBodiesOutput,
+  GetGoverningBodiesInput,
+  GetGoverningBodiesOutput,
   GetOrganisationsInput,
   GetOrganisationsOutput,
   getGoverningBodiesOfAdminUnitTemplate,
@@ -13,7 +13,7 @@ import { TemplatedSelect } from "../queries/templated-query.js";
 import { delay } from "../util/util.js";
 import { logger } from "../logger.js";
 
-type GoverningBodyRecord = {
+export type GoverningBodyRecord = {
   uri: string;
   classLabel: string;
   type: "abstract" | "time-specific";
@@ -26,6 +26,12 @@ type OrganisationsAndGovBodies = {
     id: string;
     govBodies: GoverningBodyRecord[];
   }[];
+};
+export type AdminUnitRecord = {
+  uri: string;
+  label: string;
+  id: string;
+  govBodies: GoverningBodyRecord[];
 };
 
 let orgResourcesCache: OrganisationsAndGovBodies | null = null;
@@ -45,9 +51,9 @@ async function getOrgResouces(
     GetOrganisationsInput,
     GetOrganisationsOutput
   >(queryEngine, config.env.ADMIN_UNIT_ENDPOINT, getOrganisationsTemplate);
-  const getGoveringBodiesOfAdminUnitQuery = new TemplatedSelect<
-    GetGoveringBodiesInput,
-    GetGoveringBodiesOutput
+  const getGoverningBodiesOfAdminUnitQuery = new TemplatedSelect<
+    GetGoverningBodiesInput,
+    GetGoverningBodiesOutput
   >(
     queryEngine,
     config.env.ADMIN_UNIT_ENDPOINT,
@@ -95,7 +101,7 @@ async function getOrgResouces(
   logger.debug(`Got ${cleanOrgs.length} organisations.`);
 
   for (const org of cleanOrgs) {
-    const govBodies = await getGoveringBodiesOfAdminUnitQuery.objects(
+    const govBodies = await getGoverningBodiesOfAdminUnitQuery.objects(
       "abstractGoverningBodyUri",
       {
         prefixes: PREFIXES,
@@ -106,15 +112,15 @@ async function getOrgResouces(
     logger.debug(
       `Got ${govBodies.length} governing bodies for org ${org.organisationUri}`
     );
-    const goveringBodiesFlatList: GoverningBodyRecord[] = govBodies.reduce(
+    const GoverningBodiesFlatList: GoverningBodyRecord[] = govBodies.reduce(
       (acc, curr) => {
         acc.push({
           uri: curr.abstractGoverningBodyUri,
           type: "abstract",
           classLabel: curr.classLabel,
         });
-        if (Array.isArray(curr.timeSpecificGoveringBodyUri)) {
-          curr.timeSpecificGoveringBodyUri.forEach((uri) =>
+        if (Array.isArray(curr.timeSpecificGoverningBodyUri)) {
+          curr.timeSpecificGoverningBodyUri.forEach((uri) =>
             acc.push({
               uri,
               classLabel: curr.classLabel,
@@ -123,7 +129,7 @@ async function getOrgResouces(
           );
         } else {
           acc.push({
-            uri: curr.timeSpecificGoveringBodyUri,
+            uri: curr.timeSpecificGoverningBodyUri,
             type: "time-specific",
             classLabel: curr.classLabel,
           });
@@ -136,7 +142,7 @@ async function getOrgResouces(
       uri: org.organisationUri,
       label: org.label,
       id: org.id,
-      govBodies: goveringBodiesFlatList,
+      govBodies: GoverningBodiesFlatList,
     });
     // Awaiting and/or delaying in for loop is icky. But here we have no choice.
     // We are deliberately not looking for performance of this application or we risk overloading the database

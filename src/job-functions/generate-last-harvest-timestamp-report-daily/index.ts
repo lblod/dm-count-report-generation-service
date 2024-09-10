@@ -118,22 +118,26 @@ export const getHarvestingTimestampDaily: JobFunction = async (
       config.env.REPORT_ENDPOINT,
       insertLastExecutedReportTemplate
     );
-  const uuid = uuidv4();
-  const reportUri = `${config.env.URI_PREFIX_RESOURCES}${uuid}`;
-  const result = await duration(
-    insertLastExecutedReportTimeQuery.execute.bind(
-      insertLastExecutedReportTimeQuery
-    )
-  )({
-    prefixes: PREFIXES,
-    day: defaultedDay,
-    prefLabel: `Report of last harvesting execution times for organisations on day ${defaultedDay.toString()}`,
-    reportGraphUri: config.env.REPORT_GRAPH_URI,
-    reportUri,
-    createdAt: now(),
-    times: output,
-    uuid,
-  });
-  progress.progress(++queries, queryCount, result.durationMilliseconds);
-  progress.update(`All reports written for execution times.`);
+  for (const adminUnit of orgResources.adminUnits) {
+    const uuid = uuidv4();
+    const reportUri = `${config.env.URI_PREFIX_RESOURCES}${uuid}`;
+    const result = await duration(
+      insertLastExecutedReportTimeQuery.execute.bind(
+        insertLastExecutedReportTimeQuery
+      )
+    )({
+      prefixes: PREFIXES,
+      day: defaultedDay,
+      prefLabel: `Report of last harvesting execution times for ${
+        adminUnit.label
+      } on day ${defaultedDay.toString()}`,
+      reportGraphUri: `${config.env.REPORT_GRAPH_URI}${adminUnit.id}/DM-AdminUnitAdministratorRole`,
+      reportUri,
+      createdAt: now(),
+      times: output,
+      uuid,
+    });
+    progress.progress(++queries, queryCount, result.durationMilliseconds);
+    progress.update(`All reports written for execution times.`);
+  }
 };

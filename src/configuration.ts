@@ -219,7 +219,7 @@ export type DmReportGenerationServiceConfig = {
 
 const defaultEnv = {
   DISABLE_DEBUG_ENDPOINT: false,
-  REPORT_GRAPH_URI: "http://mu.semte.ch/graphs/public",
+  REPORT_GRAPH_URI: "http://mu.semte.ch/graphs/organizations/",
   JOB_GRAPH_URI: "http://mu.semte.ch/graphs/job",
   ADMIN_UNIT_GRAPH_URI: "http://mu.semte.ch/graphs/public",
   CONFIG_FILE_LOCATION: "/config",

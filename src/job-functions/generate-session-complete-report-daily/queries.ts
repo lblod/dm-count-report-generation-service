@@ -108,7 +108,7 @@ export type SessionCheckReportInput = {
   agendaItemReports: AgendaItemReportInput[];
 };
 
-export type WriteGoveringBodyReportInput = {
+export type WriteGoverningBodyReportInput = {
   prefixes: string;
   reportGraphUri: string;
   reportUri: string;
