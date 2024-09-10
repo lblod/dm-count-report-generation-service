@@ -206,7 +206,7 @@ export const generateReportsDaily: JobFunction = async (
     const uuids = new Array(4).fill(null).map(() => uuidv4());
 
     const counts = Object.entries(results)
-      .filter(([label, result]) => result.count !== 0)
+      .filter(([_, result]) => result.count !== 0)
       .map(([label, result], index) => ({
         countUri: `${config.env.URI_PREFIX_RESOURCES}${uuids[index]}`,
         uuid: uuids[index],
