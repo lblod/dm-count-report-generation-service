@@ -17,22 +17,15 @@ export const countSessionsQueryTemplate = compileSparql(
   `\
 {{prefixes}}
 SELECT (COUNT(DISTINCT ?session) as ?count) WHERE {
-  {
     ?session a besluit:Zitting;
-      besluit:isGehoudenDoor {{toNode governingBodyUri}}.
-  } UNION {
-    ?session a besluit:Zitting;
-      besluit:isGehoudenDoor ?governingBodyTimeSpecified.
-
-    ?governingBodyTimeSpecified a besluit:Bestuursorgaan;
-        mandaat:isTijdspecialisatieVan {{toNode governingBodyUri}}.
-  }
-  ?session besluit:geplandeStart ?plannedStart.
-  {{#unless noFilterForDebug}}
-  FILTER(?plannedStart >= {{toDateTime from}})
-  FILTER(?plannedStart < {{toDateTime to}})
-  {{/unless}}
+      besluit:isGehoudenDoor {{toNode governingBodyUri}};
+      besluit:geplandeStart ?plannedStart.
+      {{#unless noFilterForDebug}}
+        FILTER(?plannedStart >= {{toDateTime from}})
+          FILTER(?plannedStart < {{toDateTime to}})
+      {{/unless}}
 }
+
 `
 );
 
@@ -52,26 +45,10 @@ export const countAgendaItemsQueryTemplate = compileSparql(
   `\
 {{prefixes}}
 SELECT (COUNT(DISTINCT ?agendaItem) as ?count) WHERE {
-  {
-    ?session a besluit:Zitting;
+   ?session a besluit:Zitting;
       besluit:behandelt ?agendaItem;
+      besluit:geplandeStart ?plannedStart;
       besluit:isGehoudenDoor {{toNode governingBodyUri}}.
-  } UNION {
-    ?session a besluit:Zitting;
-      besluit:behandelt ?agendaItem;
-      besluit:isGehoudenDoor ?governingBodyTimeSpecified.
-
-    ?governingBodyTimeSpecified a besluit:Bestuursorgaan;
-      mandaat:isTijdspecialisatieVan {{toNode governingBodyUri}}.
-  }
-  ?agendaItem a besluit:Agendapunt.
-  ?session besluit:geplandeStart ?plannedStart.
-
-
-  ?agendaItemHandling a besluit:BehandelingVanAgendapunt;
-    dct:subject ?agendaItem;
-    prov:generated ?anyBesluit.
-  ?anyBesluit a besluit:Besluit.
 
   {{#unless noFilterForDebug}}
     FILTER(?plannedStart >= {{toDateTime from}})
@@ -98,18 +75,10 @@ export const countResolutionsQueryTemplate = compileSparql(
   `\
 {{prefixes}}
 SELECT (COUNT(DISTINCT ?resolution) as ?count) WHERE {
-  {
     ?session a besluit:Zitting;
       besluit:behandelt ?agendaItem;
       besluit:isGehoudenDoor {{toNode governingBodyUri}}.
-  } UNION {
-    ?session a besluit:Zitting;
-      besluit:behandelt ?agendaItem;
-      besluit:isGehoudenDoor ?governingBodyTimeSpecified.
 
-    ?governingBodyTimeSpecified a besluit:Bestuursorgaan;
-      mandaat:isTijdspecialisatieVan {{toNode governingBodyUri}}.
-  }
   ?agendaItem a besluit:Agendapunt.
   ?session besluit:geplandeStart ?plannedStart.
 
