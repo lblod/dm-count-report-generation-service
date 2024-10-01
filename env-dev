@@ -4,19 +4,21 @@ export NODE_ENV="development"
 export NODE_INSPECT_RESUME_ON_START=1
 # Microservice test env vars
 export DISABLE_DEBUG_ENDPOINT="false"
-export ADMIN_UNIT_ENDPOINT="http://localhost:18899/sparql"
-export REPORT_ENDPOINT="http://localhost:18899/sparql"
+export ADMIN_UNIT_ENDPOINT="https://data-monitoring.andres-dev.s.redhost.be/sparql"
+export REPORT_ENDPOINT="https://data-monitoring.andres-dev.s.redhost.be/sparql"
 export CONFIG_FILE_LOCATION="./test-config"
 export SHOW_SPARQL_QUERIES="false"
 export SHOW_SPARQL_QUERY_OUTPUTS="false"
 export LIMIT_NUMBER_SESSIONS=0
 export ORG_RESOURCES_TTL_S=300
 export SERVER_PORT=4199
-export LOG_LEVEL="debug"
+export LOG_LEVEL="info"
 export NO_TIME_FILTER="false"
 export SLEEP_BETWEEN_QUERIES_MS=10
 export DUMP_FILES_LOCATION="/Users/andresvergauwen/Documents/Codifly/ABB/Datamonitoring/services/dm-count-report-generation-service/dumps"
 export ROOT_URL_PATH=""
 export ADD_DUMMY_REST_JOB_TEMPLATE="true"
 # export OVERRIDE_DAY="2024-08-26"
+# export OVERRIDE_DAY="2023-12-11"
+export OVERRIDE_DAY="2024-07-22"
 

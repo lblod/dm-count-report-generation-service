@@ -148,6 +148,11 @@ async function startupProcedure() {
         "check-session-completeness",
         JobTemplateStatus.ACTIVE
       );
+      await createRestJobTemplate(
+        DataMonitoringFunction.CHECK_MATURITY_LEVEL,
+        "check-maturity-level",
+        JobTemplateStatus.ACTIVE
+      );
     }
     // Create a dummy job if env requests it and it does not exist yet
     const debugJobExists = getJobTemplates().find(
