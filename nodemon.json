@@ -2,7 +2,8 @@
   "verbose": true,
   "ignore": [],
   "watch": [
-    "src/**/*.ts"
+    "src/**/*.ts",
+    "templates/*.hbs"
   ],
   "execMap": {
     "ts": "npx tsx"

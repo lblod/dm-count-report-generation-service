@@ -22,9 +22,6 @@
     },
     {
       "url": "https://lokaalbeslist-harvester-2.s.redhost.be/sparql"
-    },
-    {
-      "url": "https://lokaalbeslist-harvester-3.s.redhost.be/sparql"
     }
   ],
   "periodic-function-invocation-times": {

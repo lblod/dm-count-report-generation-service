@@ -78,7 +78,6 @@ SELECT (COUNT(DISTINCT ?agendaItem) as ?count) WHERE {
     FILTER(?plannedStart < {{toDateTime to}})
   {{/unless}}
 }
-
 `
 );
 
