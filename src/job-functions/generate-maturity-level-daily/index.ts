@@ -34,7 +34,6 @@ export const getMaturityLevelDaily: JobFunction = async (
   day: DateOnly | undefined = undefined
 ) => {
   const allRecords = await getMaturityLevel(progress);
-  console.log(allRecords);
   await insertMaturityLevel(allRecords, progress, day);
 };
 
