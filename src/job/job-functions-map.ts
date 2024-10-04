@@ -5,6 +5,7 @@ import { dummyFunction } from "./dummy.js";
 import { getHarvestingTimestampDaily } from "../job-functions/generate-last-harvest-timestamp-report-daily/index.js";
 import { JobFunction } from "./job.js";
 import { getMaturityLevelDaily } from "../job-functions/generate-maturity-level-daily/index.js";
+import { getSessionTimestampDaily } from "../job-functions/generate-session-timestamp/index.js";
 
 // Effectively an index of some kind. Maps the enum values of DataMonitoringFunction to the data monitoring functions of type 'JobFunction'.
 export const JOB_FUNCTIONS: Record<DataMonitoringFunction, JobFunction> = {
@@ -14,4 +15,5 @@ export const JOB_FUNCTIONS: Record<DataMonitoringFunction, JobFunction> = {
     getHarvestingTimestampDaily,
   [DataMonitoringFunction.DUMMY]: dummyFunction,
   [DataMonitoringFunction.CHECK_MATURITY_LEVEL]: getMaturityLevelDaily,
+  [DataMonitoringFunction.CHECK_SESSION_TIMESTAMPS]: getSessionTimestampDaily,
 } as const;
