@@ -157,6 +157,7 @@ const dmReportGenerationServiceEnvSchema = z.object({
   SERVER_PORT: envIntegerSchema.optional(),
   LOG_LEVEL: z.enum(LOG_LEVELS).optional(),
   NO_TIME_FILTER: envBooleanSchema.optional(),
+  INITIAL_SYNC: envBooleanSchema.optional(),
   DUMP_FILES_LOCATION: z.string().optional(),
   QUERY_MAX_RETRIES: z.number().int().min(0).max(10).optional(),
   QUERY_WAIT_TIME_ON_FAIL_MS: z.number().int().min(0).max(60_000).optional(),
@@ -240,6 +241,7 @@ const defaultEnv = {
   ADD_DUMMY_REST_JOB_TEMPLATE: false,
   SKIP_ENDPOINT_CHECK: false,
   OVERRIDE_DAY: undefined,
+  INITIAL_SYNC: false,
 };
 
 const envResult = dmReportGenerationServiceEnvSchema.safeParse(process.env);

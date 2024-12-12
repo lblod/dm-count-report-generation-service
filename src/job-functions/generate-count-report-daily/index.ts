@@ -108,9 +108,11 @@ export const generateReportsDaily: JobFunction = async (
   day: DateOnly | undefined = undefined
 ) => {
   const defaultedDay = day ?? config.env.OVERRIDE_DAY ?? DateOnly.yesterday();
-  progress.update(
-    `Report function invoked with day ${defaultedDay.toString()}`
-  );
+  if (!config.env.INITIAL_SYNC) {
+    progress.update(
+      `Report function invoked with day ${defaultedDay.toString()}`
+    );
+  }
   // Init some functions making use of the progress
   async function performCount<
     I extends Record<string, any>,
@@ -135,7 +137,6 @@ export const generateReportsDaily: JobFunction = async (
       `Written '${resource}' in ${result.durationMilliseconds} ms`
     );
   }
-
   progress.update(`Getting org resources`);
   const orgResources = await getOrgResoucesCached(queryEngine);
   const governingBodiesCount = orgResources.adminUnits.reduce<number>(
@@ -181,14 +182,15 @@ export const generateReportsDaily: JobFunction = async (
       { type: "Besluit", query: countResolutionsQuery, label: "Besluit" },
       { type: "Stemming", query: countVoteQuery, label: "Stemming" },
     ];
-
+    const noFilterForDebug =
+      config.env.INITIAL_SYNC ?? config.env.NO_TIME_FILTER;
     for (const { type, query, label } of countConfigs) {
       results[label] = await performCount(type, query, {
         prefixes: PREFIXES,
         governingBodyUri: governingBody.uri,
         from: defaultedDay.localStartOfDay,
         to: defaultedDay.localEndOfDay,
-        noFilterForDebug: config.env.NO_TIME_FILTER,
+        noFilterForDebug,
       });
     }
 
