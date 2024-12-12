@@ -2,7 +2,7 @@ pipeline:
   build-and-push:
     image: woodpeckerci/plugin-docker-buildx
     settings:
-      repo: ${CI_REPO}
+      repo: ${CI_REPO%%-service}
       tags: "feature-${CI_COMMIT_BRANCH##feature/}"
     secrets: [docker_username, docker_password]
 when:

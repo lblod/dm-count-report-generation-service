@@ -2,7 +2,7 @@ pipeline:
   build:
     image: woodpeckerci/plugin-docker-buildx
     settings:
-      repo: ${CI_REPO}
+      repo: ${CI_REPO%%-service}
       tags: latest
     secrets: [docker_username, docker_password]
 when:
