@@ -65,6 +65,7 @@ export enum DataMonitoringFunction {
   CHECK_HARVESTING_EXECUTION_TIME = `http://lblod.data.gift/vocabularies/datamonitoring/dm-function/check-harvesting-execution-time`,
   DUMMY = `http://lblod.data.gift/vocabularies/datamonitoring/dm-function/dummy`,
   CHECK_MATURITY_LEVEL = `http://lblod.data.gift/vocabularies/datamonitoring/dm-function/check-maturity-level`,
+  CHECK_SESSION_TIMESTAMPS = `http://lblod.data.gift/vocabularies/datamonitoring/dm-function/check-session-timestamp`,
 }
 
 export type DmEnum =
