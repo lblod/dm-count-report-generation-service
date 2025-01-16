@@ -33,6 +33,8 @@ import {
   CountAgendaItemsQueryOutput,
 } from "./queries.js";
 import { config, EndpointConfig } from "../../configuration.js";
+import { countAgendaItemsWithTitleQueryTemplate } from "./queries/countAgendaItemsWithTitle.js";
+import { countAgendaItemsWithDescriptionQueryTemplate } from "./queries/countAgendaItemsWithDescription.js";
 
 type CountResult = {
   count: number;
@@ -43,6 +45,14 @@ type CountQueries = {
     CountSessionsQueryOutput
   >;
   countAgendaItemsQuery: TemplatedSelect<
+    CountAgendaItemsQueryInput,
+    CountAgendaItemsQueryOutput
+  >;
+  countAgendaItemsWithTitleQuery: TemplatedSelect<
+    CountAgendaItemsQueryInput,
+    CountAgendaItemsQueryOutput
+  >;
+  countAgendaItemsWithDescriptionQuery: TemplatedSelect<
     CountAgendaItemsQueryInput,
     CountAgendaItemsQueryOutput
   >;
@@ -78,21 +88,37 @@ function getQueriesForAnalysis(queryEngine: QueryEngine, endpoint: string) {
     CountSessionsQueryInput,
     CountSessionsQueryOutput
   >(queryEngine, endpoint, countSessionsQueryTemplate);
-  const countResolutionsQuery = new TemplatedSelect<
-    CountResolutionsQueryInput,
-    CountResolutionsQueryOutput
-  >(queryEngine, endpoint, countResolutionsQueryTemplate);
+
   const countAgendaItemsQuery = new TemplatedSelect<
     CountSessionsQueryInput,
     CountSessionsQueryOutput
   >(queryEngine, endpoint, countAgendaItemsQueryTemplate);
+
+  const countAgendaItemsWithTitleQuery = new TemplatedSelect<
+    CountSessionsQueryInput,
+    CountSessionsQueryOutput
+  >(queryEngine, endpoint, countAgendaItemsWithTitleQueryTemplate);
+
+  const countAgendaItemsWithDescriptionQuery = new TemplatedSelect<
+    CountSessionsQueryInput,
+    CountSessionsQueryOutput
+  >(queryEngine, endpoint, countAgendaItemsWithDescriptionQueryTemplate);
+
+  const countResolutionsQuery = new TemplatedSelect<
+    CountResolutionsQueryInput,
+    CountResolutionsQueryOutput
+  >(queryEngine, endpoint, countResolutionsQueryTemplate);
+
   const countVoteQuery = new TemplatedSelect<
     CountVoteQueryInput,
     CountVoteQueryOutput
   >(queryEngine, endpoint, countVoteQueryTemplate);
+
   return {
     countSessionsQuery,
     countAgendaItemsQuery,
+    countAgendaItemsWithTitleQuery,
+    countAgendaItemsWithDescriptionQuery,
     countResolutionsQuery,
     countVoteQuery,
   };
@@ -172,6 +198,8 @@ export const generateReportsDaily: JobFunction = async (
     const {
       countSessionsQuery,
       countAgendaItemsQuery,
+      countAgendaItemsWithTitleQuery,
+      countAgendaItemsWithDescriptionQuery,
       countResolutionsQuery,
       countVoteQuery,
     } = countQueries;
@@ -179,6 +207,16 @@ export const generateReportsDaily: JobFunction = async (
     const countConfigs = [
       { type: "Session", query: countSessionsQuery, label: "Zitting" },
       { type: "AgendaPunt", query: countAgendaItemsQuery, label: "Agendapunt" },
+      {
+        type: "AgendapuntTitle",
+        query: countAgendaItemsWithTitleQuery,
+        label: "AgendapuntTitle",
+      },
+      {
+        type: "AgendapuntDescription",
+        query: countAgendaItemsWithDescriptionQuery,
+        label: "AgendapuntDescription",
+      },
       { type: "Besluit", query: countResolutionsQuery, label: "Besluit" },
       { type: "Stemming", query: countVoteQuery, label: "Stemming" },
     ];
@@ -255,7 +293,7 @@ export const generateReportsDaily: JobFunction = async (
           defaultedDay
         );
         progress.update(
-          `Sessions: ${results.Zitting.count}, Agendapunt: ${results.Agendapunt.count}, Besluit: ${results.Besluit.count}, Stemming: ${results.Stemming.count}`
+          `Sessions: ${results.Zitting.count}, Agendapunt: ${results.Agendapunt.count}, Agendapuntitle: ${results.AgendapuntTitle.count}, AgendapuntDescription: ${results.AgendapuntDescription.count}, Besluit: ${results.Besluit.count}, Stemming: ${results.Stemming.count}`
         );
 
         const reportUri = await insertGoverningBodyReport(

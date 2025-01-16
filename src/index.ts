@@ -153,6 +153,11 @@ async function startupProcedure() {
         "check-maturity-level",
         JobTemplateStatus.ACTIVE
       );
+      await createRestJobTemplate(
+        DataMonitoringFunction.CHECK_SESSION_TIMESTAMPS,
+        "check-session-timestamps",
+        JobTemplateStatus.ACTIVE
+      );
     }
     // Create a dummy job if env requests it and it does not exist yet
     const debugJobExists = getJobTemplates().find(
@@ -179,7 +184,7 @@ async function startupProcedure() {
   }
   // Jobs
   setJobCreationDefaults(queryEngine, config.env.REPORT_ENDPOINT);
-  await loadJobs();
+  // await loadJobs();
   logger.info("Jobs loaded");
   initCron();
   logger.info("CRON runtime started");
