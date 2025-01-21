@@ -16,7 +16,7 @@ import {
   loadJobTemplates,
   setJobTemplateCreeationDefaults,
 } from "./job/job-template.js";
-import { getJobs, loadJobs, setJobCreationDefaults } from "./job/job.js";
+import { getJobs, setJobCreationDefaults } from "./job/job.js";
 import {
   DataMonitoringFunction,
   JobStatus,
