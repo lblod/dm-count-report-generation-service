@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/lblod/dm-count-report-generation-service/master/config-schema.json",
   "endpoints": [
     {
-      "url": "https://lokaalbeslist-harvester-1.s.redhost.be/sparql",
+      "url": "https://lokaalbeslist-harvester-3.s.redhost.be/sparql",
       "classes": [
         "besluit:Besluit",
         "besluit:Agendapunt"
@@ -10,11 +10,11 @@
     }
   ],
   "adminUnitOverride": [
-    "http://data.lblod.info/id/bestuurseenheden/670db1d66c0de3b931962e1044033ccfa9d6e3023aa9828a5f252c3bc69bd32c"
+    "http://data.lblod.info/id/bestuurseenheden/974816591f269bb7d74aa1720922651529f3d3b2a787f5c60b73e5a0384950a4"
   ],
   "harvester-endpoints": [
     {
-      "url": "https://lokaalbeslist-harvester-1.s.redhost.be/sparql"
+      "url": "https://lokaalbeslist-harvester-3.s.redhost.be/sparql"
     }
   ],
   "periodic-function-invocation-times": {

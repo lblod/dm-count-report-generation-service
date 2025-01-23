@@ -220,8 +220,7 @@ export const generateReportsDaily: JobFunction = async (
       { type: "Besluit", query: countResolutionsQuery, label: "Besluit" },
       { type: "Stemming", query: countVoteQuery, label: "Stemming" },
     ];
-    const noFilterForDebug =
-      config.env.INITIAL_SYNC ?? config.env.NO_TIME_FILTER;
+    const noFilterForDebug = config.env.INITIAL_SYNC;
     for (const { type, query, label } of countConfigs) {
       results[label] = await performCount(type, query, {
         prefixes: PREFIXES,
@@ -243,17 +242,19 @@ export const generateReportsDaily: JobFunction = async (
   ): Promise<string> {
     const uuid = uuidv4();
     const reportUri = `${config.env.URI_PREFIX_RESOURCES}${uuid}`;
-    const uuids = new Array(4).fill(null).map(() => uuidv4());
-
-    const counts = Object.entries(results)
-      .filter(([_, result]) => result.count !== 0)
-      .map(([label, result], index) => ({
+    const result = Object.entries(results)
+    .filter(([_, result]) => result.count !== 0);
+    const uuids = new Array(result.length).fill(null).map(() => uuidv4());
+    const counts = result
+      .map(([label, result], index) => {
+        return  {
         countUri: `${config.env.URI_PREFIX_RESOURCES}${uuids[index]}`,
         uuid: uuids[index],
         classUri: `http://data.vlaanderen.be/ns/besluit#${label}`,
         count: result.count,
         prefLabel: `Count of '${label}'`,
-      }));
+      }
+    });
     if (counts && counts.length > 0) {
       await performInsert("GoverningBodyCountReport", writeCountReportQuery, {
         prefixes: PREFIXES,
@@ -326,6 +327,7 @@ export const generateReportsDaily: JobFunction = async (
       );
 
       const uuid = uuidv4();
+      console.log("UUIDDDDDDDDD", uuid);
       await performInsert(
         "AdminUnitCountReport",
         writeAdminUnitCountReportQuery,
