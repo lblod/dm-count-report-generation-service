@@ -20,6 +20,7 @@
   "dependencies": {
     "@comunica/query-sparql": "^3.0.3",
     "@rdfjs/types": "^1.1.0",
+    "axios": "^1.7.9",
     "cors": "^2.8.5",
     "dayjs": "^1.11.10",
     "express": "^4.19.2",
