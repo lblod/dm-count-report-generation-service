@@ -260,7 +260,7 @@ export const generateReportsDaily: JobFunction = async (
         govBodyUri: governingBody.uri,
         createdAt: now(),
         reportUri,
-        reportGraphUri: `${config.env.REPORT_GRAPH_URI}${adminUnit.id}/DM-AdminUnitAdministratorRole`,
+        reportGraphUri: `${config.env.REPORT_GRAPH_URI}${adminUnit.id}/DMGEBRUIKER`,
         adminUnitUri: adminUnit.uri,
         prefLabel: `Count report for governing body of class '${governingBody.classLabel}' on ${defaultedDay} for admin unit '${adminUnit.label}'`,
         day: defaultedDay,
@@ -331,7 +331,7 @@ export const generateReportsDaily: JobFunction = async (
         writeAdminUnitCountReportQuery,
         {
           prefixes: PREFIXES,
-          reportGraphUri: `${config.env.REPORT_GRAPH_URI}${adminUnit.id}/DM-AdminUnitAdministratorRole`,
+          reportGraphUri: `${config.env.REPORT_GRAPH_URI}${adminUnit.id}/DMGEBRUIKER`,
           adminUnitUri: adminUnit.uri,
           prefLabel: `Count report for admin unit '${adminUnit.label}' on ${defaultedDay}`,
           reportUri: `${config.env.URI_PREFIX_RESOURCES}${uuid}`,

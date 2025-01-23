@@ -106,7 +106,7 @@ const insertMaturityLevel = async (
         prefLabel: `Report of maturity level for ${
           adminUnit.label
         } on day ${defaultedDay.toString()}`,
-        reportGraphUri: `${config.env.REPORT_GRAPH_URI}${adminUnit.id}/DM-AdminUnitAdministratorRole`,
+        reportGraphUri: `${config.env.REPORT_GRAPH_URI}${adminUnit.id}/DMGEBRUIKER`,
         reportUri,
         createdAt: now(),
         notuleUri,
