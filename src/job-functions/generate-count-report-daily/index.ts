@@ -261,6 +261,7 @@ export const generateReportsDaily: JobFunction = async (
         reportGraphUri: `${config.env.REPORT_GRAPH_URI}${adminUnit.id}/DMGEBRUIKER`,
         adminUnitUri: adminUnit.uri,
         prefLabel: `Count report for governing body of class '${governingBody.classLabel}' on ${defaultedDay} for admin unit '${adminUnit.label}'`,
+        classLabel: governingBody.classLabel,
         day: defaultedDay,
         uuid,
         counts,

@@ -138,6 +138,7 @@ export type WriteReportInput = {
   createdAt: DateTime;
   day: DateOnly;
   govBodyUri: string;
+  classLabel: string;
   adminUnitUri: string;
   prefLabel: string;
   uuid: string;
@@ -160,6 +161,7 @@ INSERT {
       datamonitoring:day {{toDate day}};
       datamonitoring:targetAdministrativeUnit {{toNode adminUnitUri}};
       datamonitoring:targetGoverningBody {{toNode govBodyUri}};
+      datamonitoring:classLabel {{toString classLabel}};
       skos:prefLabel {{toString prefLabel}};
       mu:uuid {{toUuid uuid}};
       datamonitoring:istest "true"^^xsd:boolean;
