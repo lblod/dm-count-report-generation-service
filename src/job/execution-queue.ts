@@ -1,6 +1,7 @@
 import { DurationResult, longDuration } from "../util/util.js";
 import { JOB_FUNCTIONS } from "./job-functions-map.js";
 import { Job } from "./job.js";
+import { config } from "../configuration.js";
 
 type ExecutionInformation = {
   job: Job;
@@ -88,6 +89,14 @@ async function loop() {
       last.job._progress.return(durationResult.result).then(() => {
         removeFromQueue(last);
         current = null;
+        if (!queue.length) {
+          if (config.env.INITIAL_SYNC) {
+            console.log("All initial sync jobs have finished. Waiting for next sync.");
+          }
+          else{
+            console.log("All jobs have finished. Waiting for next sync.");
+          }
+        }
         setInterval(loop, 0); // Execute next job or stop, break function stack
       });
     })
@@ -96,6 +105,14 @@ async function loop() {
       last.job._progress.error(e).then(() => {
         removeFromQueue(last);
         current = null;
+        if (!queue.length) {
+          if (config.env.INITIAL_SYNC) {
+            console.log("All initial sync jobs have finished. Waiting for next sync.");
+          }
+          else{
+            console.log("All jobs have finished. Waiting for next sync.");
+          }
+        }
         setInterval(loop, 0); // Execute next job or stop, break function stack
       });
     });

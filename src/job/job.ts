@@ -240,7 +240,7 @@ export class JobProgress {
   }
 
   /**
-   * Call this at the very end of the job function. It updates the satus of the job and tells listeners the show is over.
+   * Call this at the very end of the job function. It updates the status of the job and tells listeners the show is over.
    * @param result The end result of the function if applicable. Type checking will be added in the future.
    */
   async return(result: any) {
@@ -471,7 +471,7 @@ const jobs = new Map<string, Job>();
 export function getJobs(): Job[] {
   if (!defaults)
     throw new Error(
-      `Defaults have not been set. Call 'setTaskCreeationDefaults' first from the task module.`
+      `Defaults have not been set. Call 'setTaskCreationDefaults' first from the task module.`
     );
   return [...jobs.values()];
 }
@@ -501,7 +501,7 @@ export async function createJob(
 ): Promise<Job> {
   if (!defaults)
     throw new Error(
-      `Defaults have not been set. Call 'setTaskCreeationDefaults' first from the task module.`
+      `Defaults have not been set. Call 'setTaskCreationDefaults' first from the task module.`
     );
   const newJob = new Job(
     defaults.queryEngine,
@@ -521,7 +521,7 @@ export async function createJob(
 export async function deleteJobs(jobStatuses: JobStatus[] | null = null) {
   if (!defaults)
     throw new Error(
-      `Defaults have not been set. Call 'setJobCreeationDefaults' first from the job module.`
+      `Defaults have not been set. Call 'setJobCreationDefaults' first from the job module.`
     );
   if ((jobStatuses && jobStatuses.includes(JobStatus.BUSY)) || !jobStatuses)
     logger.warn(
@@ -625,15 +625,15 @@ export async function loadJobs() {
       jt
     );
 
-    // If the job has NOT started then it needs to be added to the queue for executuon.
+    // If the job has NOT started then it needs to be added to the queue for execution.
     // This means that the service was shut down while there were still jobs in the queue. Re add them.
     if (record.status === JobStatus.NOT_STARTED) {
       addToQueue(newJob);
       bins.queued.push(newJob);
       jobs.set(newJob.uri, newJob);
     }
-    // If the job is busy on service statup it means the service was stopped before the job was finished
-    // We need to change the status of these jobs to error because the serivice quit prematurely
+    // If the job is busy on service startup it means the service was stopped before the job was finished
+    // We need to change the status of these jobs to error because the service quit prematurely
     if (record.status === JobStatus.BUSY) {
       await newJob.updateStatus(JobStatus.ERROR);
       bins.errored.push(newJob);
@@ -642,7 +642,7 @@ export async function loadJobs() {
   }
   if (bins.errored.length || bins.queued.length) {
     logger.verbose(
-      `Jobs loaded but the service may have shut down incorectly. Re added ${bins.queued.length} jobs to the execution queue and ${bins.errored.length} jobs had to have their status changed to ERROR because the service was interrupted before the operation could finish.`
+      `Jobs loaded but the service may have shut down incorrectly. Re added ${bins.queued.length} jobs to the execution queue and ${bins.errored.length} jobs had to have their status changed to ERROR because the service was interrupted before the operation could finish.`
     );
   }
   return bins;

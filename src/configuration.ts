@@ -156,7 +156,7 @@ const dmReportGenerationServiceEnvSchema = z.object({
   ORG_RESOURCES_TTL_S: envIntegerSchema.optional(),
   SERVER_PORT: envIntegerSchema.optional(),
   LOG_LEVEL: z.enum(LOG_LEVELS).optional(),
-  NO_TIME_FILTER: envBooleanSchema.optional(),
+  INITIAL_SYNC: envBooleanSchema.optional(),
   DUMP_FILES_LOCATION: z.string().optional(),
   QUERY_MAX_RETRIES: z.number().int().min(0).max(10).optional(),
   QUERY_WAIT_TIME_ON_FAIL_MS: z.number().int().min(0).max(60_000).optional(),
@@ -230,7 +230,7 @@ const defaultEnv = {
   ORG_RESOURCES_TTL_S: 300, // Default cache TTL is five minutes
   SERVER_PORT: 80, // HTTP (TODO add HTTPS port)
   LOG_LEVEL: "info" as const,
-  NO_TIME_FILTER: false,
+  INITIAL_SYNC: false,
   DUMP_FILES_LOCATION: "/dump",
   QUERY_MAX_RETRIES: 3,
   QUERY_WAIT_TIME_ON_FAIL_MS: 1000,
@@ -239,7 +239,7 @@ const defaultEnv = {
   URI_PREFIX_NAMESPACES: "http://lblod.data.gift/vocabularies/datamonitoring/",
   ADD_DUMMY_REST_JOB_TEMPLATE: false,
   SKIP_ENDPOINT_CHECK: false,
-  OVERRIDE_DAY: undefined,
+  OVERRIDE_DAY: undefined
 };
 
 const envResult = dmReportGenerationServiceEnvSchema.safeParse(process.env);

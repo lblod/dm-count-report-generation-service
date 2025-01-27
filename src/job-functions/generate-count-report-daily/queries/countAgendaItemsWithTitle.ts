@@ -3,7 +3,7 @@ import { compileSparql } from "../../../handlebars/index.js";
 export const countAgendaItemsWithTitleQueryTemplate = compileSparql(`\
 {{prefixes}}
 
-  SELECT (COUNT(?agendaItem) AS ?count)
+  SELECT (COUNT(DISTINCT ?agendaItem) AS ?count)
   WHERE {
   ?zitting a besluit:Zitting ;
           besluit:behandelt ?agendaItem;

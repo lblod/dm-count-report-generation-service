@@ -27,6 +27,7 @@ import {
 import { setupDebugEndpoints } from "./debug-endpoints/endpoints.js";
 import { logger } from "./logger.js";
 import { initCron } from "./cron/cron.js";
+import axios, { AxiosResponse } from 'axios';
 
 async function startupProcedure() {
   logger.info(
@@ -224,16 +225,41 @@ function setupExpress(): express.Express {
   return app;
 }
 
+async function triggerEndpoints(): Promise<void> {
+  const endpoints: string[] = [
+    `http://localhost:${config.env.SERVER_PORT}/start/start-count-report`,
+    `http://localhost:${config.env.SERVER_PORT}/start/start-harvesting-exec-time-report`,
+    `http://localhost:${config.env.SERVER_PORT}/start/check-session-timestamps`,
+    `http://localhost:${config.env.SERVER_PORT}/start/check-maturity-level`,
+  ];
+  for (const endpoint of endpoints) {
+    try {
+      console.log(`Triggering ${endpoint}`);
+      const payload: any = {};
+      const response: AxiosResponse = await axios.get(endpoint, payload);
+      console.log(`Response from ${endpoint}:`, response.data);
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.error(`Error triggering ${endpoint}:`, error.message);
+      } else {
+        console.error(`Unexpected Error at ${endpoint}:`, error);
+      }
+    }
+  }
+}
 // Top level await is allowed in this version of javascript
 await startupProcedure();
 logger.info("Startup procedure complete");
 const app = setupExpress();
 logger.info("Express server setup procedure complete");
 // Start server
-app.listen(config.env.SERVER_PORT, () => {
+app.listen(config.env.SERVER_PORT, async  () => {
   logger.info(
     `Report generation microservice started and listening on http://localhost:${config.env.SERVER_PORT}/debug.`
   );
+  if(config.env.INITIAL_SYNC) {
+    await triggerEndpoints();
+  }
 });
 
 // Catch CTRL+C and docker kill signal

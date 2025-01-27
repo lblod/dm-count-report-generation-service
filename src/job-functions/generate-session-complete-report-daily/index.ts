@@ -115,7 +115,7 @@ export const generateReportsDaily: JobFunction = async (
       const sessionCountRecords = await countSessionsQuery.records({
         prefixes: PREFIXES,
         governingBodyUris: timeSpecificGovBodies.map((gb) => gb.uri),
-        noFilterForDebug: config.env.NO_TIME_FILTER,
+        noFilterForDebug: config.env.INITIAL_SYNC,
         from: defaultedDay.localStartOfDay,
         to: defaultedDay.localEndOfDay,
       });
@@ -209,7 +209,7 @@ export const generateReportsDaily: JobFunction = async (
         const newSessions = await performSelectRecords(getSessionsQuery, {
           prefixes: PREFIXES,
           governingBodyUri: GoverningBody.uri,
-          noFilterForDebug: config.env.NO_TIME_FILTER,
+          noFilterForDebug: config.env.INITIAL_SYNC,
           from: defaultedDay.localStartOfDay,
           to: defaultedDay.localEndOfDay,
           limit: config.env.LIMIT_NUMBER_SESSIONS, // 0 is infinite
