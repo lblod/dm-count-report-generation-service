@@ -1,7 +1,9 @@
 import { DateOnly, DateTime } from "../../util/date-time.js";
 import { compileSparql } from "../../handlebars/index.js";
+import { AdminUnitRecord } from "../../job/get-org-data.js";
 
 // Get last session timestamp of a session
+export type SessionTimestampRecord = { adminUnit: AdminUnitRecord, firstSession: DateTime, lastSession: DateTime }
 export type GetSessionTimestampInput = {
   prefixes: string;
   governingBodyUri: string;
@@ -25,7 +27,6 @@ SELECT ?firstSession ?lastSession ?governingBodyUri WHERE {
     }
   }
 }
-
 `
 );
 
