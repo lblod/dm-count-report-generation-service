@@ -7,14 +7,26 @@
         "besluit:Besluit",
         "besluit:Agendapunt"
       ]
+    },
+    {
+      "url": "https://lokaalbeslist-harvester-3.s.redhost.be/sparql",
+      "classes": [
+        "besluit:Besluit",
+        "besluit:Agendapunt"
+      ]
     }
   ],
   "adminUnitOverride": [
-    "http://data.lblod.info/id/bestuurseenheden/670db1d66c0de3b931962e1044033ccfa9d6e3023aa9828a5f252c3bc69bd32c"
+    "http://data.lblod.info/id/bestuurseenheden/670db1d66c0de3b931962e1044033ccfa9d6e3023aa9828a5f252c3bc69bd32c",
+    "http://data.lblod.info/id/bestuurseenheden/c648ea5d12626ee3364a02debb223908a71e68f53d69a7a7136585b58a083e77",
+    "http://data.lblod.info/id/bestuurseenheden/974816591f269bb7d74aa1720922651529f3d3b2a787f5c60b73e5a0384950a4"
   ],
   "harvester-endpoints": [
     {
       "url": "https://lokaalbeslist-harvester-1.s.redhost.be/sparql"
+    },
+    {
+      "url": "https://lokaalbeslist-harvester-3.s.redhost.be/sparql"
     }
   ],
   "periodic-function-invocation-times": {
@@ -27,6 +39,14 @@
       "days": "monday,tuesday,wednesday,thursday,friday,saturday,sunday"
     },
     "CHECK_SESSION_COMPLETENESS": {
+      "time": "00:00",
+      "days": "monday,tuesday,wednesday,thursday,friday,saturday,sunday"
+    },
+    "CHECK_SESSION_TIMESTAMPS": {
+      "time": "00:00",
+      "days": "monday,tuesday,wednesday,thursday,friday,saturday,sunday"
+    },
+    "CHECK_MATURITY_LEVEL": {
       "time": "00:00",
       "days": "monday,tuesday,wednesday,thursday,friday,saturday,sunday"
     }

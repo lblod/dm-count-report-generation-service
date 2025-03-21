@@ -35,6 +35,7 @@ import {
 import { config, EndpointConfig } from "../../configuration.js";
 import { countAgendaItemsWithTitleQueryTemplate } from "./queries/countAgendaItemsWithTitle.js";
 import { countAgendaItemsWithDescriptionQueryTemplate } from "./queries/countAgendaItemsWithDescription.js";
+import { countDuplicateAgendaItemsQueryTemplate } from "./queries/countDuplicateAgendaItems.js";
 
 type CountResult = {
   count: number;
@@ -56,6 +57,10 @@ type CountQueries = {
     CountAgendaItemsQueryInput,
     CountAgendaItemsQueryOutput
   >;
+  countDuplicateAgendaItemsQuery: TemplatedSelect<
+  CountAgendaItemsQueryInput,
+  CountAgendaItemsQueryOutput
+>;
   countResolutionsQuery: TemplatedSelect<
     CountResolutionsQueryInput,
     CountResolutionsQueryOutput
@@ -104,6 +109,14 @@ function getQueriesForAnalysis(queryEngine: QueryEngine, endpoint: string) {
     CountSessionsQueryOutput
   >(queryEngine, endpoint, countAgendaItemsWithDescriptionQueryTemplate);
 
+
+  const countDuplicateAgendaItemsQuery = new TemplatedSelect<
+  CountSessionsQueryInput,
+  CountSessionsQueryOutput
+>(queryEngine, endpoint, countDuplicateAgendaItemsQueryTemplate);
+
+
+
   const countResolutionsQuery = new TemplatedSelect<
     CountResolutionsQueryInput,
     CountResolutionsQueryOutput
@@ -119,6 +132,7 @@ function getQueriesForAnalysis(queryEngine: QueryEngine, endpoint: string) {
     countAgendaItemsQuery,
     countAgendaItemsWithTitleQuery,
     countAgendaItemsWithDescriptionQuery,
+    countDuplicateAgendaItemsQuery,
     countResolutionsQuery,
     countVoteQuery,
   };
@@ -199,6 +213,7 @@ export const generateReportsDaily: JobFunction = async (
       countAgendaItemsQuery,
       countAgendaItemsWithTitleQuery,
       countAgendaItemsWithDescriptionQuery,
+      countDuplicateAgendaItemsQuery,
       countResolutionsQuery,
       countVoteQuery,
     } = countQueries;
@@ -215,6 +230,11 @@ export const generateReportsDaily: JobFunction = async (
         type: "AgendapuntDescription",
         query: countAgendaItemsWithDescriptionQuery,
         label: "AgendapuntDescription",
+      },
+      {
+        type: "AgendapuntDuplicates",
+        query: countDuplicateAgendaItemsQuery,
+        label: "AgendapuntDuplicates",
       },
       { type: "Besluit", query: countResolutionsQuery, label: "Besluit" },
       { type: "Stemming", query: countVoteQuery, label: "Stemming" },
@@ -294,7 +314,7 @@ export const generateReportsDaily: JobFunction = async (
           defaultedDay
         );
         progress.update(
-          `Sessions: ${results.Zitting.count}, Agendapunt: ${results.Agendapunt.count}, Agendapuntitle: ${results.AgendapuntTitle.count}, AgendapuntDescription: ${results.AgendapuntDescription.count}, Besluit: ${results.Besluit.count}, Stemming: ${results.Stemming.count}`
+          `Sessions: ${results.Zitting.count}, Agendapunt: ${results.Agendapunt.count}, Agendapuntitle: ${results.AgendapuntTitle.count}, AgendapuntDescription: ${results.AgendapuntDescription.count}, AgendapuntDuplicates: ${results.AgendapuntDuplicates.count}, Besluit: ${results.Besluit.count}, Stemming: ${results.Stemming.count}`
         );
 
         const reportUri = await insertGoverningBodyReport(

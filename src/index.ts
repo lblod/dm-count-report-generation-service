@@ -226,11 +226,13 @@ function setupExpress(): express.Express {
 }
 
 async function triggerEndpoints(): Promise<void> {
+  //Add endpoints here to trigger on initial sync
   const endpoints: string[] = [
     `http://localhost:${config.env.SERVER_PORT}/start/start-count-report`,
     `http://localhost:${config.env.SERVER_PORT}/start/start-harvesting-exec-time-report`,
     `http://localhost:${config.env.SERVER_PORT}/start/check-session-timestamps`,
     `http://localhost:${config.env.SERVER_PORT}/start/check-maturity-level`,
+    `http://localhost:${config.env.SERVER_PORT}/start/check-session-timestamps`,
   ];
   for (const endpoint of endpoints) {
     try {
