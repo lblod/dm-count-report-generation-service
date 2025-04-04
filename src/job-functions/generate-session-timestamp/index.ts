@@ -26,20 +26,25 @@ function getQueries(queryEngine: QueryEngine, endpoint: string) {
     GetSessionTimestampInput,
     GetSessionTimestampOutput
   >(queryEngine, endpoint, getSessionTimestampTemplate);
-  return {
-    getSessionTimestampQuery,
-  };
+  return { getSessionTimestampQuery };
 }
 
 export const getSessionTimestampDaily: JobFunction = async (
   progress,
   day: DateOnly | undefined = undefined
 ) => {
-  const records = await getSessionTimestamp(progress);
-  return await insertSessionTimestamp(records, progress, day);
+  try {
+    const records = await getSessionTimestamp(progress);
+    return await insertSessionTimestamp(records, progress, day);
+  } catch (error) {
+    console.error("Failed to process session timestamps:", error);
+    progress.update("Error encountered during session timestamp processing.");
+    throw error;
+  }
 };
 
 const getSessionTimestamp = async (progress: JobProgress) => {
+  progress.update(`Getting org resources...`);
   const orgResources = await getOrgResoucesCached(queryEngine);
   const totalQueries = config.file.harvesterEndpoints.length * orgResources.adminUnits.length;
   let completedQueries = 0;
@@ -55,29 +60,44 @@ const getSessionTimestamp = async (progress: JobProgress) => {
     const { getSessionTimestampQuery } = getQueries(queryEngine, harvester.url);
 
     for (const adminUnit of orgResources.adminUnits) {
-      const sessionTimestamps = await Promise.all(
-        adminUnit.govBodies.map(async (govBody) => {
-          const result = await duration(getSessionTimestampQuery.records.bind(getSessionTimestampQuery))({
-            prefixes: PREFIXES,
-            governingBodyUri: govBody.uri,
-          });
-
-          progress.progress(++completedQueries, totalQueries, result.durationMilliseconds);
-          return result.result;
-        })
-      );
-
-      const allTimestamps = sessionTimestamps.flat();
-
-      if (allTimestamps.length > 0) {
-        const firstSession = dayjs(
-          Math.min(...allTimestamps.map(ts => ts.firstSession.toDate().getTime()))
+      try {
+        completedQueries += 1;
+        const sessionTimestamps = await Promise.all(
+          adminUnit.govBodies.map(async (govBody) => {
+            try {
+              const result = await duration(getSessionTimestampQuery.records.bind(getSessionTimestampQuery))({
+                prefixes: PREFIXES,
+                governingBodyUri: govBody.uri,
+              });
+              progress.progress(completedQueries, totalQueries, result.durationMilliseconds);
+              progress.update(
+                `Got session timestamps for ${adminUnit.label} (${adminUnit.id}) with ${govBody.classLabel} (${govBody.uri}). Got ${result.result.length} records.`
+              );
+              return result.result;
+            } catch (error) {
+              console.error(`Error fetching session timestamps for ${govBody.uri}:`, error);
+              return [];
+            }
+          })
         );
-        const lastSession = dayjs(
-          Math.max(...allTimestamps.map(ts => ts.lastSession.toDate().getTime()))
-        );
+        const allTimestamps = sessionTimestamps.flat();
 
-        adminUnitSessions.push({ adminUnit, firstSession, lastSession });
+
+        if (allTimestamps.length > 0) {
+          const firstSession = dayjs(
+            Math.min(...allTimestamps.map(ts => ts.firstSession.toDate().getTime()))
+          );
+          const lastSession = dayjs(
+            Math.max(...allTimestamps.map(ts => ts.lastSession.toDate().getTime()))
+          );
+          progress.update(
+            `Got session timestamps for ${adminUnit.label} (${adminUnit.id}) with ${firstSession} and ${lastSession}.`
+          );
+          adminUnitSessions.push({ adminUnit, firstSession, lastSession });
+        }
+      } catch (error) {
+        console.error(`Error processing admin unit ${adminUnit.label}:`, error);
+        // Continue processing other admin units
       }
     }
   }
@@ -95,40 +115,58 @@ const insertSessionTimestamp = async (
   progress: JobProgress,
   day?: DateOnly
 ) => {
-  const defaultedDay = day ?? DateOnly.yesterday();
-  const insertSessionTimestampQuery = new TemplatedInsert<InsertSessionTimestampInput>(
-    queryEngine,
-    config.env.REPORT_ENDPOINT,
-    insertSessionTimestampTemplate
-  );
-  const queryCount = data.length;
-  let queries = 0;
+  try {
+    if (data.length === 0) {
+      progress.update("No session timestamps to insert.");
+      return;
+    }
 
-  progress.update('Insert session timestamps');
+    const defaultedDay = day ?? DateOnly.yesterday();
+    const insertSessionTimestampQuery = new TemplatedInsert<InsertSessionTimestampInput>(
+      queryEngine,
+      config.env.REPORT_ENDPOINT,
+      insertSessionTimestampTemplate
+    );
 
-  const insertPromises = data.map(async (record) => {
-    if (!record) return;
+    progress.update("Insert session timestamps");
+    let queries = 0;
 
-    const uuid = uuidv4();
-    const reportUri = `${config.env.URI_PREFIX_RESOURCES}${uuid}`;
+    await Promise.all(
+      data.map(async (record) => {
+        try {
+          if (!record) return;
 
-    const result = await duration(
-      insertSessionTimestampQuery.execute.bind(insertSessionTimestampQuery)
-    )({
-      prefixes: PREFIXES,
-      day: defaultedDay,
-      prefLabel: `Report of session timestamps for ${record.adminUnit.label} on day ${defaultedDay.toString()}`,
-      reportGraphUri: `${config.env.REPORT_GRAPH_URI}${record.adminUnit.id}/DMGEBRUIKER`,
-      reportUri,
-      createdAt: now(),
-      firstSession: record.firstSession,
-      lastSession: record.lastSession,
-      uuid,
-    });
+          const uuid = uuidv4();
+          const reportUri = `${config.env.URI_PREFIX_RESOURCES}${uuid}`;
 
-    progress.progress(++queries, queryCount, result.durationMilliseconds);
-  });
+          const result = await duration(
+            insertSessionTimestampQuery.execute.bind(insertSessionTimestampQuery)
+          )({
+            prefixes: PREFIXES,
+            day: defaultedDay,
+            prefLabel: `Report of session timestamps for ${record.adminUnit.label} on day ${defaultedDay.toString()}`,
+            reportGraphUri: `${config.env.REPORT_GRAPH_URI}${record.adminUnit.id}/DMGEBRUIKER`,
+            reportUri,
+            createdAt: now(),
+            firstSession: record.firstSession,
+            lastSession: record.lastSession,
+            uuid,
+          });
 
-  await Promise.all(insertPromises);
-  progress.update('All session timestamps written.');
+          progress.progress(++queries, data.length, result.durationMilliseconds);
+        } catch (insertError) {
+          console.error(
+            `Failed to insert session timestamp for ${record.adminUnit.label}:`,
+            insertError
+          );
+        }
+      })
+    );
+
+    progress.update("All session timestamps written.");
+  } catch (error) {
+    console.error("Error in insertSessionTimestamp:", error);
+    progress.update("Error while inserting session timestamps.");
+    throw error;
+  }
 };

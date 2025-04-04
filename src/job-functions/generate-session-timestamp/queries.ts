@@ -17,7 +17,7 @@ export type GetSessionTimestampOutput = {
 
 export const getSessionTimestampTemplate = compileSparql(
   `\
- {{prefixes}}
+{{prefixes}}
 SELECT ?firstSession ?lastSession ?governingBodyUri WHERE {
   {
     SELECT ?governingBodyUri (MIN(?start) AS ?firstSession) (MAX(?start) AS ?lastSession) WHERE {
@@ -25,6 +25,7 @@ SELECT ?firstSession ?lastSession ?governingBodyUri WHERE {
                 besluit:isGehoudenDoor {{toNode governingBodyUri}}, ?governingBodyUri;
               besluit:geplandeStart ?start.
     }
+    GROUP BY ?governingBodyUri
   }
 }
 `
@@ -48,11 +49,11 @@ export const insertSessionTimestampTemplate = compileSparql(
 {{prefixes}}
 INSERT {
   GRAPH {{toNode reportGraphUri}} {
-    {{toNode reportUri}} a datamonitoring:SessionTimestampReport;
-      datamonitoring:day {{toDate day}};
-      skos:prefLabel {{toString prefLabel}};
-      datamonitoring:createdAt {{toDateTime createdAt}};
-      mu:uuid {{toUuid uuid}};
+    {{toNode reportUri}} a datamonitoring:SessionTimestampReport ;
+      datamonitoring:day {{toDate day}} ;
+      skos:prefLabel {{toString prefLabel}} ;
+      datamonitoring:createdAt {{toDateTime createdAt}} ;
+      mu:uuid {{toUuid uuid}} ;
       datamonitoring:firstSession {{toDateTime firstSession}} ;
       datamonitoring:lastSession {{toDateTime lastSession}} .
   }
