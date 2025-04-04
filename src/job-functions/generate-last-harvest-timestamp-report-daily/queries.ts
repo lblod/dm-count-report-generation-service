@@ -14,7 +14,7 @@ export type GetLastModifiedOutput = {
 export const getLastModifiedTemplate = compileSparql(
   `\
 {{prefixes}}
-SELECT ?scheduledJobUri ?title (MAX(?modified) AS ?lastModified) WHERE {
+SELECT DISTINCT ?scheduledJobUri ?title (MAX(?modified) AS ?lastModified) WHERE {
   ?scheduledJobUri a cogs:ScheduledJob;
     <http://purl.org/dc/terms/title> ?title.
   ?job <http://purl.org/dc/terms/creator> ?scheduledJob.
@@ -30,6 +30,7 @@ export type HarvestingTimeStampResult = {
   uuid: string;
   organisationUri: string;
   organisationLabel: string;
+  organisationId: string;
   lastExecutionTimestamp: DateTime;
 };
 

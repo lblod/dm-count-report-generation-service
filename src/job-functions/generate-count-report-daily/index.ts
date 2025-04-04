@@ -33,8 +33,8 @@ import {
   CountAgendaItemsQueryOutput,
 } from "./queries.js";
 import { config, EndpointConfig } from "../../configuration.js";
-import { countAgendaItemsWithTitleQueryTemplate } from "./queries/countAgendaItemsWithTitle.js";
-import { countAgendaItemsWithDescriptionQueryTemplate } from "./queries/countAgendaItemsWithDescription.js";
+import { countAgendaItemsWithoutTitleQueryTemplate } from "./queries/countAgendaItemsWithoutTitleQueryTemplate.js";
+import { countAgendaItemsWithoutDescriptionQueryTemplate } from "./queries/countAgendaItemsWithoutDescriptionQueryTemplate.js";
 
 type CountResult = {
   count: number;
@@ -70,13 +70,13 @@ function getQueriesForWriting(queryEngine: QueryEngine, endpoint: string) {
   const writeCountReportQuery = new TemplatedInsert<WriteReportInput>(
     queryEngine,
     endpoint,
-    writeCountReportQueryTemplate
+    writeCountReportQueryTemplate,
   );
   const writeAdminUnitCountReportQuery =
     new TemplatedInsert<WriteAdminUnitReportInput>(
       queryEngine,
       endpoint,
-      writeAdminUnitCountReportTemplate
+      writeAdminUnitCountReportTemplate,
     );
   return {
     writeCountReportQuery,
@@ -97,12 +97,12 @@ function getQueriesForAnalysis(queryEngine: QueryEngine, endpoint: string) {
   const countAgendaItemsWithTitleQuery = new TemplatedSelect<
     CountSessionsQueryInput,
     CountSessionsQueryOutput
-  >(queryEngine, endpoint, countAgendaItemsWithTitleQueryTemplate);
+  >(queryEngine, endpoint, countAgendaItemsWithoutTitleQueryTemplate);
 
   const countAgendaItemsWithDescriptionQuery = new TemplatedSelect<
     CountSessionsQueryInput,
     CountSessionsQueryOutput
-  >(queryEngine, endpoint, countAgendaItemsWithDescriptionQueryTemplate);
+  >(queryEngine, endpoint, countAgendaItemsWithoutDescriptionQueryTemplate);
 
   const countResolutionsQuery = new TemplatedSelect<
     CountResolutionsQueryInput,
@@ -131,52 +131,51 @@ function getQueriesForAnalysis(queryEngine: QueryEngine, endpoint: string) {
  */
 export const generateReportsDaily: JobFunction = async (
   progress,
-  day: DateOnly | undefined = undefined
+  day: DateOnly | undefined = undefined,
 ) => {
   const defaultedDay = day ?? config.env.OVERRIDE_DAY ?? DateOnly.yesterday();
   if (!config.env.INITIAL_SYNC) {
     progress.update(
-      `Report function invoked with day ${defaultedDay.toString()}`
+      `Report function invoked with day ${defaultedDay.toString()}`,
     );
   }
   // Init some functions making use of the progress
   async function performCount<
     I extends Record<string, any>,
-    O extends Record<string, any>
+    O extends Record<string, any>,
   >(resource: string, query: TemplatedSelect<I, O>, input: I): Promise<O> {
     const result = await duration(query.result.bind(query))(input);
-    console.log(query.result.bind(query));
     progress.progress(++queries, queryCount, result.durationMilliseconds);
     progress.update(
-      `Performed count query for resource "${resource}" in ${result.durationMilliseconds} ms.`
+      `Performed count query for resource "${resource}" in ${result.durationMilliseconds} ms.`,
     );
     return result.result;
   }
   async function performInsert<I extends Record<string, any>>(
     resource: string,
     query: TemplatedInsert<I>,
-    input: I
+    input: I,
   ): Promise<void> {
     const result = await duration(query.execute.bind(query))(input);
     progress.progress(++queries, queryCount, result.durationMilliseconds);
     progress.update(
-      `Written '${resource}' in ${result.durationMilliseconds} ms`
+      `Written '${resource}' in ${result.durationMilliseconds} ms`,
     );
   }
   progress.update(`Getting org resources`);
   const orgResources = await getOrgResoucesCached(queryEngine);
   const governingBodiesCount = orgResources.adminUnits.reduce<number>(
     (acc, curr) => acc + curr.govBodies.length,
-    0
+    0,
   );
   const queryCount =
     orgResources.adminUnits.reduce<number>(
       (acc, curr) => acc + curr.govBodies.length * 5 + 1,
-      0
+      0,
     ) * config.file.endpoints.length;
   progress.progress(0, queryCount);
   progress.update(
-    `Got org resources. ${queryCount} queries to perform for ${governingBodiesCount} governing bodies and ${orgResources.adminUnits.length} admin units for ${config.file.endpoints.length} endpoints.`
+    `Got org resources. ${queryCount} queries to perform for ${governingBodiesCount} governing bodies and ${orgResources.adminUnits.length} admin units for ${config.file.endpoints.length} endpoints.`,
   );
   let queries = 0;
   const { writeCountReportQuery, writeAdminUnitCountReportQuery } =
@@ -185,50 +184,76 @@ export const generateReportsDaily: JobFunction = async (
   await writeAdminUnitReports(
     orgResources.adminUnits,
     config.file.endpoints,
-    defaultedDay
+    defaultedDay,
   );
 
   async function performCountForGoverningBody(
     governingBody: GoverningBodyRecord,
     countQueries: CountQueries,
-    defaultedDay: DateOnly
+    defaultedDay: DateOnly,
   ) {
     const results: Record<string, CountResult> = {};
 
-    const {
-      countSessionsQuery,
-      countAgendaItemsQuery,
-      countAgendaItemsWithTitleQuery,
-      countAgendaItemsWithDescriptionQuery,
-      countResolutionsQuery,
-      countVoteQuery,
-    } = countQueries;
+    try {
+      const {
+        countSessionsQuery,
+        countAgendaItemsQuery,
+        countAgendaItemsWithTitleQuery,
+        countAgendaItemsWithDescriptionQuery,
+        countResolutionsQuery,
+        countVoteQuery,
+      } = countQueries;
 
-    const countConfigs = [
-      { type: "Session", query: countSessionsQuery, label: "Zitting" },
-      { type: "AgendaPunt", query: countAgendaItemsQuery, label: "Agendapunt" },
-      {
-        type: "AgendapuntTitle",
-        query: countAgendaItemsWithTitleQuery,
-        label: "AgendapuntTitle",
-      },
-      {
-        type: "AgendapuntDescription",
-        query: countAgendaItemsWithDescriptionQuery,
-        label: "AgendapuntDescription",
-      },
-      { type: "Besluit", query: countResolutionsQuery, label: "Besluit" },
-      { type: "Stemming", query: countVoteQuery, label: "Stemming" },
-    ];
-    const noFilterForDebug = config.env.INITIAL_SYNC;
-    for (const { type, query, label } of countConfigs) {
-      results[label] = await performCount(type, query, {
-        prefixes: PREFIXES,
-        governingBodyUri: governingBody.uri,
-        from: defaultedDay.localStartOfDay,
-        to: defaultedDay.localEndOfDay,
-        noFilterForDebug,
-      });
+      const countConfigs = [
+        { type: "Session", query: countSessionsQuery, label: "Zitting" },
+        {
+          type: "AgendaPunt",
+          query: countAgendaItemsQuery,
+          label: "Agendapunt",
+        },
+        {
+          type: "AgendapuntTitle",
+          query: countAgendaItemsWithTitleQuery,
+          label: "AgendapuntTitle",
+        },
+        {
+          type: "AgendapuntDescription",
+          query: countAgendaItemsWithDescriptionQuery,
+          label: "AgendapuntDescription",
+        },
+        { type: "Besluit", query: countResolutionsQuery, label: "Besluit" },
+        { type: "Stemming", query: countVoteQuery, label: "Stemming" },
+      ];
+
+      const noFilterForDebug = config.env.INITIAL_SYNC;
+
+      for (const { type, query, label } of countConfigs) {
+        try {
+          results[label] = await performCount(type, query, {
+            prefixes: PREFIXES,
+            governingBodyUri: governingBody.uri,
+            from: defaultedDay.localStartOfDay,
+            to: defaultedDay.localEndOfDay,
+            noFilterForDebug,
+          });
+        } catch (error) {
+          console.error(
+            `Error performing count for ${label} in governing body "${governingBody.classLabel}":`,
+            error,
+          );
+          progress.update(
+            `Error performing count for ${label} in governing body "${governingBody.classLabel}".`,
+          );
+        }
+      }
+    } catch (error) {
+      console.error(
+        `Unexpected error while counting for governing body "${governingBody.classLabel}":`,
+        error,
+      );
+      progress.update(
+        `Unexpected error while counting for governing body "${governingBody.classLabel}".`,
+      );
     }
 
     return results;
@@ -238,114 +263,146 @@ export const generateReportsDaily: JobFunction = async (
     governingBody: GoverningBodyRecord,
     adminUnit: AdminUnitRecord,
     results: Record<string, CountResult>,
-    defaultedDay: DateOnly
+    defaultedDay: DateOnly,
   ): Promise<string> {
-    const uuid = uuidv4();
-    const reportUri = `${config.env.URI_PREFIX_RESOURCES}${uuid}`;
-    const result = Object.entries(results)
-    .filter(([_, result]) => result.count !== 0);
-    const uuids = new Array(result.length).fill(null).map(() => uuidv4());
-    const counts = result
-      .map(([label, result], index) => {
-        return  {
+    try {
+      const uuid = uuidv4();
+      const reportUri = `${config.env.URI_PREFIX_RESOURCES}${uuid}`;
+      const result = Object.entries(results).filter(
+        ([_, result]) => result.count !== 0,
+      );
+
+      const uuids = new Array(result.length).fill(null).map(() => uuidv4());
+      const counts = result.map(([label, result], index) => ({
         countUri: `${config.env.URI_PREFIX_RESOURCES}${uuids[index]}`,
         uuid: uuids[index],
         classUri: `http://data.vlaanderen.be/ns/besluit#${label}`,
         count: result.count,
         prefLabel: `Count of '${label}'`,
-      }
-    });
-    if (counts && counts.length > 0) {
-      await performInsert("GoverningBodyCountReport", writeCountReportQuery, {
-        prefixes: PREFIXES,
-        govBodyUri: governingBody.uri,
-        createdAt: now(),
-        reportUri,
-        reportGraphUri: `${config.env.REPORT_GRAPH_URI}${adminUnit.id}/DMGEBRUIKER`,
-        adminUnitUri: adminUnit.uri,
-        prefLabel: `Count report for governing body of class '${governingBody.classLabel}' on ${defaultedDay} for admin unit '${adminUnit.label}'`,
-        classLabel: governingBody.classLabel,
-        day: defaultedDay,
-        uuid,
-        counts,
-      });
-    }
+      }));
 
-    return reportUri;
+      if (counts.length > 0) {
+        await performInsert("GoverningBodyCountReport", writeCountReportQuery, {
+          prefixes: PREFIXES,
+          govBodyUri: governingBody.uri,
+          createdAt: now(),
+          reportUri,
+          reportGraphUri: `${config.env.REPORT_GRAPH_URI}${adminUnit.id}/DMGEBRUIKER`,
+          adminUnitUri: adminUnit.uri,
+          prefLabel: `Count report for governing body of class '${governingBody.classLabel}' on ${defaultedDay} for admin unit '${adminUnit.label}'`,
+          classLabel: governingBody.classLabel,
+          day: defaultedDay,
+          uuid,
+          counts,
+        });
+      }
+
+      return reportUri;
+    } catch (error) {
+      console.error(
+        `Error inserting governing body report for "${governingBody.classLabel}" in admin unit "${adminUnit.label}":`,
+        error,
+      );
+      progress.update(
+        `Error inserting governing body report for "${governingBody.classLabel}" in admin unit "${adminUnit.label}".`,
+      );
+      return "";
+    }
   }
 
   async function processAdminUnitAcrossEndpoints(
     adminUnit: AdminUnitRecord,
     endpoints: Endpoint[],
-    defaultedDay: DateOnly
+    defaultedDay: DateOnly,
   ): Promise<string[]> {
-    const governingBodyReportUriList = [];
+    const governingBodyReportUriList: string[] = [];
 
     for (const endpoint of endpoints) {
-      const countQueries = getQueriesForAnalysis(queryEngine, endpoint.url);
+      try {
+        const countQueries = getQueriesForAnalysis(queryEngine, endpoint.url);
 
-      for (const governingBody of adminUnit.govBodies) {
+        for (const governingBody of adminUnit.govBodies) {
+          try {
+            progress.update(
+              `Counting for "${adminUnit.label}":"${governingBody.classLabel}". (${governingBody.uri})`,
+            );
+
+            const results = await performCountForGoverningBody(
+              governingBody,
+              countQueries,
+              defaultedDay,
+            );
+
+            progress.update(
+              `Sessions: ${results.Zitting.count}, Agendapunt: ${results.Agendapunt.count}, AgendapuntTitle: ${results.AgendapuntTitle.count}, AgendapuntDescription: ${results.AgendapuntDescription.count}, Besluit: ${results.Besluit.count}, Stemming: ${results.Stemming.count}`,
+            );
+
+            const reportUri = await insertGoverningBodyReport(
+              governingBody,
+              adminUnit,
+              results,
+              defaultedDay,
+            );
+            governingBodyReportUriList.push(reportUri);
+          } catch (error) {
+            console.error(
+              `Error processing governing body "${governingBody.classLabel}" for admin unit "${adminUnit.label}":`,
+              error,
+            );
+            progress.update(
+              `Error processing governing body "${governingBody.classLabel}" for admin unit "${adminUnit.label}".`,
+            );
+          }
+        }
+
         progress.update(
-          `Counting for "${adminUnit.label}":"${governingBody.classLabel}". (${governingBody.uri})`
+          `All reports processed for endpoint "${endpoint.url}" for admin unit "${adminUnit.label}"`,
         );
-
-        const results = await performCountForGoverningBody(
-          governingBody,
-          countQueries,
-          defaultedDay
+      } catch (error) {
+        console.error(
+          `Error processing admin unit "${adminUnit.label}" for endpoint "${endpoint.url}":`,
+          error,
         );
         progress.update(
-          `Sessions: ${results.Zitting.count}, Agendapunt: ${results.Agendapunt.count}, Agendapuntitle: ${results.AgendapuntTitle.count}, AgendapuntDescription: ${results.AgendapuntDescription.count}, Besluit: ${results.Besluit.count}, Stemming: ${results.Stemming.count}`
+          `Error processing admin unit "${adminUnit.label}" for endpoint "${endpoint.url}".`,
         );
-
-        const reportUri = await insertGoverningBodyReport(
-          governingBody,
-          adminUnit,
-          results,
-          defaultedDay
-        );
-        governingBodyReportUriList.push(reportUri);
       }
-
-      progress.update(
-        `All reports processed for endpoint "${endpoint.url}" for admin unit "${adminUnit.label}"`
-      );
     }
-
     return governingBodyReportUriList;
   }
 
   async function writeAdminUnitReports(
     adminUnits: AdminUnitRecord[],
     endpoints: EndpointConfig[],
-    defaultedDay: DateOnly
+    defaultedDay: DateOnly,
   ) {
     for (const adminUnit of adminUnits) {
-      const governingBodyReportUriList = await processAdminUnitAcrossEndpoints(
-        adminUnit,
-        endpoints,
-        defaultedDay
-      );
-
-      const uuid = uuidv4();
-      console.log("UUIDDDDDDDDD", uuid);
-      await performInsert(
-        "AdminUnitCountReport",
-        writeAdminUnitCountReportQuery,
-        {
-          prefixes: PREFIXES,
-          reportGraphUri: `${config.env.REPORT_GRAPH_URI}${adminUnit.id}/DMGEBRUIKER`,
-          adminUnitUri: adminUnit.uri,
-          prefLabel: `Count report for admin unit '${adminUnit.label}' on ${defaultedDay}`,
-          reportUri: `${config.env.URI_PREFIX_RESOURCES}${uuid}`,
-          uuid,
-          createdAt: now(),
-          day: defaultedDay,
-          reportUris: governingBodyReportUriList,
-        }
-      );
-
-      progress.update(`Admin unit report written for "${adminUnit.label}"`);
+      try {
+        const governingBodyReportUriList =
+          await processAdminUnitAcrossEndpoints(
+            adminUnit,
+            endpoints,
+            defaultedDay,
+          );
+        const uuid = uuidv4();
+        await performInsert(
+          "AdminUnitCountReport",
+          writeAdminUnitCountReportQuery,
+          {
+            prefixes: PREFIXES,
+            reportGraphUri: `${config.env.REPORT_GRAPH_URI}${adminUnit.id}/DMGEBRUIKER`,
+            adminUnitUri: adminUnit.uri,
+            prefLabel: `Count report for admin unit '${adminUnit.label}' on ${defaultedDay}`,
+            reportUri: `${config.env.URI_PREFIX_RESOURCES}${uuid}`,
+            uuid,
+            createdAt: now(),
+            day: defaultedDay,
+            reportUris: governingBodyReportUriList,
+          },
+        );
+      } catch (error) {
+        console.error(`Error processing admin unit ${adminUnit.label}:`, error);
+      }
     }
   }
 };

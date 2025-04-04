@@ -2,7 +2,7 @@ import { QueryEngine } from "@comunica/query-sparql";
 import { v4 as uuidv4 } from "uuid";
 import { config } from "../../configuration.js";
 import { getOrgResoucesCached } from "../../job/get-org-data.js";
-import { JobFunction } from "../../job/job.js";
+import { JobFunction, JobProgress } from "../../job/job.js";
 import { PREFIXES } from "../../local-constants.js";
 import { queryEngine } from "../../queries/query-engine.js";
 import {
@@ -45,6 +45,19 @@ export const getHarvestingTimestampDaily: JobFunction = async (
   progress,
   day: DateOnly | undefined = undefined
 ) => {
+  try {
+    await getHarvestTimestamp(progress, day);
+  } catch (error) {
+    console.error("Failed to process harvest timestamps:", error);
+    progress.update("Error encountered during harvest timestamp processing.");
+    throw error;
+  }
+}
+
+
+
+
+const getHarvestTimestamp = async (progress: JobProgress, day?: DateOnly) => {
   const defaultedDay = day ?? DateOnly.yesterday();
   progress.update(
     `Get harvest timestamp function invoked with day ${defaultedDay.toString()}`
@@ -84,7 +97,7 @@ export const getHarvestingTimestampDaily: JobFunction = async (
       (record) => stripAndLower(org.label) === stripAndLower(record.title)
     );
     if (!record) {
-      notFound.push(org.uri);
+      notFound.push(org.label);
       continue;
     }
     const uuid = uuidv4();
@@ -92,10 +105,13 @@ export const getHarvestingTimestampDaily: JobFunction = async (
       resultUri: `${config.env.URI_PREFIX_RESOURCES}${uuid}`,
       uuid,
       organisationUri: org.uri,
+      organisationId: org.id,
       organisationLabel: org.label,
       lastExecutionTimestamp: record.lastModified,
     });
   }
+  console.log(output)
+  await insertHarvestTimestamp(output, progress, day);
   progress.update(
     `Found execution timestamps for ${
       output.length
@@ -112,32 +128,43 @@ export const getHarvestingTimestampDaily: JobFunction = async (
     );
   }
 
-  const insertLastExecutedReportTimeQuery =
-    new TemplatedInsert<InsertLastExecutedReportInput>(
-      queryEngine,
-      config.env.REPORT_ENDPOINT,
-      insertLastExecutedReportTemplate
-    );
-  for (const adminUnit of orgResources.adminUnits) {
-    const uuid = uuidv4();
-    const reportUri = `${config.env.URI_PREFIX_RESOURCES}${uuid}`;
-    const result = await duration(
-      insertLastExecutedReportTimeQuery.execute.bind(
-        insertLastExecutedReportTimeQuery
-      )
-    )({
-      prefixes: PREFIXES,
-      day: defaultedDay,
-      prefLabel: `Report of last harvesting execution times for ${
-        adminUnit.label
-      } on day ${defaultedDay.toString()}`,
-      reportGraphUri: `${config.env.REPORT_GRAPH_URI}${adminUnit.id}/DMGEBRUIKER`,
-      reportUri,
-      createdAt: now(),
-      times: output,
-      uuid,
-    });
-    progress.progress(++queries, queryCount, result.durationMilliseconds);
-    progress.update(`All reports written for execution times.`);
-  }
 };
+
+
+const insertHarvestTimestamp = async (
+  data: HarvestingTimeStampResult[],
+  progress: JobProgress,
+  day?: DateOnly | undefined
+) => {
+  const insertLastExecutedReportTimeQuery =
+  new TemplatedInsert<InsertLastExecutedReportInput>(
+    queryEngine,
+    config.env.REPORT_ENDPOINT,
+    insertLastExecutedReportTemplate
+  );
+  const defaultedDay = day ?? DateOnly.yesterday();
+  let queries = 0;
+  for (const record of data) {
+    try {
+      const uuid = uuidv4();
+      const reportUri = `${config.env.URI_PREFIX_RESOURCES}${uuid}`;
+      const result = await duration(
+        insertLastExecutedReportTimeQuery.execute.bind(
+          insertLastExecutedReportTimeQuery
+        )
+      )({
+        prefixes: PREFIXES,
+        day: defaultedDay,
+        prefLabel: `Report of last harvesting execution times for ${record.organisationLabel} on day ${defaultedDay.toString()}`,
+        reportGraphUri: `${config.env.REPORT_GRAPH_URI}${record.organisationId}/DMGEBRUIKER`,
+        reportUri,
+        createdAt: now(),
+        times: [record],
+        uuid,
+      });
+      progress.progress(++queries, data.length, result.durationMilliseconds);
+    } catch (error) {
+      console.error(`Error inserting maturity level record:`, error);
+    }
+}
+}

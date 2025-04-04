@@ -33,42 +33,64 @@ export const getMaturityLevelDaily: JobFunction = async (
   progress,
   day: DateOnly | undefined = undefined
 ) => {
-  const allRecords = await getMaturityLevel(progress);
-  await insertMaturityLevel(allRecords, progress, day);
+  try {
+    await getMaturityLevel(progress, day);
+  } catch (error) {
+    console.error("Failed to process maturity levels:", error);
+    progress.update("Error encountered during maturity levels processing.");
+    throw error;
+  }
 };
 
-const getMaturityLevel = async (progress: JobProgress) => {
+const getMaturityLevel = async (progress: JobProgress, day?: DateOnly) => {
   const orgResources = await getOrgResoucesCached(queryEngine);
-  const allRecords: GetMaturityLevelOutput[] = [];
-  const queryCount = config.file.harvesterEndpoints.length * 1 + 1;
+  const queryCount = config.file.harvesterEndpoints.length * orgResources.adminUnits.length;
   let queries = 0;
+
   progress.update(`Get maturity levels`);
   progress.update(
     `Got ${orgResources.adminUnits.length} admin units. Getting maturity level data from harvesters.`
   );
+
   for (const harvester of config.file.harvesterEndpoints) {
+    const harvesterRecords: GetMaturityLevelOutput[] = [];
+    const { getMaturityLevelQuery } = getQueries(queryEngine, harvester.url);
     for (const adminUnit of orgResources.adminUnits) {
-      for (const govBody of adminUnit.govBodies) {
-        const { getMaturityLevelQuery } = getQueries(
-          queryEngine,
-          harvester.url
+      queries += 1;
+      try {
+        const results = await Promise.all(
+          adminUnit.govBodies.map(async (govBody) => {
+            try {
+              const result = await duration(getMaturityLevelQuery.records.bind(getMaturityLevelQuery))({
+                prefixes: PREFIXES,
+                governingBodyUri: govBody.uri,
+              });
+              progress.progress(++queries, queryCount, result.durationMilliseconds);
+              progress.update(`Got ${result.result.length} maturity level data for ${adminUnit.label} from ${govBody.classLabel}`);
+              return result.result;
+            } catch (error) {
+              console.error(`Error fetching maturity level for ${govBody.uri}:`, error);
+              return [];
+            }
+          })
         );
-        const result = await duration(
-          getMaturityLevelQuery.records.bind(getMaturityLevelQuery)
-        )({
-          prefixes: PREFIXES,
-          governingBodyUri: govBody.uri,
-        });
-        progress.progress(++queries, queryCount, result.durationMilliseconds);
-        allRecords.push(...result.result);
+
+        const flattenedResults = results.flat();
+        harvesterRecords.push(...flattenedResults);
+      } catch (error) {
+        console.error(`Error processing admin unit ${adminUnit.label}:`, error);
       }
     }
-  }
-  progress.update(
-    `All ${config.file.harvesterEndpoints.length} harvesters queried for maturity levels. Got ${allRecords.length} records.`
-  );
 
-  return allRecords;
+    await insertMaturityLevel(harvesterRecords, progress, day);
+    progress.update(
+      `Harvester ${harvester.url} processed. ${harvesterRecords.length} records inserted.`
+    );
+  }
+
+  progress.update(
+    `All ${config.file.harvesterEndpoints.length} harvesters queried for maturity levels.`
+  );
 };
 
 const insertMaturityLevel = async (
@@ -76,7 +98,6 @@ const insertMaturityLevel = async (
   progress: JobProgress,
   day?: DateOnly | undefined
 ) => {
-  const orgResources = await getOrgResoucesCached(queryEngine);
   const defaultedDay = day ?? DateOnly.yesterday();
   const insertMaturityLevelQuery =
     new TemplatedInsert<InsertMaturityLevelInput>(
@@ -84,18 +105,10 @@ const insertMaturityLevel = async (
       config.env.REPORT_ENDPOINT,
       insertMaturityLevelTemplate
     );
-  const queryCount = config.file.harvesterEndpoints.length * 1 + 1;
   let queries = 0;
   progress.update(`Insert maturity levels`);
-  for (const adminUnit of orgResources.adminUnits) {
-    const record = data.find((record) =>
-      adminUnit.govBodies.some(
-        (govBody) => govBody.uri === record.governingBodyUri
-      )
-    );
-
-    if (record) {
-      const notuleUri = record.notuleUri;
+  for (const record of data) {
+    try {
       const uuid = uuidv4();
       const reportUri = `${config.env.URI_PREFIX_RESOURCES}${uuid}`;
       const result = await duration(
@@ -103,17 +116,16 @@ const insertMaturityLevel = async (
       )({
         prefixes: PREFIXES,
         day: defaultedDay,
-        prefLabel: `Report of maturity level for ${
-          adminUnit.label
-        } on day ${defaultedDay.toString()}`,
-        reportGraphUri: `${config.env.REPORT_GRAPH_URI}${adminUnit.id}/DMGEBRUIKER`,
+        prefLabel: `Report of maturity level for day ${defaultedDay.toString()}`,
+        reportGraphUri: `${config.env.REPORT_GRAPH_URI}/DMGEBRUIKER`,
         reportUri,
         createdAt: now(),
-        notuleUri,
+        notuleUri: record.notuleUri,
         uuid,
       });
-      progress.progress(++queries, queryCount, result.durationMilliseconds);
+      progress.progress(++queries, data.length, result.durationMilliseconds);
+    } catch (error) {
+      console.error(`Error inserting maturity level record:`, error);
     }
   }
-  progress.update(`All maturity levels written.`);
 };
