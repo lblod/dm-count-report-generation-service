@@ -1,14 +1,13 @@
 steps:
-  install:
-    image: woodpeckerci/plugin-node-pm
-    commands:
-      - npm ci
-  release:
-    image: plugins/npm
+  build:
+    image: woodpeckerci/plugin-docker-buildx
     settings:
-      token:
-        from_secret: npm_access_token
-      access: public
+      repo: ${CI_REPO%%-service}
+      tags: latest
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
 when:
-  branch: master
-  event: push
+  - event: push
+    branch: master

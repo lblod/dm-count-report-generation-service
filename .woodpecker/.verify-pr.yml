@@ -1,25 +1,11 @@
 steps:
-  install:
-    image: woodpeckerci/plugin-node-pm
-    commands:
-      - npm ci
-  format:
-    image: woodpeckerci/plugin-node-pm
+  push-latest:
+    image: woodpeckerci/plugin-docker-buildx
     settings:
-      run: format
-      frozen_lockfile: true # recommended
-      ignore_node_modules: true # recommended
-  lint:
-    image: woodpeckerci/plugin-node-pm
-    commands:
-      - npm run lint
-  test:
-    image: woodpeckerci/plugin-node-pm
-    commands:
-      - npm run test
-  build:
-    image: woodpeckerci/plugin-node-pm
-    commands:
-      - npm run build
+      repo: ${CI_REPO%%-service}
+      tags: latest
+      purge: true
+    secrets: [docker_username, docker_password]
 when:
-  event: pull_request
+  branch: master
+  event: push
