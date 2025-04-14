@@ -1,0 +1,25 @@
+steps:
+  install:
+    image: woodpeckerci/plugin-node-pm
+    commands:
+      - npm ci
+  format:
+    image: woodpeckerci/plugin-node-pm
+    settings:
+      run: format
+      frozen_lockfile: true # recommended
+      ignore_node_modules: true # recommended
+  lint:
+    image: woodpeckerci/plugin-node-pm
+    commands:
+      - npm run lint
+  test:
+    image: woodpeckerci/plugin-node-pm
+    commands:
+      - npm run test
+  build:
+    image: woodpeckerci/plugin-node-pm
+    commands:
+      - npm run build
+when:
+  event: pull_request
