@@ -56,50 +56,60 @@ export const getHarvestingTimestampDaily: JobFunction = async (
 
 
 
-
 const getHarvestTimestamp = async (progress: JobProgress, day?: DateOnly) => {
   const defaultedDay = day ?? DateOnly.yesterday();
-  progress.update(
-    `Get harvest timestamp function invoked with day ${defaultedDay.toString()}`
-  );
-  progress.update(`Getting org resources`);
+  progress.update(`Invoked getHarvestTimestamp with day: ${defaultedDay}`);
+
+  progress.update(`Fetching organisation resources...`);
   const orgResources = await getOrgResoucesCached(queryEngine);
-  let queries = 0;
-  const queryCount = config.file.harvesterEndpoints.length * 1 + 1; // One query per harvester and one report writing query
-  progress.update(
-    `Got ${orgResources.adminUnits.length} admin units. Getting lastmodified data from harvesters.`
-  );
+
+  const totalHarvesters = config.file.harvesterEndpoints.length;
+  const queryCount = totalHarvesters + 1; // +1 for final insert
+  progress.update(`Retrieved ${orgResources.adminUnits.length} admin units.`);
 
   const allRecords: GetLastModifiedOutput[] = [];
+  const failedHarvesters: string[] = [];
+  let queries = 0;
 
-  // Perform the query on all the harvesters.
+  progress.update(`Querying ${totalHarvesters} harvesters for last modified data...`);
+
   for (const harvester of config.file.harvesterEndpoints) {
     const { getLastModifiedQuery } = getQueries(queryEngine, harvester.url);
-    const result = await duration(
-      getLastModifiedQuery.records.bind(getLastModifiedQuery)
-    )({
-      prefixes: PREFIXES,
-    });
-    progress.progress(++queries, queryCount, result.durationMilliseconds);
-    allRecords.push(...result.result);
+
+    try {
+      const result = await duration(
+        getLastModifiedQuery.records.bind(getLastModifiedQuery)
+      )({ prefixes: PREFIXES });
+
+      progress.progress(++queries, queryCount, result.durationMilliseconds);
+      allRecords.push(...result.result);
+
+    } catch (error) {
+      progress.update(
+        `❌ Failed to query harvester at ${harvester.url}: ${(error as Error).message || error}`
+      );
+      progress.progress(++queries, queryCount);
+      failedHarvesters.push(harvester.url);
+    }
   }
 
   progress.update(
-    `All ${config.file.harvesterEndpoints.length} harvesters queried for modified jobs. Got ${allRecords.length} records. Cross correlating 'titles' of the jobs with the labels of organisations.`
+    `Completed querying harvesters. Found ${allRecords.length} records. Matching with organisations...`
   );
 
+  const output: HarvestingTimeStampResult[] = [];
   const notFound: string[] = [];
 
-  const output: HarvestingTimeStampResult[] = [];
-  // Not the most efficient. Comparing the title to the
   for (const org of orgResources.adminUnits) {
-    const record = allRecords.find(
+    const matchedRecord = allRecords.find(
       (record) => stripAndLower(org.label) === stripAndLower(record.title)
     );
-    if (!record) {
+
+    if (!matchedRecord) {
       notFound.push(org.label);
       continue;
     }
+
     const uuid = uuidv4();
     output.push({
       resultUri: `${config.env.URI_PREFIX_RESOURCES}${uuid}`,
@@ -107,28 +117,27 @@ const getHarvestTimestamp = async (progress: JobProgress, day?: DateOnly) => {
       organisationUri: org.uri,
       organisationId: org.id,
       organisationLabel: org.label,
-      lastExecutionTimestamp: record.lastModified,
+      lastExecutionTimestamp: matchedRecord.lastModified,
     });
   }
-  console.log(output)
+
   await insertHarvestTimestamp(output, progress, day);
+  progress.progress(++queries, queryCount);
+
+  const percentageFound = ((output.length / orgResources.adminUnits.length) * 100).toFixed(1);
   progress.update(
-    `Found execution timestamps for ${
-      output.length
-    } organisations for a total of ${orgResources.adminUnits.length}(${(
-      (100.0 * output.length) /
-      orgResources.adminUnits.length
-    ).toFixed(1)}%).`
+    `✅ Found timestamps for ${output.length}/${orgResources.adminUnits.length} organisations (${percentageFound}%).`
   );
-  if (notFound.length !== 0) {
-    progress.update(
-      `Organisations for which no record was found are:\n\t${notFound.join(
-        "\n\t"
-      )}`
-    );
+
+  if (notFound.length > 0) {
+    progress.update(`❗ Orgs with no matched record:\n\t${notFound.join("\n\t")}`);
   }
 
+  if (failedHarvesters.length > 0) {
+    progress.update(`⚠️ Harvesters that failed to respond:\n\t${failedHarvesters.join("\n\t")}`);
+  }
 };
+
 
 
 const insertHarvestTimestamp = async (

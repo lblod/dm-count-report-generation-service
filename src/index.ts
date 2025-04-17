@@ -229,6 +229,7 @@ async function triggerEndpoints(): Promise<void> {
   const endpoints: string[] = [
     `http://localhost:${config.env.SERVER_PORT}/start/start-count-report`,
     `http://localhost:${config.env.SERVER_PORT}/start/start-harvesting-exec-time-report`,
+    `http://localhost:${config.env.SERVER_PORT}/start/check-session-completeness`,
     `http://localhost:${config.env.SERVER_PORT}/start/check-session-timestamps`,
     `http://localhost:${config.env.SERVER_PORT}/start/check-maturity-level`,
   ];
