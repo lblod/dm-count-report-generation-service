@@ -67,7 +67,7 @@ const getMaturityLevel = async (progress: JobProgress, day?: DateOnly) => {
               });
               progress.progress(++queries, queryCount, result.durationMilliseconds);
               progress.update(`Got ${result.result.length} maturity level data for ${adminUnit.label} from ${govBody.classLabel}`);
-              return result.result;
+              return {...result.result, adminUnitId: adminUnit.id};
             } catch (error) {
               console.error(`Error fetching maturity level for ${govBody.uri}:`, error);
               return [];
@@ -117,7 +117,8 @@ const insertMaturityLevel = async (
         prefixes: PREFIXES,
         day: defaultedDay,
         prefLabel: `Report of maturity level for day ${defaultedDay.toString()}`,
-        reportGraphUri: `${config.env.REPORT_GRAPH_URI}/DMGEBRUIKER`,
+        reportGraphUri:  `${config.env.REPORT_GRAPH_URI}${record.adminUnitId}/DMGEBRUIKER`,
+
         reportUri,
         createdAt: now(),
         notuleUri: record.notuleUri,

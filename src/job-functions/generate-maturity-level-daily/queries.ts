@@ -11,6 +11,7 @@ export type GetMaturityLevelOutput = {
   notuleUri: string;
   governingBodyUri: string;
   plannedStart: DateTime;
+  adminUnitId: string;
 };
 
 export const getMaturityLevelTemplate = compileSparql(
