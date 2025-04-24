@@ -65,9 +65,18 @@ const getMaturityLevel = async (progress: JobProgress, day?: DateOnly) => {
                 prefixes: PREFIXES,
                 governingBodyUri: govBody.uri,
               });
+
               progress.progress(++queries, queryCount, result.durationMilliseconds);
               progress.update(`Got ${result.result.length} maturity level data for ${adminUnit.label} from ${govBody.classLabel} - (${govBody.uri})`);
-              return {...result.result, adminUnitId: adminUnit.id};
+
+              if (result.result.length > 0) {
+                return result.result.map((item) => ({
+                  ...item,
+                  adminUnitId: adminUnit.id,
+                }));
+              } else {
+                return [];
+              }
             } catch (error) {
               console.error(`Error fetching maturity level for ${govBody.uri}:`, error);
               return [];
@@ -76,11 +85,15 @@ const getMaturityLevel = async (progress: JobProgress, day?: DateOnly) => {
         );
 
         const flattenedResults = results.flat();
-        harvesterRecords.push(...flattenedResults);
+
+        if (flattenedResults.length > 0) {
+          harvesterRecords.push(...flattenedResults);
+        }
       } catch (error) {
         console.error(`Error processing admin unit ${adminUnit.label}:`, error);
       }
     }
+
 
     await insertMaturityLevel(harvesterRecords, progress, day);
     progress.update(
