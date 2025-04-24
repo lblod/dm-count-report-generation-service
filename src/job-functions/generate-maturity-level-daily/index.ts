@@ -66,7 +66,7 @@ const getMaturityLevel = async (progress: JobProgress, day?: DateOnly) => {
                 governingBodyUri: govBody.uri,
               });
               progress.progress(++queries, queryCount, result.durationMilliseconds);
-              progress.update(`Got ${result.result.length} maturity level data for ${adminUnit.label} from ${govBody.classLabel}`);
+              progress.update(`Got ${result.result.length} maturity level data for ${adminUnit.label} from ${govBody.classLabel} - (${govBody.uri})`);
               return {...result.result, adminUnitId: adminUnit.id};
             } catch (error) {
               console.error(`Error fetching maturity level for ${govBody.uri}:`, error);
@@ -109,22 +109,23 @@ const insertMaturityLevel = async (
   progress.update(`Insert maturity levels`);
   for (const record of data) {
     try {
-      const uuid = uuidv4();
-      const reportUri = `${config.env.URI_PREFIX_RESOURCES}${uuid}`;
-      const result = await duration(
-        insertMaturityLevelQuery.execute.bind(insertMaturityLevelQuery)
-      )({
-        prefixes: PREFIXES,
-        day: defaultedDay,
-        prefLabel: `Report of maturity level for day ${defaultedDay.toString()}`,
-        reportGraphUri:  `${config.env.REPORT_GRAPH_URI}${record.adminUnitId}/DMGEBRUIKER`,
-
-        reportUri,
-        createdAt: now(),
-        notuleUri: record.notuleUri,
-        uuid,
-      });
-      progress.progress(++queries, data.length, result.durationMilliseconds);
+      if(record.notuleUri){
+        const uuid = uuidv4();
+        const reportUri = `${config.env.URI_PREFIX_RESOURCES}${uuid}`;
+        const result = await duration(
+          insertMaturityLevelQuery.execute.bind(insertMaturityLevelQuery)
+        )({
+          prefixes: PREFIXES,
+          day: defaultedDay,
+          prefLabel: `Report of maturity level for day ${defaultedDay.toString()}`,
+          reportGraphUri:  `${config.env.REPORT_GRAPH_URI}${record.adminUnitId}/DMGEBRUIKER`,
+          reportUri,
+          createdAt: now(),
+          notuleUri: record.notuleUri,
+          uuid,
+        });
+        progress.progress(++queries, data.length, result.durationMilliseconds);
+      }
     } catch (error) {
       console.error(`Error inserting maturity level record:`, error);
     }
