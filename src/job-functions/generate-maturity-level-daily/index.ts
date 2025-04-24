@@ -94,7 +94,7 @@ const getMaturityLevel = async (progress: JobProgress, day?: DateOnly) => {
       }
     }
 
-
+    console.log("harvesterRecords", harvesterRecords);
     await insertMaturityLevel(harvesterRecords, progress, day);
     progress.update(
       `Harvester ${harvester.url} processed. ${harvesterRecords.length} records inserted.`
