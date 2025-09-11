@@ -77,7 +77,6 @@ export const generateReportsDaily: JobFunction = async (
 
 
   async function insertGoverningBodyReport(
-    governingBodies: GoverningBodyRecord[],
     adminUnit: AdminUnitRecord,
     results: Record<string, CountResult>,
     defaultedDay: DateOnly,
@@ -155,7 +154,6 @@ export const generateReportsDaily: JobFunction = async (
             `Sessions: ${results?.Zitting?.count ?? 0}, Agendapunt: ${results?.Agendapunt?.count ?? 0}, AgendapuntTitle: ${results?.AgendapuntTitle?.count ?? 0}, AgendapuntDescription: ${results?.AgendapuntDescription?.count ?? 0}, Besluit: ${results?.Besluit?.count ?? 0}, Stemming: ${results?.Stemming?.count ?? 0}`,
           );
           const reportUri = await insertGoverningBodyReport(
-            adminUnit.govBodies,
             adminUnit,
             results,
             defaultedDay,

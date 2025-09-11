@@ -55,7 +55,6 @@ const getDecision = async (progress: JobProgress, day?: DateOnly) => {
   );
 
   for (const harvester of config.file.harvesterEndpoints) {
-    const harvesterRecords: GetDecisionOutput[] = [];
     const { getDecisionQuery } = getQueries(queryEngine, harvester.url);
     for (const adminUnit of orgResources.adminUnits) {
       queries += 1;
