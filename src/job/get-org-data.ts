@@ -20,18 +20,14 @@ export type GoverningBodyRecord = {
 };
 
 type OrganisationsAndGovBodies = {
-  adminUnits: {
-    uri: string;
-    label: string;
-    id: string;
-    govBodies: GoverningBodyRecord[];
-  }[];
+  adminUnits: AdminUnitRecord[];
 };
 export type AdminUnitRecord = {
   uri: string;
   label: string;
   id: string;
   govBodies: GoverningBodyRecord[];
+  classification: string;
 };
 
 let orgResourcesCache: OrganisationsAndGovBodies | null = null;
@@ -41,6 +37,7 @@ type GetOrganisationsCleanOutput = {
   organisationUri: string;
   label: string;
   id: string;
+  classification: string;
 };
 
 async function getOrgResouces(
@@ -77,6 +74,7 @@ async function getOrgResouces(
     (acc, curr) => {
       if (Array.isArray(curr.id) || Array.isArray(curr.label)) {
         acc.dirty.push({
+          classification: curr.classification,
           organisationUri: curr.organisationUri,
           id: Array.isArray(curr.id) ? curr.id.join(",") : curr.id,
           label: Array.isArray(curr.label) ? curr.label.join(",") : curr.label,
@@ -143,6 +141,7 @@ async function getOrgResouces(
       label: org.label,
       id: org.id,
       govBodies: GoverningBodiesFlatList,
+      classification: org.classification,
     });
     // Awaiting and/or delaying in for loop is icky. But here we have no choice.
     // We are deliberately not looking for performance of this application or we risk overloading the database
@@ -172,6 +171,31 @@ export async function getOrgResoucesCached(
   console.debug(
     `Need to get org resources from cache from "${config.env.ADMIN_UNIT_ENDPOINT}" in the graph "${config.env.ADMIN_UNIT_GRAPH_URI}"`
   );
+  const TARGET_CLASSIFICATION =
+    "http://data.vlaanderen.be/id/concept/BestuurseenheidClassificatieCode/5ab0e9b8a3b2ca7c5e000001";
+
   orgResourcesCache = await getOrgResouces(queryEngine);
+
+  const mergedMap = new Map<string, AdminUnitRecord>();
+
+  for (const adminUnit of orgResourcesCache.adminUnits) {
+    const existing = mergedMap.get(adminUnit.label);
+
+    if (!existing) {
+      mergedMap.set(adminUnit.label, { ...adminUnit, govBodies: [...adminUnit.govBodies] });
+    } else if (existing.classification === TARGET_CLASSIFICATION) {
+      existing.govBodies.push(...adminUnit.govBodies);
+    } else if (adminUnit.classification === TARGET_CLASSIFICATION) {
+      mergedMap.set(adminUnit.label, {
+        ...adminUnit,
+        govBodies: [...adminUnit.govBodies, ...existing.govBodies],
+      });
+    } else {
+      existing.govBodies.push(...adminUnit.govBodies);
+    }
+  }
+  const mergedAdminUnits = Array.from(mergedMap.values())
+
+  orgResourcesCache = { adminUnits: mergedAdminUnits };
   return orgResourcesCache;
 }

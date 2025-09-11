@@ -4,12 +4,11 @@ import { compileSparql } from "../../handlebars/index.js";
 // Get last maturity level of a notule
 export type GetMaturityLevelInput = {
   prefixes: string;
-  governingBodyUri: string;
+  governingBodies: string[];
 };
 
 export type GetMaturityLevelOutput = {
   notuleUri: string;
-  governingBodyUri: string;
   plannedStart: DateTime;
   adminUnitId: string;
 };
@@ -17,12 +16,19 @@ export type GetMaturityLevelOutput = {
 export const getMaturityLevelTemplate = compileSparql(
   `\
 {{prefixes}}
-SELECT ?notuleUri ?plannedStart ?governingBodyUri WHERE {
+SELECT ?notuleUri ?plannedStart WHERE {
 ?zitting a besluit:Zitting ;
-    besluit:isGehoudenDoor {{toNode governingBodyUri}},?governingBodyUri;
+    besluit:isGehoudenDoor ?isGehoudenDoor ;
     besluit:heeftNotulen ?notuleUrl;
     besluit:geplandeStart ?plannedStart .
   ?notuleUrl prov:wasDerivedFrom ?notuleUri .
+
+
+    FILTER (?isGehoudenDoor IN (
+        {{#each governingBodies}}
+          {{toNode this}}{{#unless @last}},{{/unless}}
+        {{/each}}
+      ))
 }
   ORDER BY DESC(?plannedStart)
   LIMIT 1

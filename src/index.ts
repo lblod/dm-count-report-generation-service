@@ -159,6 +159,11 @@ async function startupProcedure() {
         "check-session-timestamps",
         JobTemplateStatus.ACTIVE
       );
+      await createRestJobTemplate(
+        DataMonitoringFunction.DECISION_REPORT_DAILY,
+        "decision-report-daily",
+        JobTemplateStatus.ACTIVE
+      );
     }
     // Create a dummy job if env requests it and it does not exist yet
     const debugJobExists = getJobTemplates().find(
@@ -232,6 +237,7 @@ async function triggerEndpoints(): Promise<void> {
     `http://localhost:${config.env.SERVER_PORT}/start/check-session-completeness`,
     `http://localhost:${config.env.SERVER_PORT}/start/check-session-timestamps`,
     `http://localhost:${config.env.SERVER_PORT}/start/check-maturity-level`,
+    `http://localhost:${config.env.SERVER_PORT}/start/decision-report-daily`,
   ];
   for (const endpoint of endpoints) {
     try {
@@ -254,11 +260,11 @@ logger.info("Startup procedure complete");
 const app = setupExpress();
 logger.info("Express server setup procedure complete");
 // Start server
-app.listen(config.env.SERVER_PORT, async  () => {
+app.listen(config.env.SERVER_PORT, async () => {
   logger.info(
     `Report generation microservice started and listening on http://localhost:${config.env.SERVER_PORT}/debug.`
   );
-  if(config.env.INITIAL_SYNC) {
+  if (config.env.INITIAL_SYNC) {
     await triggerEndpoints();
   }
 });

@@ -6,7 +6,7 @@ import { AdminUnitRecord } from "../../job/get-org-data.js";
 export type SessionTimestampRecord = { adminUnit: AdminUnitRecord, firstSession: DateTime, lastSession: DateTime }
 export type GetSessionTimestampInput = {
   prefixes: string;
-  governingBodyUri: string;
+  governingBodies: string[];
 };
 
 export type GetSessionTimestampOutput = {
@@ -18,13 +18,22 @@ export type GetSessionTimestampOutput = {
 export const getSessionTimestampTemplate = compileSparql(
   `\
 {{prefixes}}
-SELECT ?firstSession ?lastSession ?governingBodyUri WHERE {
+SELECT ?firstSession ?lastSession WHERE {
   {
     SELECT ?governingBodyUri (MIN(?start) AS ?firstSession) (MAX(?start) AS ?lastSession) WHERE {
       ?session a besluit:Zitting;
-                besluit:isGehoudenDoor {{toNode governingBodyUri}}, ?governingBodyUri;
+                besluit:isGehoudenDoor ?isGehoudenDoor;
               besluit:geplandeStart ?start.
+
+      FILTER (?isGehoudenDoor IN (
+        {{#each governingBodies}}
+          {{toNode this}}{{#unless @last}},{{/unless}}
+        {{/each}}
+      ))
+
     }
+
+
     GROUP BY ?governingBodyUri
   }
 }

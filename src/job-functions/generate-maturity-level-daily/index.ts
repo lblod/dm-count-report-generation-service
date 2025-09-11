@@ -56,45 +56,32 @@ const getMaturityLevel = async (progress: JobProgress, day?: DateOnly) => {
     const harvesterRecords: GetMaturityLevelOutput[] = [];
     const { getMaturityLevelQuery } = getQueries(queryEngine, harvester.url);
     for (const adminUnit of orgResources.adminUnits) {
+      const bestuursorganenUris = adminUnit.govBodies.map((gb) => gb.uri);
       queries += 1;
       try {
-        const results = await Promise.all(
-          adminUnit.govBodies.map(async (govBody) => {
-            try {
-              const result = await duration(getMaturityLevelQuery.records.bind(getMaturityLevelQuery))({
-                prefixes: PREFIXES,
-                governingBodyUri: govBody.uri,
-              });
+        const result = await duration(getMaturityLevelQuery.records.bind(getMaturityLevelQuery))({
+          prefixes: PREFIXES,
+          governingBodies: bestuursorganenUris,
+        });
 
-              progress.progress(++queries, queryCount, result.durationMilliseconds);
-              progress.update(`Got ${result.result.length} maturity level data for ${adminUnit.label} from ${govBody.classLabel} - (${govBody.uri})`);
+        progress.progress(++queries, queryCount, result.durationMilliseconds);
+        progress.update(`Got ${result.result.length} maturity level data for ${adminUnit.label}`);
 
-              if (result.result.length > 0) {
-                return result.result.map((item) => ({
-                  ...item,
-                  adminUnitId: adminUnit.id,
-                }));
-              } else {
-                return [];
-              }
-            } catch (error) {
-              console.error(`Error fetching maturity level for ${govBody.uri}:`, error);
-              return [];
-            }
-          })
-        );
-
-        const flattenedResults = results.flat();
-
-        if (flattenedResults.length > 0) {
-          harvesterRecords.push(...flattenedResults);
+        if (result.result.length > 0) {
+          harvesterRecords.push(
+            ...result.result.map((item) => ({
+              ...item,
+              adminUnitId: adminUnit.id,
+            }))
+          );
+        } else {
+          return [];
         }
       } catch (error) {
-        console.error(`Error processing admin unit ${adminUnit.label}:`, error);
+        console.error(`Error fetching maturity level for ${adminUnit.label}:`, error);
+        return [];
       }
     }
-
-    console.log("harvesterRecords", harvesterRecords);
     await insertMaturityLevel(harvesterRecords, progress, day);
     progress.update(
       `Harvester ${harvester.url} processed. ${harvesterRecords.length} records inserted.`
@@ -122,7 +109,7 @@ const insertMaturityLevel = async (
   progress.update(`Insert maturity levels`);
   for (const record of data) {
     try {
-      if(record.notuleUri){
+      if (record.notuleUri) {
         const uuid = uuidv4();
         const reportUri = `${config.env.URI_PREFIX_RESOURCES}${uuid}`;
         const result = await duration(
@@ -131,7 +118,7 @@ const insertMaturityLevel = async (
           prefixes: PREFIXES,
           day: defaultedDay,
           prefLabel: `Report of maturity level for day ${defaultedDay.toString()}`,
-          reportGraphUri:  `${config.env.REPORT_GRAPH_URI}${record.adminUnitId}/DMGEBRUIKER`,
+          reportGraphUri: `${config.env.REPORT_GRAPH_URI}${record.adminUnitId}/DMGEBRUIKER`,
           reportUri,
           createdAt: now(),
           notuleUri: record.notuleUri,

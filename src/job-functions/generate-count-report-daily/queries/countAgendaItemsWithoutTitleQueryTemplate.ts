@@ -8,12 +8,18 @@ export const countAgendaItemsWithoutTitleQueryTemplate = compileSparql(`\
   ?zitting a besluit:Zitting ;
           besluit:behandelt ?agendaItem;
           besluit:geplandeStart ?plannedStart;
-          besluit:isGehoudenDoor {{toNode governingBodyUri}}.
+          besluit:isGehoudenDoor ?isgehoudenDoor.
     ?agendaItem a besluit:Agendapunt .
 
   FILTER NOT EXISTS {
     ?agendaItem dcterms:title ?title .
   }
+
+    FILTER (?isgehoudenDoor IN (
+    {{#each bestuursorganen}}
+      {{toNode this}}{{#unless @last}},{{/unless}}
+    {{/each}}
+  ))
 
   {{#unless noFilterForDebug}}
     FILTER(?plannedStart >= {{toDateTime from}})

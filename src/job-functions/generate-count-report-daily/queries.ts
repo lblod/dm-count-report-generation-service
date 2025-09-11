@@ -3,10 +3,10 @@ import { DateOnly, DateTime } from "../../util/date-time.js";
 
 export type CountSessionsQueryInput = {
   prefixes: string;
-  governingBodyUri: string;
   from: DateTime;
   to: DateTime;
   noFilterForDebug: boolean;
+  bestuursorganen?: string[];
 };
 
 export type CountSessionsQueryOutput = {
@@ -18,8 +18,14 @@ export const countSessionsQueryTemplate = compileSparql(
 {{prefixes}}
 SELECT (COUNT(DISTINCT ?session) as ?count) WHERE {
     ?session a besluit:Zitting;
-      besluit:isGehoudenDoor {{toNode governingBodyUri}};
+      besluit:isGehoudenDoor ?isgehoudenDoor;
       besluit:geplandeStart ?plannedStart.
+
+      FILTER (?isgehoudenDoor IN (
+        {{#each bestuursorganen}}
+          {{toNode this}}{{#unless @last}},{{/unless}}
+        {{/each}}
+      ))
       {{#unless noFilterForDebug}}
         FILTER(?plannedStart >= {{toDateTime from}})
           FILTER(?plannedStart < {{toDateTime to}})
@@ -29,45 +35,19 @@ SELECT (COUNT(DISTINCT ?session) as ?count) WHERE {
 `
 );
 
-export type CountAgendaItemsQueryInput = {
-  prefixes: string;
-  governingBodyUri: string;
-  from: DateTime;
-  to: DateTime;
-  noFilterForDebug: boolean;
-};
 
-export type CountAgendaItemsQueryOutput = {
-  count: number;
-};
-
-export const countAgendaItemsQueryTemplate = compileSparql(
-  `\
-{{prefixes}}
-SELECT (COUNT(DISTINCT ?agendaItem) as ?count) WHERE {
-   ?session a besluit:Zitting;
-      besluit:behandelt ?agendaItem;
-      besluit:geplandeStart ?plannedStart;
-      besluit:isGehoudenDoor {{toNode governingBodyUri}}.
-
-  {{#unless noFilterForDebug}}
-    FILTER(?plannedStart >= {{toDateTime from}})
-    FILTER(?plannedStart < {{toDateTime to}})
-  {{/unless}}
-}
-`
-);
 
 export type CountResolutionsQueryInput = {
   prefixes: string;
-  governingBodyUri: string;
   from: DateTime;
   to: DateTime;
   noFilterForDebug: boolean;
+  bestuursorganen?: string[];
 };
 
 export type CountResolutionsQueryOutput = {
   count: number;
+  isGehoudenDoor: string;
 };
 
 export const countResolutionsQueryTemplate = compileSparql(
@@ -76,7 +56,7 @@ export const countResolutionsQueryTemplate = compileSparql(
 SELECT (COUNT(DISTINCT ?resolution) as ?count) WHERE {
     ?session a besluit:Zitting;
       besluit:behandelt ?agendaItem;
-      besluit:isGehoudenDoor {{toNode governingBodyUri}}.
+      besluit:isGehoudenDoor ?isGehoudenDoor.
 
   ?agendaItem a besluit:Agendapunt.
   ?session besluit:geplandeStart ?plannedStart.
@@ -88,21 +68,26 @@ SELECT (COUNT(DISTINCT ?resolution) as ?count) WHERE {
   ?resolution a besluit:Besluit;
     eli:date_publication ?datePublication.
 
+  FILTER (?isGehoudenDoor IN (
+    {{#each bestuursorganen}}
+      {{toNode this}}{{#unless @last}},{{/unless}}
+    {{/each}}
+  ))
+
   {{#unless noFilterForDebug}}
     FILTER(?plannedStart >= {{toDateTime from}})
     FILTER(?plannedStart < {{toDateTime to}})
   {{/unless}}
 }
-
 `
 );
 
 export type CountVoteQueryInput = {
   prefixes: string;
-  governingBodyUri: string;
   from: DateTime;
   to: DateTime;
   noFilterForDebug: boolean;
+  bestuursorganen?: string[];
 };
 
 export type CountVoteQueryOutput = {
@@ -114,14 +99,19 @@ export const countVoteQueryTemplate = compileSparql(
 {{prefixes}}
 SELECT (COUNT(DISTINCT ?vote) as ?count) WHERE {
 ?zitting a besluit:Zitting ;
-           besluit:isGehoudenDoor ?
-{{toNode governingBodyUri}} ;
+           besluit:isGehoudenDoor ?isgehoudenDoor ;
            besluit:behandelt ?agendapunt .
  ?behandeling a besluit:BehandelingVanAgendapunt ;
                dcterms:subject ?agendapunt ;
                besluit:heeftStemming ?vote .
 
   ?zitting besluit:geplandeStart ?plannedStart.
+
+  FILTER (?isgehoudenDoor IN (
+    {{#each bestuursorganen}}
+      {{toNode this}}{{#unless @last}},{{/unless}}
+    {{/each}}
+  ))
 
   {{#unless noFilterForDebug}}
     FILTER(?plannedStart >= {{toDateTime from}})
@@ -164,7 +154,6 @@ INSERT {
       datamonitoring:classLabel {{toString classLabel}};
       skos:prefLabel {{toString prefLabel}};
       mu:uuid {{toUuid uuid}};
-      datamonitoring:istest "true"^^xsd:boolean;
       datamonitoring:publicationCountReports
         {{#each counts}}{{toNode this.countUri}}{{#unless @last}},{{/unless}}{{/each}}.
 

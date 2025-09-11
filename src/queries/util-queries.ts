@@ -21,12 +21,13 @@ export type GetOrganisationsOutput = {
   organisationUri: string;
   label: string | string[]; // Some org seem to have 2 labels's...
   id: string | string[]; // Some org seem to have 2 ID's...
+  classification: string;
 };
 
 export const getOrganisationsTemplate = compileSparql(
   `\
 {{prefixes}}
-SELECT ?organisationUri ?label ?id WHERE {
+SELECT ?organisationUri ?label ?id ?classification WHERE {
   {{#if (listPopulated adminUnitSelection)}}
   VALUES ?organisationUri {
     {{#each adminUnitSelection}}
@@ -38,13 +39,22 @@ SELECT ?organisationUri ?label ?id WHERE {
     {{#unless (listPopulated adminUnitSelection)}}
     {
       SELECT ?organisationUri WHERE {
-        ?organisationUri a besluit:Bestuurseenheid;
-        org:classification <http://data.vlaanderen.be/id/concept/BestuurseenheidClassificatieCode/5ab0e9b8a3b2ca7c5e000001>.
+        {
+          ?organisationUri a besluit:Bestuurseenheid ;
+                          org:classification <http://data.vlaanderen.be/id/concept/BestuurseenheidClassificatieCode/5ab0e9b8a3b2ca7c5e000001> .
+        }
+        UNION
+        {
+          ?organisationUri a besluit:Bestuurseenheid ;
+                          org:classification <http://data.vlaanderen.be/id/concept/BestuurseenheidClassificatieCode/5ab0e9b8a3b2ca7c5e000002> .
+        }
       }
     }
     {{/unless}}
     ?organisationUri mu:uuid ?id;
-      skos:prefLabel ?label.
+      skos:prefLabel ?label;
+      org:classification ?classification.
+
   }
 }
 `

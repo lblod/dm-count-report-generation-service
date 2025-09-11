@@ -62,42 +62,30 @@ const getSessionTimestamp = async (progress: JobProgress) => {
     for (const adminUnit of orgResources.adminUnits) {
       try {
         completedQueries += 1;
-        const sessionTimestamps = await Promise.all(
-          adminUnit.govBodies.map(async (govBody) => {
-            try {
-              const result = await duration(getSessionTimestampQuery.records.bind(getSessionTimestampQuery))({
-                prefixes: PREFIXES,
-                governingBodyUri: govBody.uri,
-              });
-              progress.progress(completedQueries, totalQueries, result.durationMilliseconds);
-              progress.update(
-                `Got session timestamps for ${adminUnit.label} (${adminUnit.id}) with ${govBody.classLabel} (${govBody.uri}). Got ${result.result.length} records.`
-              );
-              return result.result;
-            } catch (error) {
-              console.error(`Error fetching session timestamps for ${govBody.uri}:`, error);
-              return [];
-            }
-          })
-        );
-        const allTimestamps = sessionTimestamps.flat();
+        const bestuursorganenUris = adminUnit.govBodies.map((gb) => gb.uri);
+        progress.update(`Processing admin unit ${adminUnit.label} (${adminUnit.id}) with ${bestuursorganenUris.length} bestuursorganenUris.`);
+        const result = await duration(getSessionTimestampQuery.records.bind(getSessionTimestampQuery))({
+          prefixes: PREFIXES,
+          governingBodies: bestuursorganenUris,
+        });
+        progress.update(`Got session timestamps for admin unit ${adminUnit.label} (${adminUnit.id}) in ${result.durationMilliseconds} ms.`);
+        progress.progress(completedQueries, totalQueries, result.durationMilliseconds);
+        console.log("result", result);
 
+        if (result.result) {
+          const sessionTimestamps = result.result;
+          const firstSession = dayjs(sessionTimestamps?.[0].firstSession.toDate());
+          const lastSession = dayjs(sessionTimestamps?.[0].lastSession.toDate());
 
-        if (allTimestamps.length > 0) {
-          const firstSession = dayjs(
-            Math.min(...allTimestamps.map(ts => ts.firstSession.toDate().getTime()))
-          );
-          const lastSession = dayjs(
-            Math.max(...allTimestamps.map(ts => ts.lastSession.toDate().getTime()))
-          );
           progress.update(
             `Got session timestamps for ${adminUnit.label} (${adminUnit.id}) with ${firstSession} and ${lastSession}.`
           );
-          adminUnitSessions.push({ adminUnit, firstSession, lastSession });
+          if (firstSession || lastSession) {
+            adminUnitSessions.push({ adminUnit, firstSession, lastSession });
+          }
         }
       } catch (error) {
         console.error(`Error processing admin unit ${adminUnit.label}:`, error);
-        // Continue processing other admin units
       }
     }
   }

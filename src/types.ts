@@ -66,6 +66,7 @@ export enum DataMonitoringFunction {
   DUMMY = `http://lblod.data.gift/vocabularies/datamonitoring/dm-function/dummy`,
   CHECK_MATURITY_LEVEL = `http://lblod.data.gift/vocabularies/datamonitoring/dm-function/check-maturity-level`,
   CHECK_SESSION_TIMESTAMPS = `http://lblod.data.gift/vocabularies/datamonitoring/dm-function/check-session-timestamp`,
+  DECISION_REPORT_DAILY = `http://lblod.data.gift/vocabularies/datamonitoring/dm-function/decision-report-daily`,
 }
 
 export type DmEnum =
@@ -158,19 +159,19 @@ export type ProgressMessage = {
 
 export type StatusMessage =
   | {
-      done: true;
-      failed: false;
-      result: object | number | string | boolean;
-      newStatusKey: string;
-    }
+    done: true;
+    failed: false;
+    result: object | number | string | boolean;
+    newStatusKey: string;
+  }
   | {
-      done: true;
-      failed: true;
-      error: object | number | string | boolean | Error;
-      newStatusKey: string;
-    }
+    done: true;
+    failed: true;
+    error: object | number | string | boolean | Error;
+    newStatusKey: string;
+  }
   | {
-      done: false;
-      failed: false;
-      newStatusKey: string;
-    };
+    done: false;
+    failed: false;
+    newStatusKey: string;
+  };
