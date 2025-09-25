@@ -17,6 +17,7 @@ import { config, EndpointConfig } from "../../configuration.js";
 
 import { getQueriesForAnalysis, getQueriesForWriting } from "./helpers.js";
 import { CountQueries, CountResult, Endpoint } from "./types.js";
+import { deleteIfRecordsTodayExist } from "../../queries/helpers.js";
 
 
 
@@ -99,6 +100,8 @@ export const generateReportsDaily: JobFunction = async (
 
 
       if (counts.length > 0) {
+        const graphUri = `${config.env.REPORT_GRAPH_URI}${adminUnit.id}/DMGEBRUIKER`;
+        await deleteIfRecordsTodayExist(progress, graphUri, 'GoverningBodyCountReport');
         await performInsert("GoverningBodyCountReport", writeCountReportQuery, {
           prefixes: PREFIXES,
           govBodyUri: reportUri,
@@ -153,6 +156,8 @@ export const generateReportsDaily: JobFunction = async (
           progress.update(
             `Sessions: ${results?.Zitting?.count ?? 0}, Agendapunt: ${results?.Agendapunt?.count ?? 0}, AgendapuntTitle: ${results?.AgendapuntTitle?.count ?? 0}, AgendapuntDescription: ${results?.AgendapuntDescription?.count ?? 0}, Besluit: ${results?.Besluit?.count ?? 0}, Stemming: ${results?.Stemming?.count ?? 0}`,
           );
+          const graphUri = `${config.env.REPORT_GRAPH_URI}${adminUnit.id}/DMGEBRUIKER`;
+          await deleteIfRecordsTodayExist(progress, graphUri, 'AdminUnitCountReport');
           const reportUri = await insertGoverningBodyReport(
             adminUnit,
             results,
@@ -212,8 +217,7 @@ export const generateReportsDaily: JobFunction = async (
         { type: "Stemming", query: countVoteQuery, label: "Stemming" },
       ];
 
-      // const noFilterForDebug = config.env.INITIAL_SYNC;
-      const noFilterForDebug = true;
+      const noFilterForDebug = config.env.INITIAL_SYNC;
       const bestuursorganenUris = governingBodies.map((gb) => gb.uri);
 
       for (const { type, query, label } of countConfigs) {
@@ -258,6 +262,7 @@ export const generateReportsDaily: JobFunction = async (
     config.file.endpoints,
     defaultedDay,
   );
+
   async function writeAdminUnitReports(
     adminUnits: AdminUnitRecord[],
     endpoints: EndpointConfig[],

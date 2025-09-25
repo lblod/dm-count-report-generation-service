@@ -12,14 +12,13 @@ import {
 import { DateOnly, now } from "../../util/date-time.js";
 import { duration } from "../../util/util.js";
 import {
-  checkTodayDecisionTemplate,
-  deleteTodayDecisionTemplate,
   GetDecisionInput,
   GetDecisionOutput,
   getDecisionTemplate,
   InsertDecisionInput,
   insertDecisionTemplate,
 } from "./queries.js";
+import { deleteIfRecordsTodayExist } from "../../queries/helpers.js";
 
 function getQueries(queryEngine: QueryEngine, endpoint: string) {
   const getDecisionQuery = new TemplatedSelect<
@@ -115,25 +114,7 @@ const insertDecision = async (
 ) => {
   const graphUri = `${config.env.REPORT_GRAPH_URI}${adminUnit.id}/DMGEBRUIKER`;
   const defaultedDay = day ?? DateOnly.yesterday();
-  const dateStr = DateOnly.today().toString();
-  const checkQuery = new TemplatedSelect<{ prefixes: string; date: string; graphUri: string }, { report: string }>(
-    queryEngine,
-    config.env.REPORT_ENDPOINT,
-    checkTodayDecisionTemplate
-  );
-  const existingReports = await checkQuery.records({ prefixes: PREFIXES, date: dateStr, graphUri: graphUri });
-  if (existingReports.length > 0) {
-    console.log(`Found ${existingReports.length} reports for today. Deleting...`);
-
-    const deleteQuery = new TemplatedInsert<{ prefixes: string; date: string; graphUri: string }>(
-      queryEngine,
-      config.env.REPORT_ENDPOINT,
-      deleteTodayDecisionTemplate
-    );
-    await deleteQuery.execute({ prefixes: PREFIXES, date: dateStr, graphUri: graphUri });
-    console.log("Existing reports deleted.");
-  }
-
+  await deleteIfRecordsTodayExist(progress, graphUri, 'DecisionReport');
   const insertDecisionQuery =
     new TemplatedInsert<InsertDecisionInput>(
       queryEngine,
@@ -168,6 +149,7 @@ const insertDecision = async (
     }
   }
 };
+
 
 
 async function groupByClassLabel(govBodies: GoverningBodyRecord[]) {

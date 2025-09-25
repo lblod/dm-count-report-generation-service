@@ -19,6 +19,7 @@ import {
   InsertLastExecutedReportInput,
   insertLastExecutedReportTemplate,
 } from "./queries.js";
+import { deleteIfRecordsTodayExist } from "../../queries/helpers.js";
 
 function getQueries(queryEngine: QueryEngine, endpoint: string) {
   const getLastModifiedQuery = new TemplatedSelect<
@@ -146,17 +147,19 @@ const insertHarvestTimestamp = async (
   day?: DateOnly | undefined
 ) => {
   const insertLastExecutedReportTimeQuery =
-  new TemplatedInsert<InsertLastExecutedReportInput>(
-    queryEngine,
-    config.env.REPORT_ENDPOINT,
-    insertLastExecutedReportTemplate
-  );
+    new TemplatedInsert<InsertLastExecutedReportInput>(
+      queryEngine,
+      config.env.REPORT_ENDPOINT,
+      insertLastExecutedReportTemplate
+    );
   const defaultedDay = day ?? DateOnly.yesterday();
   let queries = 0;
   for (const record of data) {
     try {
       const uuid = uuidv4();
       const reportUri = `${config.env.URI_PREFIX_RESOURCES}${uuid}`;
+      const graphUri = `${config.env.REPORT_GRAPH_URI}${record.organisationId}/DMGEBRUIKER`;
+      await deleteIfRecordsTodayExist(progress, graphUri, 'LastHarvestingExecutionReport');
       const result = await duration(
         insertLastExecutedReportTimeQuery.execute.bind(
           insertLastExecutedReportTimeQuery
@@ -175,5 +178,5 @@ const insertHarvestTimestamp = async (
     } catch (error) {
       console.error(`Error inserting maturity level record:`, error);
     }
-}
+  }
 }

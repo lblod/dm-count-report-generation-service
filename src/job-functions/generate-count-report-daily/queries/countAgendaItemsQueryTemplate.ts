@@ -21,7 +21,7 @@ SELECT (COUNT(DISTINCT ?agendapunt) AS ?count) WHERE {
            besluit:isGehoudenDoor   ?isgehoudenDoor ;
            besluit:behandelt ?agendapunt .
 
-            FILTER (?isgehoudenDoor IN (
+  FILTER (?isgehoudenDoor IN (
     {{#each bestuursorganen}}
       {{toNode this}}{{#unless @last}},{{/unless}}
     {{/each}}

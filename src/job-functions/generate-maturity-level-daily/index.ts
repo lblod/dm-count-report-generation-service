@@ -18,6 +18,7 @@ import {
   InsertMaturityLevelInput,
   insertMaturityLevelTemplate,
 } from "./queries.js";
+import { deleteIfRecordsTodayExist } from "../../queries/helpers.js";
 
 function getQueries(queryEngine: QueryEngine, endpoint: string) {
   const getMaturityLevelQuery = new TemplatedSelect<
@@ -112,13 +113,15 @@ const insertMaturityLevel = async (
       if (record.notuleUri) {
         const uuid = uuidv4();
         const reportUri = `${config.env.URI_PREFIX_RESOURCES}${uuid}`;
+        const graphUri = `${config.env.REPORT_GRAPH_URI}${record.adminUnitId}/DMGEBRUIKER`;
+        await deleteIfRecordsTodayExist(progress, graphUri, 'MaturityLevelReport');
         const result = await duration(
           insertMaturityLevelQuery.execute.bind(insertMaturityLevelQuery)
         )({
           prefixes: PREFIXES,
           day: defaultedDay,
           prefLabel: `Report of maturity level for day ${defaultedDay.toString()}`,
-          reportGraphUri: `${config.env.REPORT_GRAPH_URI}${record.adminUnitId}/DMGEBRUIKER`,
+          reportGraphUri: graphUri,
           reportUri,
           createdAt: now(),
           notuleUri: record.notuleUri,
