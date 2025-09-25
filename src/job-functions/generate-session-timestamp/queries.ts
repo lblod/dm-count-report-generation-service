@@ -10,7 +10,6 @@ export type GetSessionTimestampInput = {
 };
 
 export type GetSessionTimestampOutput = {
-  governingBodyUri: string;
   firstSession: DateTime;
   lastSession: DateTime;
 };
@@ -19,8 +18,9 @@ export const getSessionTimestampTemplate = compileSparql(
   `\
 {{prefixes}}
 SELECT ?firstSession ?lastSession WHERE {
-  {
-    SELECT ?governingBodyUri (MIN(?start) AS ?firstSession) (MAX(?start) AS ?lastSession) WHERE {
+  SELECT (COALESCE(MIN(?start), "") AS ?firstSession)
+         (COALESCE(MAX(?start), "") AS ?lastSession)
+  WHERE {
       ?session a besluit:Zitting;
                 besluit:isGehoudenDoor ?isGehoudenDoor;
               besluit:geplandeStart ?start.
@@ -30,12 +30,7 @@ SELECT ?firstSession ?lastSession WHERE {
           {{toNode this}}{{#unless @last}},{{/unless}}
         {{/each}}
       ))
-
     }
-
-
-    GROUP BY ?governingBodyUri
-  }
 }
 `
 );
