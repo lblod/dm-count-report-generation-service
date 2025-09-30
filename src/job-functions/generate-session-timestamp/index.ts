@@ -70,8 +70,6 @@ const getSessionTimestamp = async (progress: JobProgress) => {
         });
         progress.update(`Got session timestamps for admin unit ${adminUnit.label} (${adminUnit.id}) in ${result.durationMilliseconds} ms.`);
         progress.progress(completedQueries, totalQueries, result.durationMilliseconds);
-        console.log("result", result);
-
         if (result.result) {
           const sessionTimestamps = result.result;
           const firstSession = dayjs(sessionTimestamps?.[0].firstSession.toDate());
