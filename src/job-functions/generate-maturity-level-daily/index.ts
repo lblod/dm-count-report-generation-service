@@ -56,9 +56,11 @@ const getMaturityLevel = async (progress: JobProgress, day?: DateOnly) => {
   for (const harvester of config.file.harvesterEndpoints) {
     const harvesterRecords: GetMaturityLevelOutput[] = [];
     const { getMaturityLevelQuery } = getQueries(queryEngine, harvester.url);
+
     for (const adminUnit of orgResources.adminUnits) {
       const bestuursorganenUris = adminUnit.govBodies.map((gb) => gb.uri);
       queries += 1;
+
       try {
         const result = await duration(getMaturityLevelQuery.records.bind(getMaturityLevelQuery))({
           prefixes: PREFIXES,
@@ -66,28 +68,39 @@ const getMaturityLevel = async (progress: JobProgress, day?: DateOnly) => {
         });
 
         progress.progress(++queries, queryCount, result.durationMilliseconds);
-        progress.update(`Got ${result.result.length} maturity level data for ${adminUnit.label}`);
 
-        if (result.result.length > 0) {
+        const records = result.result;
+        if (records.length > 0) {
           harvesterRecords.push(
-            ...result.result.map((item) => ({
+            ...records.map((item) => ({
               ...item,
               adminUnitId: adminUnit.id,
             }))
           );
+          progress.update(
+            `Got ${records.length} maturity level records for ${adminUnit.label}`
+          );
         } else {
-          return [];
+          progress.update(`No maturity level data found for ${adminUnit.label}`);
+          continue; // skip this admin unit, keep going
         }
       } catch (error) {
         console.error(`Error fetching maturity level for ${adminUnit.label}:`, error);
-        return [];
+        progress.update(`Error with ${adminUnit.label}, skipping...`);
+        continue;
       }
     }
-    await insertMaturityLevel(harvesterRecords, progress, day);
+
+    // insert after all admin units processed for this harvester
+    if (harvesterRecords.length > 0) {
+      await insertMaturityLevel(harvesterRecords, progress, day);
+    }
+
     progress.update(
       `Harvester ${harvester.url} processed. ${harvesterRecords.length} records inserted.`
     );
   }
+
 
   progress.update(
     `All ${config.file.harvesterEndpoints.length} harvesters queried for maturity levels.`
