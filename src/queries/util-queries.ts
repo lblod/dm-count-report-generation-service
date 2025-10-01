@@ -37,19 +37,17 @@ SELECT ?organisationUri ?label ?id ?classification WHERE {
   {{/if}}
   GRAPH {{toNode graphUri}} {
     {{#unless (listPopulated adminUnitSelection)}}
-    {
-      SELECT ?organisationUri WHERE {
-        {
-          ?organisationUri a besluit:Bestuurseenheid ;
-                          org:classification <http://data.vlaanderen.be/id/concept/BestuurseenheidClassificatieCode/5ab0e9b8a3b2ca7c5e000001> .
-        }
-        UNION
-        {
-          ?organisationUri a besluit:Bestuurseenheid ;
-                          org:classification <http://data.vlaanderen.be/id/concept/BestuurseenheidClassificatieCode/5ab0e9b8a3b2ca7c5e000002> .
-        }
-      }
+  {
+  SELECT ?organisationUri WHERE {
+    ?organisationUri a besluit:Bestuurseenheid ;
+                     org:classification ?classification .
+    VALUES ?classification {
+      <http://data.vlaanderen.be/id/concept/BestuurseenheidClassificatieCode/5ab0e9b8a3b2ca7c5e000001>
+      <http://data.vlaanderen.be/id/concept/BestuurseenheidClassificatieCode/5ab0e9b8a3b2ca7c5e000002>
+      <http://data.vlaanderen.be/id/concept/BestuurseenheidClassificatieCode/5ab0e9b8a3b2ca7c5e000000>
     }
+  }
+}
     {{/unless}}
     ?organisationUri mu:uuid ?id;
       skos:prefLabel ?label;
@@ -105,6 +103,31 @@ SELECT ?abstractGoverningBodyUri ?timeSpecificGoverningBodyUri ?classLabel WHERE
       ].
 
     ?timeSpecificGoverningBodyUri generiek:isTijdspecialisatieVan ?abstractGoverningBodyUri.
+  }
+}
+`
+);
+
+
+export type GetGoverningBodiesFromHarvesterInput = {
+  prefixes: string;
+  governingBodies: string[];
+};
+
+export type GetGoverningBodiesFromHarvesterOutput = {
+  isPresent: boolean | string | number;
+};
+
+export const GetGoverningBodiesFromHarvesterTemplate = compileSparql(
+  `\
+{{prefixes}}
+SELECT (COUNT(?bh) > 0 AS ?isPresent)
+WHERE {
+  ?bh <http://data.vlaanderen.be/ns/besluit#isGehoudenDoor> ?gd.
+  VALUES ?gd {
+    {{#each governingBodies}}
+      {{toNode this}}
+    {{/each}}
   }
 }
 `

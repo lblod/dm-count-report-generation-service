@@ -168,11 +168,6 @@ export async function getOrgResoucesCached(
     console.debug("Got org resources from cache.");
     return orgResourcesCache;
   }
-  console.debug(
-    `Need to get org resources from cache from "${config.env.ADMIN_UNIT_ENDPOINT}" in the graph "${config.env.ADMIN_UNIT_GRAPH_URI}"`
-  );
-  const TARGET_CLASSIFICATION =
-    "http://data.vlaanderen.be/id/concept/BestuurseenheidClassificatieCode/5ab0e9b8a3b2ca7c5e000001";
 
   orgResourcesCache = await getOrgResouces(queryEngine);
 
@@ -181,21 +176,39 @@ export async function getOrgResoucesCached(
   for (const adminUnit of orgResourcesCache.adminUnits) {
     const existing = mergedMap.get(adminUnit.label);
 
-    if (!existing) {
-      mergedMap.set(adminUnit.label, { ...adminUnit, govBodies: [...adminUnit.govBodies] });
-    } else if (existing.classification === TARGET_CLASSIFICATION) {
+    // Province: always add as new entry (key could include classification to avoid overwriting)
+    if (adminUnit.classification === "http://data.vlaanderen.be/id/concept/BestuurseenheidClassificatieCode/5ab0e9b8a3b2ca7c5e000000") {
+      mergedMap.set(`${adminUnit.label}_province`, { ...adminUnit, govBodies: [...adminUnit.govBodies] });
+      continue;
+    }
+
+    // Municipality or OCMW: merge under municipality
+    if (existing) {
+      const isExistingMunicipality = existing.classification === "http://data.vlaanderen.be/id/concept/BestuurseenheidClassificatieCode/5ab0e9b8a3b2ca7c5e000001";
+      const isCurrentOcmw = adminUnit.classification === "http://data.vlaanderen.be/id/concept/BestuurseenheidClassificatieCode/5ab0e9b8a3b2ca7c5e000002";
+
+      if (isExistingMunicipality && isCurrentOcmw) {
+        existing.govBodies.push(...adminUnit.govBodies);
+        continue;
+      }
+
+      const isExistingOcmw = existing.classification === "http://data.vlaanderen.be/id/concept/BestuurseenheidClassificatieCode/5ab0e9b8a3b2ca7c5e000002";
+      const isCurrentMunicipality = adminUnit.classification === "http://data.vlaanderen.be/id/concept/BestuurseenheidClassificatieCode/5ab0e9b8a3b2ca7c5e000001";
+
+      if (isExistingOcmw && isCurrentMunicipality) {
+        mergedMap.set(adminUnit.label, {
+          ...adminUnit,
+          govBodies: [...adminUnit.govBodies, ...existing.govBodies],
+        });
+        continue;
+      }
+
+      // Otherwise, just append govBodies
       existing.govBodies.push(...adminUnit.govBodies);
-    } else if (adminUnit.classification === TARGET_CLASSIFICATION) {
-      mergedMap.set(adminUnit.label, {
-        ...adminUnit,
-        govBodies: [...adminUnit.govBodies, ...existing.govBodies],
-      });
     } else {
-      existing.govBodies.push(...adminUnit.govBodies);
+      // No existing entry: just add it
+      mergedMap.set(adminUnit.label, { ...adminUnit, govBodies: [...adminUnit.govBodies] });
     }
   }
-  const mergedAdminUnits = Array.from(mergedMap.values())
-
-  orgResourcesCache = { adminUnits: mergedAdminUnits };
   return orgResourcesCache;
 }
