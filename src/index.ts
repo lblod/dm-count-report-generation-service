@@ -1,13 +1,9 @@
-import cors, { CorsOptions } from "cors";
-import express, { Express } from "express";
-import { config } from "./configuration.js";
-import { TemplatedSelect } from "./queries/templated-query.js";
-import { queryEngine } from "./queries/query-engine.js";
-import {
-  TestQueryInput,
-  TestQueryOutput,
-  testQueryTemplate,
-} from "./queries/util-queries.js";
+import cors, { CorsOptions } from 'cors';
+import express, { Express } from 'express';
+import { config } from './configuration.js';
+import { TemplatedSelect } from './queries/templated-query.js';
+import { queryEngine } from './queries/query-engine.js';
+import { TestQueryInput, TestQueryOutput, testQueryTemplate } from './queries/util-queries.js';
 import {
   createPeriodicJobTemplate,
   createRestJobTemplate,
@@ -15,23 +11,24 @@ import {
   getJobTemplates,
   loadJobTemplates,
   setJobTemplateCreeationDefaults,
-} from "./job/job-template.js";
-import { getJobs, setJobCreationDefaults } from "./job/job.js";
+} from './job/job-template.js';
+import { getJobs, setJobCreationDefaults } from './job/job.js';
 import {
   DataMonitoringFunction,
   JobStatus,
   JobTemplateStatus,
   JobTemplateType,
   getEnumStringFromUri,
-} from "./types.js";
-import { setupDebugEndpoints } from "./debug-endpoints/endpoints.js";
-import { logger } from "./logger.js";
-import { initCron } from "./cron/cron.js";
+} from './types.js';
+import { setupDebugEndpoints } from './debug-endpoints/endpoints.js';
+import { logger } from './logger.js';
+import { initCron } from './cron/cron.js';
 import axios, { AxiosResponse } from 'axios';
+import { getHarvesterAdminUnits, scheduleDailyRefresh } from './helpers/merge-admin-units.js';
 
 async function startupProcedure() {
   logger.info(
-    "CHECK PASSED: Configuration is validated successfully. Both config file and env variables. Checking endpoints..."
+    'CHECK PASSED: Configuration is validated successfully. Both config file and env variables. Checking endpoints...'
   );
   if (!config.env.SKIP_ENDPOINT_CHECK) {
     // Check all endpoints
@@ -42,7 +39,7 @@ async function startupProcedure() {
     ]);
     logger.verbose(
       `Testing SPARQL endpoints (${[...endpoints].join(
-        ","
+        ','
       )}) to see if they are up. Will retry 10 times and wait for 30 seconds after each try for each endpoint.`
     );
     for (const endpoint of endpoints) {
@@ -66,17 +63,15 @@ async function startupProcedure() {
         throw e; // Re throw. Node process is killed.
       }
     }
-    logger.info("CHECK PASSED: All endpoints can be queried.");
+    logger.info('CHECK PASSED: All endpoints can be queried.');
   } else {
-    logger.warn("ENDPOINT CHECK SKIPPED. Due to env var setting.");
+    logger.warn('ENDPOINT CHECK SKIPPED. Due to env var setting.');
   }
   // initialise stuff
   // Job templates
   setJobTemplateCreeationDefaults(queryEngine, config.env.REPORT_ENDPOINT); // Always needs to be called. Created in case we 'd want to use a different query engine for jobs in the future.
   await loadJobTemplates();
-  logger.info(
-    `CHECK PASSED: Job templates loaded. ${getJobTemplates().length} found.`
-  );
+  logger.info(`CHECK PASSED: Job templates loaded. ${getJobTemplates().length} found.`);
   // For all invocation times provided in the config file; check if a periodic job is present and create one if necassary
   for (const [func, invocationInfo] of Object.entries(
     config.file.periodicFunctionInvocationTimes
@@ -113,17 +108,14 @@ async function startupProcedure() {
     const restInvokedJobs = getJobTemplates().filter(
       (job) => job.jobTemplateType === JobTemplateType.REST_INVOKED
     );
-    const desiredAmountOfRestJobs =
-      3 + (config.env.ADD_DUMMY_REST_JOB_TEMPLATE ? 1 : 0);
+    const desiredAmountOfRestJobs = 3 + (config.env.ADD_DUMMY_REST_JOB_TEMPLATE ? 1 : 0);
     const recreate = await (async () => {
       switch (restInvokedJobs.length) {
         case 0:
           logger.info(`Debug jobs do not exist. Creating them.`);
           return true;
         case desiredAmountOfRestJobs:
-          logger.info(
-            `Debug jobs exist in the database (${restInvokedJobs.length}). OK.`
-          );
+          logger.info(`Debug jobs exist in the database (${restInvokedJobs.length}). OK.`);
           return false;
         default:
           logger.warn(
@@ -136,32 +128,27 @@ async function startupProcedure() {
     if (recreate) {
       await createRestJobTemplate(
         DataMonitoringFunction.COUNT_RESOURCES,
-        "start-count-report",
+        'start-count-report',
         JobTemplateStatus.ACTIVE
       );
       await createRestJobTemplate(
         DataMonitoringFunction.CHECK_HARVESTING_EXECUTION_TIME,
-        "start-harvesting-exec-time-report",
-        JobTemplateStatus.ACTIVE
-      );
-      await createRestJobTemplate(
-        DataMonitoringFunction.CHECK_SESSION_COMPLETENESS,
-        "check-session-completeness",
+        'start-harvesting-exec-time-report',
         JobTemplateStatus.ACTIVE
       );
       await createRestJobTemplate(
         DataMonitoringFunction.CHECK_MATURITY_LEVEL,
-        "check-maturity-level",
+        'check-maturity-level',
         JobTemplateStatus.ACTIVE
       );
       await createRestJobTemplate(
         DataMonitoringFunction.CHECK_SESSION_TIMESTAMPS,
-        "check-session-timestamps",
+        'check-session-timestamps',
         JobTemplateStatus.ACTIVE
       );
       await createRestJobTemplate(
         DataMonitoringFunction.DECISION_REPORT_DAILY,
-        "decision-report-daily",
+        'decision-report-daily',
         JobTemplateStatus.ACTIVE
       );
     }
@@ -180,7 +167,7 @@ async function startupProcedure() {
         );
         await createRestJobTemplate(
           DataMonitoringFunction.DUMMY,
-          "dummy-job",
+          'dummy-job',
           JobTemplateStatus.ACTIVE
         );
       }
@@ -191,9 +178,9 @@ async function startupProcedure() {
   // Jobs
   setJobCreationDefaults(queryEngine, config.env.REPORT_ENDPOINT);
   // await loadJobs();
-  logger.info("Jobs loaded");
+  logger.info('Jobs loaded');
   initCron();
-  logger.info("CRON runtime started");
+  logger.info('CRON runtime started');
 }
 
 async function shutDownProcedure() {
@@ -208,19 +195,19 @@ async function shutDownProcedure() {
 
 function setupExpress(): express.Express {
   const corsOptions: CorsOptions = {
-    origin: ["http://localhost:4199"],
-    methods: ["GET"],
+    origin: ['http://localhost:4199'],
+    methods: ['GET'],
     optionsSuccessStatus: 200,
   };
   const app: Express = express();
   app.use(cors(corsOptions));
 
   // Health endpoints
-  app.get("/ping", async (_, res) => {
-    res.send({ pong: "true" });
+  app.get('/ping', async (_, res) => {
+    res.send({ pong: 'true' });
   });
-  app.get("/status", async (_, res) => {
-    res.send({ running: "true" });
+  app.get('/status', async (_, res) => {
+    res.send({ running: 'true' });
   });
 
   if (!config.env.DISABLE_DEBUG_ENDPOINT) {
@@ -234,7 +221,6 @@ async function triggerEndpoints(): Promise<void> {
   const endpoints: string[] = [
     `http://localhost:${config.env.SERVER_PORT}/start/start-count-report`,
     `http://localhost:${config.env.SERVER_PORT}/start/start-harvesting-exec-time-report`,
-    `http://localhost:${config.env.SERVER_PORT}/start/check-session-completeness`,
     `http://localhost:${config.env.SERVER_PORT}/start/check-session-timestamps`,
     `http://localhost:${config.env.SERVER_PORT}/start/check-maturity-level`,
     `http://localhost:${config.env.SERVER_PORT}/start/decision-report-daily`,
@@ -256,29 +242,31 @@ async function triggerEndpoints(): Promise<void> {
 }
 // Top level await is allowed in this version of javascript
 await startupProcedure();
-logger.info("Startup procedure complete");
+logger.info('Startup procedure complete');
 const app = setupExpress();
-logger.info("Express server setup procedure complete");
+logger.info('Express server setup procedure complete');
 // Start server
 app.listen(config.env.SERVER_PORT, async () => {
   logger.info(
     `Report generation microservice started and listening on http://localhost:${config.env.SERVER_PORT}/debug.`
   );
+
+  await scheduleDailyRefresh(queryEngine);
   if (config.env.INITIAL_SYNC) {
     await triggerEndpoints();
   }
 });
 
 // Catch CTRL+C and docker kill signal
-process.on("SIGINT", () => {
-  logger.warn("SIGIT received. Shutting down gracefully.");
+process.on('SIGINT', () => {
+  logger.warn('SIGIT received. Shutting down gracefully.');
   shutDownProcedure()
     .then(() => {
-      logger.info("Shutdown gracefully. Stopping");
+      logger.info('Shutdown gracefully. Stopping');
       process.exit(0);
     })
     .catch((e) => {
-      logger.error("Unable to shutdown gracefully somehow.");
+      logger.error('Unable to shutdown gracefully somehow.');
       if (e instanceof Error) {
         logger.error(e.message);
       }

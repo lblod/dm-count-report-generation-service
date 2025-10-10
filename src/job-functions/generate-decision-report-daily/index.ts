@@ -1,139 +1,140 @@
-import { QueryEngine } from "@comunica/query-sparql";
-import { v4 as uuidv4 } from "uuid";
-import { config } from "../../configuration.js";
-import { AdminUnitRecord, getOrgResoucesCached, GoverningBodyRecord } from "../../job/get-org-data.js";
-import { JobFunction, JobProgress } from "../../job/job.js";
-import { PREFIXES } from "../../local-constants.js";
-import { queryEngine } from "../../queries/query-engine.js";
-import {
-  TemplatedInsert,
-  TemplatedSelect,
-} from "../../queries/templated-query.js";
-import { DateOnly, now } from "../../util/date-time.js";
-import { duration } from "../../util/util.js";
+import { QueryEngine } from '@comunica/query-sparql';
+import { v4 as uuidv4 } from 'uuid';
+import { config } from '../../configuration.js';
+import { AdminUnitRecord, GoverningBodyRecord } from '../../job/get-org-data.js';
+import { JobFunction, JobProgress } from '../../job/job.js';
+import { PREFIXES } from '../../local-constants.js';
+import { queryEngine } from '../../queries/query-engine.js';
+import { TemplatedInsert, TemplatedSelect } from '../../queries/templated-query.js';
+import { DateOnly, now } from '../../util/date-time.js';
+import { duration } from '../../util/util.js';
 import {
   GetDecisionInput,
   GetDecisionOutput,
   getDecisionTemplate,
   InsertDecisionInput,
   insertDecisionTemplate,
-} from "./queries.js";
-import { deleteIfRecordsTodayExist } from "../../queries/helpers.js";
+} from './queries.js';
+import { deleteIfRecordsTodayExist } from '../../queries/helpers.js';
+import { getHarvesterAdminUnits } from '../../helpers/merge-admin-units.js';
 
-function getQueries(queryEngine: QueryEngine, endpoint: string) {
-  const getDecisionQuery = new TemplatedSelect<
-    GetDecisionInput,
-    GetDecisionOutput
-  >(queryEngine, endpoint, getDecisionTemplate);
-  return {
-    getDecisionQuery,
-  };
-}
+const getDecisionQueries = (engine: QueryEngine, endpoint: string) => ({
+  getDecisionQuery: new TemplatedSelect<GetDecisionInput, GetDecisionOutput>(
+    engine,
+    endpoint,
+    getDecisionTemplate
+  ),
+});
 
-export const getDecisionDaily: JobFunction = async (
-  progress,
-  day: DateOnly | undefined = undefined
-) => {
+export const getDecisionDaily: JobFunction = async (progress, day?: DateOnly) => {
   try {
-    await getDecision(progress, day);
+    await processDecisions(progress, day);
   } catch (error) {
-    console.error("Failed to process decisions:", error);
-    progress.update("Error encountered during decisions processing.");
+    console.error('❌ Failed to process decisions:', error);
+    progress.update('Error encountered during decisions processing.');
     throw error;
   }
 };
 
-const getDecision = async (progress: JobProgress, day?: DateOnly) => {
-  const orgResources = await getOrgResoucesCached(queryEngine);
-  const queryCount = config.file.harvesterEndpoints.length * orgResources.adminUnits.length;
-  let queries = 0;
+const processDecisions = async (progress: JobProgress, day?: DateOnly) => {
+  const defaultedDay = day ?? DateOnly.today();
+  const noFilterForDebug = config.env.INITIAL_SYNC;
 
-  progress.update(`Get decisions`);
+  progress.update('📡 Fetching harvester admin unit mapping...');
+  const { countAdminUnits, harvesterAdminUnitMap } = await getHarvesterAdminUnits(queryEngine);
+
   progress.update(
-    `Got ${orgResources.adminUnits.length} admin units. Getting decisions level data from harvesters.`
+    `✅ Got ${countAdminUnits} admin units. Fetching decision data from harvesters...`
   );
 
-  for (const harvester of config.file.harvesterEndpoints) {
-    const { getDecisionQuery } = getQueries(queryEngine, harvester.url);
-    for (const adminUnit of orgResources.adminUnits) {
-      queries += 1;
+  for (const [harvesterUrl, adminUnits] of Object.entries(harvesterAdminUnitMap)) {
+    const { getDecisionQuery } = getDecisionQueries(queryEngine, harvesterUrl);
+    progress.update(
+      `📡 Processing harvester: ${harvesterUrl} with ${adminUnits.length} admin units.`
+    );
+
+    for (const adminUnit of adminUnits) {
+      let decisionResults: GetDecisionOutput[] = [];
       try {
-        const grouped = await groupByClassLabel(adminUnit.govBodies);
-        const results = await Promise.all(
-          Object.entries(grouped).map(async ([classLabel, uris]) => {
-            try {
-              const result = await duration(getDecisionQuery.records.bind(getDecisionQuery))({
-                prefixes: PREFIXES,
-                governingBodyUris: uris,
-              });
+        const groupedGovBodies = groupByClassLabel(adminUnit.govBodies);
+        for (const [classLabel, govBodies] of Object.entries(groupedGovBodies)) {
+          const res = await duration(getDecisionQuery.records.bind(getDecisionQuery))({
+            prefixes: PREFIXES,
+            governingBodyUris: govBodies,
+            from: defaultedDay.localStartOfDay,
+            to: defaultedDay.localEndOfDay,
+            noFilterForDebug,
+          });
 
-              progress.progress(++queries, queryCount, result.durationMilliseconds);
-              progress.update(
-                `Got ${result.result.length} decision data for ${adminUnit.label} from ${classLabel}`
-              );
-
-              return result.result.map((item) => ({
+          decisionResults = decisionResults.concat(
+            res.result
+              .filter((item) => (item.count ?? 0) > 0)
+              .map((item) => ({
                 count: item.count ?? 0,
-                adminUnit: adminUnit,
-                classLabel
-              }));
-            } catch (error) {
-              console.error(`Error fetching decision for ${classLabel}:`, error);
-              return [];
-            }
-          })
-        );
-
-        const flattenedResults = results.flat();
-        if (flattenedResults.length > 0) {
-          await insertDecision(adminUnit, flattenedResults, progress, day);
-          progress.update(
-            `Harvester ${harvester.url} processed. ${flattenedResults.length} records inserted.`
+                adminUnit,
+                classLabel,
+              }))
           );
 
+          progress.update(
+            `✅ Found ${res.result?.[0].count} decisions for ${classLabel} for ${adminUnit.label} in ${res.durationMilliseconds}ms`
+          );
         }
       } catch (error) {
-        console.error(`Error processing admin unit ${adminUnit.label}:`, error);
+        console.error(`❌ Error fetching decisions for ${adminUnit.label}:`, error);
+        return;
+      }
+      progress.update(`✅ Fetched ${decisionResults.length} decisions for ${adminUnit.label}  `);
+      if (decisionResults.length > 0) {
+        await insertDecision(adminUnit, decisionResults, progress, defaultedDay);
+      } else {
+        progress.update(`❌ No decisions found for ${adminUnit.label} `);
       }
     }
-
-
-
   }
 
-  progress.update(
-    `All ${config.file.harvesterEndpoints.length} harvesters queried for decisions.`
-  );
+  progress.update('✅ All harvesters queried for decisions.');
 };
+
+// Optimized synchronous groupByClassLabel
+function groupByClassLabel(govBodies: GoverningBodyRecord[]): Record<string, string[]> {
+  return govBodies.reduce(
+    (acc, { uri, classLabel }) => {
+      (acc[classLabel] ||= []).push(uri);
+      return acc;
+    },
+    {} as Record<string, string[]>
+  );
+}
 
 const insertDecision = async (
   adminUnit: AdminUnitRecord,
   data: GetDecisionOutput[],
   progress: JobProgress,
-  day?: DateOnly | undefined
+  day: DateOnly
 ) => {
   const graphUri = `${config.env.REPORT_GRAPH_URI}${adminUnit.id}/DMGEBRUIKER`;
-  const defaultedDay = day ?? DateOnly.yesterday();
   await deleteIfRecordsTodayExist(progress, graphUri, 'DecisionReport');
-  const insertDecisionQuery =
-    new TemplatedInsert<InsertDecisionInput>(
-      queryEngine,
-      config.env.REPORT_ENDPOINT,
-      insertDecisionTemplate
-    );
-  let queries = 0;
-  progress.update(`Insert decisions`);
-  for (const record of data) {
-    try {
-      if (record.count > 0) {
+
+  const insertQuery = new TemplatedInsert<InsertDecisionInput>(
+    queryEngine,
+    config.env.REPORT_ENDPOINT,
+    insertDecisionTemplate
+  );
+
+  progress.update(`📤 Inserting ${data.length} decision records for ${adminUnit.label}...`);
+
+  await Promise.all(
+    data.map(async (record, idx) => {
+      if (record.count <= 0) return;
+
+      try {
         const uuid = uuidv4();
         const reportUri = `${config.env.URI_PREFIX_RESOURCES}${uuid}`;
-        const result = await duration(
-          insertDecisionQuery.execute.bind(insertDecisionQuery)
-        )({
+        const res = await duration(insertQuery.execute.bind(insertQuery))({
           prefixes: PREFIXES,
-          day: defaultedDay,
-          prefLabel: `Report of decision for day ${defaultedDay.toString()}`,
+          day,
+          prefLabel: `Report of decisions for ${adminUnit.label} on ${day.toString()}`,
           reportGraphUri: graphUri,
           reportUri,
           adminUnitUri: record.adminUnit.uri,
@@ -142,29 +143,17 @@ const insertDecision = async (
           uuid,
           count: record.count,
         });
-        progress.progress(++queries, data.length, result.durationMilliseconds);
+
+        progress.update(`✅ Inserted decision for ${adminUnit.label} (${record.classLabel})`);
+        progress.progress(idx + 1, data.length, res.durationMilliseconds);
+      } catch (error) {
+        console.error(
+          `❌ Error inserting decision for ${adminUnit.label} (${record.classLabel}):`,
+          error
+        );
       }
-    } catch (error) {
-      console.error(`Error inserting decision record:`, error);
-    }
-  }
-};
-
-
-
-async function groupByClassLabel(govBodies: GoverningBodyRecord[]) {
-  const result: Record<string, string[]> = {};
-
-  await Promise.all(
-    govBodies.map(async (govBody) => {
-      const { uri, classLabel } = govBody;
-
-      if (!result[classLabel]) {
-        result[classLabel] = [];
-      }
-      result[classLabel].push(uri);
     })
   );
 
-  return result;
-}
+  progress.update(`✅ All decision records for ${adminUnit.label} inserted.`);
+};

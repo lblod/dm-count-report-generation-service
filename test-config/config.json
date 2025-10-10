@@ -2,32 +2,75 @@
   "$schema": "https://raw.githubusercontent.com/lblod/dm-count-report-generation-service/master/config-schema.json",
   "endpoints": [
     {
+      "url": "https://lokaalbeslist-harvester-0.s.redhost.be/sparql",
+      "classes": [
+        "besluit:Besluit",
+        "besluit:Agendapunt",
+        "besluit:Zitting",
+        "besluit:Stemming"
+      ]
+    },
+    {
       "url": "https://lokaalbeslist-harvester-1.s.redhost.be/sparql",
       "classes": [
         "besluit:Besluit",
-        "besluit:Agendapunt"
+        "besluit:Agendapunt",
+        "besluit:Zitting",
+        "besluit:Stemming"
+      ]
+    },
+    {
+      "url": "https://lokaalbeslist-harvester-2.s.redhost.be/sparql",
+      "classes": [
+        "besluit:Besluit",
+        "besluit:Agendapunt",
+        "besluit:Zitting",
+        "besluit:Stemming"
+      ]
+    },
+    {
+      "url": "https://lokaalbeslist-harvester-3.s.redhost.be/sparql",
+      "classes": [
+        "besluit:Besluit",
+        "besluit:Agendapunt",
+        "besluit:Zitting",
+        "besluit:Stemming"
       ]
     }
   ],
-  "adminUnitOverride": [
-    "http://data.lblod.info/id/bestuurseenheden/670db1d66c0de3b931962e1044033ccfa9d6e3023aa9828a5f252c3bc69bd32c"
-  ],
   "harvester-endpoints": [
     {
+      "url": "https://lokaalbeslist-harvester-0.s.redhost.be/sparql"
+    },
+    {
       "url": "https://lokaalbeslist-harvester-1.s.redhost.be/sparql"
+    },
+    {
+      "url": "https://lokaalbeslist-harvester-2.s.redhost.be/sparql"
+    },
+    {
+      "url": "https://lokaalbeslist-harvester-3.s.redhost.be/sparql"
     }
   ],
   "periodic-function-invocation-times": {
     "COUNT_RESOURCES": {
-      "time": "00:00",
+      "time": "03:20",
       "days": "monday,tuesday,wednesday,thursday,friday,saturday,sunday"
     },
     "CHECK_HARVESTING_EXECUTION_TIME": {
-      "time": "00:00",
+      "time": "04:20",
       "days": "monday,tuesday,wednesday,thursday,friday,saturday,sunday"
     },
-    "CHECK_SESSION_COMPLETENESS": {
-      "time": "00:00",
+    "CHECK_MATURITY_LEVEL": {
+      "time": "04:45",
+      "days": "monday,tuesday,wednesday,thursday,friday,saturday,sunday"
+    },
+    "CHECK_SESSION_TIMESTAMPS": {
+      "time": "05:45",
+      "days": "monday,tuesday,wednesday,thursday,friday,saturday,sunday"
+    },
+    "DECISION_REPORT_DAILY": {
+      "time": "06:00",
       "days": "monday,tuesday,wednesday,thursday,friday,saturday,sunday"
     }
   }

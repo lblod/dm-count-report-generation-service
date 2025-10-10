@@ -111,24 +111,29 @@ SELECT ?abstractGoverningBodyUri ?timeSpecificGoverningBodyUri ?classLabel WHERE
 
 export type GetGoverningBodiesFromHarvesterInput = {
   prefixes: string;
-  governingBodies: string[];
 };
 
 export type GetGoverningBodiesFromHarvesterOutput = {
-  isPresent: boolean | string | number;
+  title:string;
 };
 
 export const GetGoverningBodiesFromHarvesterTemplate = compileSparql(
   `\
 {{prefixes}}
-SELECT (COUNT(?bh) > 0 AS ?isPresent)
+SELECT ?title
 WHERE {
-  ?bh <http://data.vlaanderen.be/ns/besluit#isGehoudenDoor> ?gd.
-  VALUES ?gd {
-    {{#each governingBodies}}
-      {{toNode this}}
-    {{/each}}
-  }
+  ?rdo <http://www.semanticdesktop.org/ontologies/2007/01/19/nie#url> ?url;
+       a <http://www.semanticdesktop.org/ontologies/2007/03/22/nfo#RemoteDataObject>.
+
+  ?harvestingContainer <http://purl.org/dc/terms/hasPart> ?rdo.
+  ?dataContainer <http://redpencil.data.gift/vocabularies/tasks/hasHarvestingCollection> ?harvestingContainer.
+  ?scheduledTask <http://redpencil.data.gift/vocabularies/tasks/inputContainer> ?dataContainer;
+                 a <http://redpencil.data.gift/vocabularies/tasks/ScheduledTask>;
+                 <http://purl.org/dc/terms/isPartOf> ?scheduledJob.
+  ?scheduledJob a <http://vocab.deri.ie/cogs#ScheduledJob>;
+                <http://purl.org/dc/terms/title> ?title;
+                <http://redpencil.data.gift/vocabularies/tasks/schedule>/<http://schema.org/repeatFrequency> ?cronExpr.
 }
+
 `
 );

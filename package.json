@@ -27,6 +27,7 @@
     "handlebars": "^4.7.8",
     "node-cron": "^3.0.3",
     "npm": "^10.8.0",
+    "prettier": "^3.6.2",
     "rdfjs": "^0.0.1",
     "uuid": "^9.0.1",
     "winston": "^3.13.0",

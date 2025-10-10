@@ -1,10 +1,13 @@
-import { DateOnly, DateTime } from "../../util/date-time.js";
-import { compileSparql } from "../../handlebars/index.js";
-import { AdminUnitRecord } from "../../job/get-org-data.js";
+import { DateOnly, DateTime } from '../../util/date-time.js';
+import { compileSparql } from '../../handlebars/index.js';
+import { AdminUnitRecord } from '../../job/get-org-data.js';
 
 export type GetDecisionInput = {
   prefixes: string;
   governingBodyUris: string[];
+  from: DateTime;
+  to: DateTime;
+  noFilterForDebug: boolean;
 };
 
 export type GetDecisionOutput = {
@@ -28,13 +31,17 @@ SELECT (COUNT(DISTINCT ?resolution) as ?count) WHERE {
     dct:subject ?agendaItem;
     prov:generated ?resolution.
 
-  ?resolution a besluit:Besluit;
-    eli:date_publication ?datePublication.
+  ?resolution a besluit:Besluit .
 
     FILTER (?isgehoudenDoor IN (
     {{#each governingBodyUris}}
       {{toNode this}}{{#unless @last}},{{/unless}}
     {{/each}}
+
+  {{#unless noFilterForDebug}}
+    FILTER(?plannedStart >= {{toDateTime from}})
+    FILTER(?plannedStart < {{toDateTime to}})
+  {{/unless}}
   ))
 }
   LIMIT 1
@@ -54,7 +61,6 @@ export type InsertDecisionInput = {
   count: number;
 };
 
-
 export const insertDecisionTemplate = compileSparql(
   `\
 {{prefixes}}
@@ -73,5 +79,3 @@ INSERT {
 }
 `
 );
-
-

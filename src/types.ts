@@ -1,8 +1,6 @@
 export type IsEmpty<T> = T extends [] ? true : false;
 
-export type HasOneElement<T extends any[]> = T["length"] extends 1
-  ? true
-  : false;
+export type HasOneElement<T extends any[]> = T['length'] extends 1 ? true : false;
 
 export type JsonSerializable =
   | string
@@ -61,7 +59,6 @@ export function stringToDayOfWeek(input: string): DayOfWeek | undefined {
 
 export enum DataMonitoringFunction {
   COUNT_RESOURCES = `http://lblod.data.gift/vocabularies/datamonitoring/dm-function/count-resources`,
-  CHECK_SESSION_COMPLETENESS = `http://lblod.data.gift/vocabularies/datamonitoring/dm-function/check-session-completeness`,
   CHECK_HARVESTING_EXECUTION_TIME = `http://lblod.data.gift/vocabularies/datamonitoring/dm-function/check-harvesting-execution-time`,
   DUMMY = `http://lblod.data.gift/vocabularies/datamonitoring/dm-function/dummy`,
   CHECK_MATURITY_LEVEL = `http://lblod.data.gift/vocabularies/datamonitoring/dm-function/check-maturity-level`,
@@ -69,12 +66,7 @@ export enum DataMonitoringFunction {
   DECISION_REPORT_DAILY = `http://lblod.data.gift/vocabularies/datamonitoring/dm-function/decision-report-daily`,
 }
 
-export type DmEnum =
-  | JobType
-  | JobStatus
-  | JobTemplateStatus
-  | DayOfWeek
-  | DataMonitoringFunction;
+export type DmEnum = JobType | JobStatus | JobTemplateStatus | DayOfWeek | DataMonitoringFunction;
 
 export const dmEnums = [
   JobStatus,
@@ -120,28 +112,16 @@ type GetEnumStringFromUriType = (
  * @param safe true means it will not throw and return undefined if the uri does not correspond to an enum value. False means it will throw. False is the safest.
  * @returns The enum key as a string.
  */
-export const getEnumStringFromUri: GetEnumStringFromUriType = (
-  uri: string,
-  safe: boolean
-) => {
+export const getEnumStringFromUri: GetEnumStringFromUriType = (uri: string, safe: boolean) => {
   const result = Object.entries(allUris).find((entry) => entry[1] === uri);
   if (!safe) {
-    if (!result)
-      throw new Error(`No corresponding enum value found for uri ${uri}.`);
+    if (!result) throw new Error(`No corresponding enum value found for uri ${uri}.`);
     return result[0] as string;
   }
   return (result ? result[0] : undefined) as string | undefined;
 };
 
-export const LOG_LEVELS = [
-  "error",
-  "warn",
-  "info",
-  "http",
-  "verbose",
-  "debug",
-  "silly",
-] as const;
+export const LOG_LEVELS = ['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly'] as const;
 
 export type LogLevel = (typeof LOG_LEVELS)[number];
 
@@ -159,19 +139,19 @@ export type ProgressMessage = {
 
 export type StatusMessage =
   | {
-    done: true;
-    failed: false;
-    result: object | number | string | boolean;
-    newStatusKey: string;
-  }
+      done: true;
+      failed: false;
+      result: object | number | string | boolean;
+      newStatusKey: string;
+    }
   | {
-    done: true;
-    failed: true;
-    error: object | number | string | boolean | Error;
-    newStatusKey: string;
-  }
+      done: true;
+      failed: true;
+      error: object | number | string | boolean | Error;
+      newStatusKey: string;
+    }
   | {
-    done: false;
-    failed: false;
-    newStatusKey: string;
-  };
+      done: false;
+      failed: false;
+      newStatusKey: string;
+    };

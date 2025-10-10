@@ -8,27 +8,34 @@ export type GetMaturityLevelInput = {
 };
 
 export type GetMaturityLevelOutput = {
-  notuleUri: string;
+  wasDerivedFrom: string;
   plannedStart: DateTime;
   adminUnitId: string;
+  adminUnitLabel: string;
+  classification: string;
 };
 
 export const getMaturityLevelTemplate = compileSparql(
   `\
 {{prefixes}}
-SELECT ?notuleUri ?plannedStart WHERE {
+SELECT ?wasDerivedFrom ?plannedStart WHERE {
 ?zitting a besluit:Zitting ;
     besluit:isGehoudenDoor ?isGehoudenDoor ;
     besluit:heeftNotulen ?notuleUrl;
     besluit:geplandeStart ?plannedStart .
-  ?notuleUrl prov:wasDerivedFrom ?notuleUri .
-
 
     FILTER (?isGehoudenDoor IN (
         {{#each governingBodies}}
           {{toNode this}}{{#unless @last}},{{/unless}}
         {{/each}}
       ))
+  { ?zitting besluit:heeftBesluitenlijst ?url }
+  UNION
+  { ?zitting besluit:heeftNotulen ?url }
+  UNION
+  { ?zitting besluit:heeftUittreksel ?url }
+
+   OPTIONAL { ?url <http://www.w3.org/ns/prov#wasDerivedFrom> ?wasDerivedFrom  }
 }
   ORDER BY DESC(?plannedStart)
   LIMIT 1

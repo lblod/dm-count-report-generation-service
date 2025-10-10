@@ -1,5 +1,5 @@
-import { compileSparql } from "../../handlebars/index.js";
-import { DateOnly, DateTime } from "../../util/date-time.js";
+import { compileSparql } from '../../handlebars/index.js';
+import { DateOnly, DateTime } from '../../util/date-time.js';
 
 export type CountSessionsQueryInput = {
   prefixes: string;
@@ -35,8 +35,6 @@ SELECT (COUNT(DISTINCT ?session) as ?count) WHERE {
 `
 );
 
-
-
 export type CountResolutionsQueryInput = {
   prefixes: string;
   from: DateTime;
@@ -65,8 +63,7 @@ SELECT (COUNT(DISTINCT ?resolution) as ?count) WHERE {
     dct:subject ?agendaItem;
     prov:generated ?resolution.
 
-  ?resolution a besluit:Besluit;
-    eli:date_publication ?datePublication.
+  ?resolution a besluit:Besluit .
 
   FILTER (?isGehoudenDoor IN (
     {{#each bestuursorganen}}

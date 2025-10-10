@@ -55,7 +55,7 @@ This is just the first function. As of today there are three functions in existe
 | ORG_RESOURCES_TTL_S<br>(number)             | `300`                                        | Value in seconds. Data concerning admin units and governing bodies are kept in a cache with a Time To Live (TTL). This prevents unnecessary load during repeated test invocations of report generation. After this time has elapsed the cache is cleared and new data needs to be queried.                                                                                                                               |
 | SERVER_PORT<br>(number)                     | `80`                                         | HTTP port the server listens on. For debugging locally I suggest port 4199.                                                                                                                                                                                                                                                                                                                                              |
 | LOG_LEVEL<br>(string)                       | `"info"`                                     | Level of the logs. Accepted values are "error","warn","info","http","verbose","debug" and "silly". For production set to "error". For development set to "info", "debug" or "silly" depending on your preference.                                                                                                                                                                                                        |
-| INITIAL_SYNC<br>(boolean)                 | `"false"`                                    | Set to true in some test cases. This disabled the date related filtering when counting. This can be useful when no new data was posted and too many queries yield 0.                                                                                                                                                                                                                                                     |
+| INITIAL_SYNC<br>(boolean)                   | `"false"`                                    | Set to true in some test cases. This disabled the date related filtering when counting. This can be useful when no new data was posted and too many queries yield 0.                                                                                                                                                                                                                                                     |
 | DUMP_FILES_LOCATION<br>(string, directory)  | `"/dump"`                                    | Only relevant if DISABLE_DEBUG_ENDPOINT is `false`. This specifies the directory where the service will save the dump files for debugging. Typically this is a docker volume.                                                                                                                                                                                                                                            |
 | QUERY_MAX_RETRIES<br>(number)               | `3`                                          | Amount of times the making a query is retried.                                                                                                                                                                                                                                                                                                                                                                           |
 | QUERY_WAIT_TIME_ON_FAIL_MS<br>(number)      | `1000`                                       | Amount of time in milliseconds to wait after a query has failed before retrying.                                                                                                                                                                                                                                                                                                                                         |
@@ -245,10 +245,10 @@ The `objects(uriKey, input)` method needs to map the bindings onto a list of obj
 
 ```typescript
 // Perform the query and get the results as objects. Pass the input
-const result = await mySelectQuery.objects("resourceUri", {
+const result = await mySelectQuery.objects('resourceUri', {
   prefixes: PREFIXES,
-  classUri: "http://whatever.com/ns/examples/classes/Example",
-  day: DateOnly.yesterday(),
+  classUri: 'http://whatever.com/ns/examples/classes/Example',
+  day: DateOnly.today(),
 });
 
 // Print the results
@@ -273,7 +273,7 @@ Just one little snippet to complete the example. Here's how you consume results:
 // Perform the templated query using specific input parameters
 const result = await mySelectQuery.objects({
   prefixes: PREFIXES,
-  classUri: "http://data.vlaanderen.be/ns/besluit#Besluit",
+  classUri: 'http://data.vlaanderen.be/ns/besluit#Besluit',
 });
 //Result is a list of objects; each modeling a resource.
 ```
@@ -332,7 +332,7 @@ async function example(input: string): Promise<string> {
 If you want to time measure it:
 
 ```typescript
-const measured = await duration(example)("Input string");
+const measured = await duration(example)('Input string');
 const durationMilliseconds = measured.durationMilliseconds; // Around 10k millis
 const result = measured.result; // "Modified Input string"
 const duration = measured.durationMilliseconds; // Value is milliseconds
@@ -341,7 +341,7 @@ const duration = measured.durationMilliseconds; // Value is milliseconds
 If the function is very long running:
 
 ```typescript
-const measured = await longDuration(example)("Input string");
+const measured = await longDuration(example)('Input string');
 const durationSeconds = measured.durationSeconds; // Around 10
 const result = measured.result; // "Modified Input string"
 const duration = measured.durationSeconds; // Value is seconds
@@ -350,7 +350,7 @@ const duration = measured.durationSeconds; // Value is seconds
 If you want to retry the function 5 times and wait for a second after each failed try:
 
 ```typescript
-const retried = await retry(example, 5, 1_000)("Input string");
+const retried = await retry(example, 5, 1_000)('Input string');
 const triesNeeded = retried.retries; // 0 in this case
 const result = retried.result; // "Modified Input string"
 ```
@@ -358,7 +358,7 @@ const result = retried.result; // "Modified Input string"
 For the retry function you can skip the last two parameters to use the defaults from the env vars.
 
 ```typescript
-const retried = await retry(example)("Input string");
+const retried = await retry(example)('Input string');
 ```
 
 As you can see the functions return another function which takes the same arguments as the wrapped function and return a data structure like this:
@@ -376,21 +376,14 @@ You can also nest them:
 
 ```typescript
 const functionWithRetriesAndTimemesurement = duration(retry(wrappedFunction));
-const output = functionWithRetriesAndTimemesurement(
-  arg1OfWrappedFunction,
-  Arg2OfWrappedFunction
-);
+const output = functionWithRetriesAndTimemesurement(arg1OfWrappedFunction, Arg2OfWrappedFunction);
 const result = output.result.result;
 ```
 
 You can nest retries. Imagine you want to try 3 times and wait for a second after each failure. When that fails you want to wait a minute and try the whole thing again two times.
 
 ```typescript
-const functionWithAlotOfRetrying = retry(
-  retry(wrappedfunction, 3, 1_000),
-  2,
-  60_000
-);
+const functionWithAlotOfRetrying = retry(retry(wrappedfunction, 3, 1_000), 2, 60_000);
 ```
 
 Easy. If you pass instance methods make sure to bind them like this:
@@ -447,11 +440,7 @@ export const dummyFunction: JobFunction = async (
 
   for (let i = 0; i < defaultedNumOperations; i++) {
     await delay(defaultedOperationDurationSeconds * 1_000);
-    progress.progress(
-      i + 1,
-      defaultedNumOperations,
-      defaultedOperationDurationSeconds * 1_000
-    );
+    progress.progress(i + 1, defaultedNumOperations, defaultedOperationDurationSeconds * 1_000);
   }
   progress.update(
     `Dummy function finished. Approximate duration was ${
@@ -473,12 +462,11 @@ When your new job function is ready you'll need to update two things:
 1. In `job/job-functions-map.ts`:
 
 ```typescript
-import { myFunction } from "./my-function.js";
+import { myFunction } from './my-function.js';
 
 export const JOB_FUNCTIONS: Record<DataMonitoringFunction, JobFunction> = {
   [DataMonitoringFunction.COUNT_RESOURCES]: generateReportsDaily,
-  [DataMonitoringFunction.CHECK_HARVESTING_EXECUTION_TIME]:
-    getHarvestingTimestampDaily,
+  [DataMonitoringFunction.CHECK_HARVESTING_EXECUTION_TIME]: getHarvestingTimestampDaily,
   [DataMonitoringFunction.DUMMY]: dummyFunction,
   [DataMonitoringFunction.MY_FUNCTION]: myFunction,
 } as const;
