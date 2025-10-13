@@ -7,13 +7,7 @@ import {
 } from '../queries/util-queries.js';
 import { duration } from '../util/util.js';
 import { PREFIXES } from '../local-constants.js';
-
-const CLASS_A =
-  'http://data.vlaanderen.be/id/concept/BestuurseenheidClassificatieCode/5ab0e9b8a3b2ca7c5e000001'; // Municipality
-const CLASS_B =
-  'http://data.vlaanderen.be/id/concept/BestuurseenheidClassificatieCode/5ab0e9b8a3b2ca7c5e000002'; // OCMW
-const CLASS_C =
-  'http://data.vlaanderen.be/id/concept/BestuurseenheidClassificatieCode/5ab0e9b8a3b2ca7c5e000000'; // Province
+import { AdminUnitClass } from '../job-functions/generate-count-report-daily/types.js';
 
 function mergeGovBodies(a: any[], b: any[]) {
   return [...a, ...b];
@@ -82,7 +76,7 @@ export function mergeMunicipalityWithOcmw(harvesterAdminUnitMap: Record<string, 
       const label = normalizeLabel(unit.label);
 
       // Keep provinces separate
-      if (unit.classification === CLASS_C) continue;
+      if (unit.classification === AdminUnitClass.Province) continue;
 
       if (!byLabel.has(label)) {
         byLabel.set(label, unit);
@@ -90,9 +84,15 @@ export function mergeMunicipalityWithOcmw(harvesterAdminUnitMap: Record<string, 
         const existing = byLabel.get(label);
 
         // Merge OCMW into Municipality
-        if (existing.classification === CLASS_A && unit.classification === CLASS_B) {
+        if (
+          existing.classification === AdminUnitClass.Municipality &&
+          unit.classification === AdminUnitClass.OCMW
+        ) {
           existing.govBodies = mergeGovBodies(existing.govBodies, unit.govBodies);
-        } else if (existing.classification === CLASS_B && unit.classification === CLASS_A) {
+        } else if (
+          existing.classification === AdminUnitClass.OCMW &&
+          unit.classification === AdminUnitClass.Municipality
+        ) {
           const merged = { ...unit, govBodies: mergeGovBodies(unit.govBodies, existing.govBodies) };
           byLabel.set(label, merged);
         } else {
@@ -103,7 +103,7 @@ export function mergeMunicipalityWithOcmw(harvesterAdminUnitMap: Record<string, 
     }
 
     // Combine provinces + merged municipalities/OCMWs
-    const provinces = units.filter((u) => u.classification === CLASS_C);
+    const provinces = units.filter((u) => u.classification === AdminUnitClass.Province);
     harvesterAdminUnitMap[url] = [...provinces, ...Array.from(byLabel.values())];
   }
 
