@@ -94,8 +94,17 @@ export async function getHarvesterAdminUnits(queryEngine: any): Promise<Harveste
  */
 export async function scheduleDailyRefresh(queryEngine: any) {
   // Run immediately on startup
-  cachedData = await runMergeForAllEndpoints(queryEngine);
+  let fileExists = false;
+  try {
+    await fs.access(CACHE_FILE);
+    fileExists = true;
+  } catch {
+    fileExists = false;
+  }
 
+  if (!fileExists) {
+    cachedData = await runMergeForAllEndpoints(queryEngine);
+  }
   // Then schedule every 24h
   const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
