@@ -24,7 +24,7 @@ import { setupDebugEndpoints } from './debug-endpoints/endpoints.js';
 import { logger } from './logger.js';
 import { initCron } from './cron/cron.js';
 import axios, { AxiosResponse } from 'axios';
-import { getHarvesterAdminUnits, scheduleDailyRefresh } from './helpers/merge-admin-units.js';
+import { scheduleDailyRefresh } from './helpers/merge-admin-units.js';
 
 async function startupProcedure() {
   logger.info(
@@ -218,6 +218,7 @@ function setupExpress(): express.Express {
 }
 
 async function triggerEndpoints(): Promise<void> {
+  //Add endpoints here to trigger on initial sync
   const endpoints: string[] = [
     `http://localhost:${config.env.SERVER_PORT}/start/start-count-report`,
     `http://localhost:${config.env.SERVER_PORT}/start/start-harvesting-exec-time-report`,
