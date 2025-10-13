@@ -9,7 +9,7 @@ import { duration } from '../../util/util.js';
 import { config } from '../../configuration.js';
 
 import { getQueriesForAnalysis, getQueriesForWriting } from './helpers.js';
-import { CountQueries, CountResult, Endpoint } from './types.js';
+import { CountQueries, CountResult } from './types.js';
 import { deleteIfRecordsTodayExist } from '../../queries/helpers.js';
 import { getHarvesterAdminUnits } from '../../helpers/merge-admin-units.js';
 
