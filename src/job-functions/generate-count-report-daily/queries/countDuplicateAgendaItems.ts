@@ -16,11 +16,17 @@ WHERE {
 
       ?zitting a besluit:Zitting ;
                besluit:isGehoudenDoor ?isgehoudenDoor ;
+               besluit:geplandeStart ?plannedStart;
                besluit:behandelt ?agendaItem .
 
       ?agendaItem a besluit:Agendapunt ;
                   dcterms:title ?agendaTitel ;
                   prov:wasDerivedFrom ?doc .
+
+      {{#unless noFilterForDebug}}
+        FILTER(?plannedStart >= {{toDateTime from}})
+        FILTER(?plannedStart < {{toDateTime to}})
+      {{/unless}}
     }
     GROUP BY ?agendaTitel
     HAVING (COUNT(DISTINCT ?doc) > 1)
