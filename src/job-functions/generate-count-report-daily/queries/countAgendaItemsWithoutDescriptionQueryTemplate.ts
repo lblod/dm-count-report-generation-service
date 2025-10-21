@@ -1,4 +1,4 @@
-import { compileSparql } from "../../../handlebars/index.js";
+import { compileSparql } from '../../../handlebars/index.js';
 
 export const countAgendaItemsWithoutDescriptionQueryTemplate = compileSparql(`\
   {{prefixes}}
@@ -20,10 +20,5 @@ export const countAgendaItemsWithoutDescriptionQueryTemplate = compileSparql(`\
       {{toNode this}}{{#unless @last}},{{/unless}}
     {{/each}}
   ))
-
-    {{#unless noFilterForDebug}}
-      FILTER(?plannedStart >= {{toDateTime from}})
-      FILTER(?plannedStart < {{toDateTime to}})
-    {{/unless}}
     }
   `);

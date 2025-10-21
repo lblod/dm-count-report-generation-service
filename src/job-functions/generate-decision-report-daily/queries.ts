@@ -7,7 +7,6 @@ export type GetDecisionInput = {
   governingBodyUris: string[];
   from: DateTime;
   to: DateTime;
-  noFilterForDebug: boolean;
 };
 
 export type GetDecisionOutput = {
@@ -38,10 +37,6 @@ SELECT (COUNT(DISTINCT ?resolution) as ?count) WHERE {
       {{toNode this}}{{#unless @last}},{{/unless}}
     {{/each}}
 
-  {{#unless noFilterForDebug}}
-    FILTER(?plannedStart >= {{toDateTime from}})
-    FILTER(?plannedStart < {{toDateTime to}})
-  {{/unless}}
   ))
 }
   LIMIT 1

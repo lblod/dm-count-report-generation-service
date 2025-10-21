@@ -5,7 +5,6 @@ export type CountSessionsQueryInput = {
   prefixes: string;
   from: DateTime;
   to: DateTime;
-  noFilterForDebug: boolean;
   bestuursorganen?: string[];
 };
 
@@ -26,10 +25,6 @@ SELECT (COUNT(DISTINCT ?session) as ?count) WHERE {
           {{toNode this}}{{#unless @last}},{{/unless}}
         {{/each}}
       ))
-      {{#unless noFilterForDebug}}
-        FILTER(?plannedStart >= {{toDateTime from}})
-          FILTER(?plannedStart < {{toDateTime to}})
-      {{/unless}}
 }
 
 `
@@ -39,7 +34,6 @@ export type CountResolutionsQueryInput = {
   prefixes: string;
   from: DateTime;
   to: DateTime;
-  noFilterForDebug: boolean;
   bestuursorganen?: string[];
 };
 
@@ -70,11 +64,6 @@ SELECT (COUNT(DISTINCT ?resolution) as ?count) WHERE {
       {{toNode this}}{{#unless @last}},{{/unless}}
     {{/each}}
   ))
-
-  {{#unless noFilterForDebug}}
-    FILTER(?plannedStart >= {{toDateTime from}})
-    FILTER(?plannedStart < {{toDateTime to}})
-  {{/unless}}
 }
 `
 );
@@ -83,7 +72,6 @@ export type CountVoteQueryInput = {
   prefixes: string;
   from: DateTime;
   to: DateTime;
-  noFilterForDebug: boolean;
   bestuursorganen?: string[];
 };
 
@@ -109,11 +97,6 @@ SELECT (COUNT(DISTINCT ?vote) as ?count) WHERE {
       {{toNode this}}{{#unless @last}},{{/unless}}
     {{/each}}
   ))
-
-  {{#unless noFilterForDebug}}
-    FILTER(?plannedStart >= {{toDateTime from}})
-    FILTER(?plannedStart < {{toDateTime to}})
-  {{/unless}}
 }
 `
 );

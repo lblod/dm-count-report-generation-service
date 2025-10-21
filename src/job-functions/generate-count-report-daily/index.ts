@@ -130,7 +130,6 @@ export const generateReportsDaily: JobFunction = async (
   ) {
     const results: Record<string, CountResult> = {};
     const bestuursorganenUris = governingBodies.map((gb) => gb.uri);
-    const noFilterForDebug = config.env.INITIAL_SYNC;
 
     const countConfigs = [
       { label: 'Zitting', query: countQueries.countSessionsQuery },
@@ -151,7 +150,6 @@ export const generateReportsDaily: JobFunction = async (
           prefixes: PREFIXES,
           from: defaultedDay.localStartOfDay,
           to: defaultedDay.localEndOfDay,
-          noFilterForDebug,
           bestuursorganen: bestuursorganenUris,
         });
 

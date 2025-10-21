@@ -38,7 +38,6 @@ export const getDecisionDaily: JobFunction = async (progress, day?: DateOnly) =>
 
 const processDecisions = async (progress: JobProgress, day?: DateOnly) => {
   const defaultedDay = day ?? DateOnly.today();
-  const noFilterForDebug = config.env.INITIAL_SYNC;
 
   progress.update('📡 Fetching harvester admin unit mapping...');
   const { countAdminUnits, harvesterAdminUnitMap } = await getHarvesterAdminUnits(queryEngine);
@@ -63,7 +62,6 @@ const processDecisions = async (progress: JobProgress, day?: DateOnly) => {
             governingBodyUris: govBodies,
             from: defaultedDay.localStartOfDay,
             to: defaultedDay.localEndOfDay,
-            noFilterForDebug,
           });
 
           decisionResults = decisionResults.concat(

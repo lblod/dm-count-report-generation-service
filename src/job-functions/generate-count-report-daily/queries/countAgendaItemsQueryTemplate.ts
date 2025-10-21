@@ -1,11 +1,10 @@
-import { compileSparql } from "../../../handlebars/index.js";
-import { DateTime } from "../../../util/date-time.js";
+import { compileSparql } from '../../../handlebars/index.js';
+import { DateTime } from '../../../util/date-time.js';
 
 export type CountAgendaItemsQueryInput = {
   prefixes: string;
   from: DateTime;
   to: DateTime;
-  noFilterForDebug: boolean;
   bestuursorganen?: string[];
 };
 
@@ -26,10 +25,5 @@ SELECT (COUNT(DISTINCT ?agendapunt) AS ?count) WHERE {
       {{toNode this}}{{#unless @last}},{{/unless}}
     {{/each}}
   ))
-
-   {{#unless noFilterForDebug}}
-      FILTER(?plannedStart >= {{toDateTime from}})
-      FILTER(?plannedStart < {{toDateTime to}})
-    {{/unless}}
 }
 `);
