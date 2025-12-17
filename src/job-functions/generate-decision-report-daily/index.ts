@@ -80,7 +80,7 @@ const processDecisions = async (progress: JobProgress, day?: DateOnly) => {
         }
       } catch (error) {
         console.error(`❌ Error fetching decisions for ${adminUnit.label}:`, error);
-        return;
+        continue;
       }
       progress.update(`✅ Fetched ${decisionResults.length} decisions for ${adminUnit.label}  `);
       if (decisionResults.length > 0) {
