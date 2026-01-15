@@ -159,7 +159,9 @@ const insertHarvestTimestamp = async (
           uuid,
         });
 
-        progress.update(`✅ Inserted timestamp report for ${record.organisationLabel}`);
+        progress.update(
+          `✅ Inserted timestamp report for ${record.organisationLabel} - ${record.lastExecutionTimestamp}`
+        );
         progress.progress(idx + 1, data.length, res.durationMilliseconds);
       } catch (error) {
         console.error(`❌ Error inserting timestamp for ${record.organisationLabel}:`, error);

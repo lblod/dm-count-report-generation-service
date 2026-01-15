@@ -1,5 +1,5 @@
-import { DateOnly, DateTime } from "../../util/date-time.js";
-import { compileSparql } from "../../handlebars/index.js";
+import { DateOnly, DateTime } from '../../util/date-time.js';
+import { compileSparql } from '../../handlebars/index.js';
 
 export type GetLastModifiedInput = {
   prefixes: string;
@@ -14,14 +14,16 @@ export type GetLastModifiedOutput = {
 export const getLastModifiedTemplate = compileSparql(
   `\
 {{prefixes}}
-SELECT DISTINCT ?scheduledJobUri ?title (MAX(?modified) AS ?lastModified) WHERE {
-  ?scheduledJobUri a cogs:ScheduledJob;
-    <http://purl.org/dc/terms/title> ?title.
-  ?job <http://purl.org/dc/terms/creator> ?scheduledJob.
-  ?job <http://www.w3.org/ns/adms#status> <http://redpencil.data.gift/id/concept/JobStatus/success> .
-  ?job <http://purl.org/dc/terms/modified> ?modified.
+SELECT DISTINCT ?scheduledJob ?title (MAX(?modified) AS ?lastModified)
+WHERE {
+  ?scheduledJob a cogs:ScheduledJob ;
+                dct:title ?title .
+
+  ?job dct:creator ?scheduledJob ;
+       adms:status <http://redpencil.data.gift/id/concept/JobStatus/success> ;
+       dct:modified ?modified .
 }
-GROUP BY ?scheduledJobUri ?title
+GROUP BY ?scheduledJob ?title
 `
 );
 
