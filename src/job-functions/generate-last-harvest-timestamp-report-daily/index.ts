@@ -71,9 +71,13 @@ const getHarvestTimestamp = async (progress: JobProgress, day?: DateOnly) => {
     }
 
     // Build a lookup map for faster matching
-    const recordMap = new Map<string, GetLastModifiedOutput>();
+    const recordMap = new Map<string, GetLastModifiedOutput[]>();
     for (const r of records) {
-      recordMap.set(stripAndLower(r.title), r);
+      const key = stripAndLower(r.title);
+      if (!recordMap.has(key)) {
+        recordMap.set(key, []);
+      }
+      recordMap.get(key)!.push(r);
     }
 
     const insertData: HarvestingTimeStampResult[] = [];
@@ -81,20 +85,25 @@ const getHarvestTimestamp = async (progress: JobProgress, day?: DateOnly) => {
 
     for (const adminUnit of adminUnits) {
       const key = stripAndLower(adminUnit.label.split(',')[0]);
-      const matched = recordMap.get(key);
-      if (!matched) {
+      const matchedRecords = recordMap.get(key);
+
+      if (!matchedRecords || matchedRecords.length === 0) {
         notFound.push(adminUnit.label);
         continue;
       }
-      const uuid = uuidv4();
-      insertData.push({
-        resultUri: `${config.env.URI_PREFIX_RESOURCES}${uuid}`,
-        uuid,
-        organisationUri: adminUnit.uri,
-        organisationId: adminUnit.id,
-        organisationLabel: adminUnit.label,
-        lastExecutionTimestamp: matched.lastModified,
-      });
+
+      for (const matched of matchedRecords) {
+        const uuid = uuidv4();
+        insertData.push({
+          resultUri: `${config.env.URI_PREFIX_RESOURCES}${uuid}`,
+          uuid,
+          organisationUri: adminUnit.uri,
+          organisationId: adminUnit.id,
+          organisationLabel: adminUnit.label,
+          lastExecutionTimestamp: matched.lastModified,
+          status: matched.status,
+        });
+      }
     }
 
     await insertHarvestTimestamp(insertData, progress, defaultedDay);
@@ -160,7 +169,7 @@ const insertHarvestTimestamp = async (
         });
 
         progress.update(
-          `✅ Inserted timestamp report for ${record.organisationLabel} - ${record.lastExecutionTimestamp}`
+          `✅ Inserted timestamp report for ${record.organisationLabel} - ${record.lastExecutionTimestamp} with status ${record.status}`
         );
         progress.progress(idx + 1, data.length, res.durationMilliseconds);
       } catch (error) {

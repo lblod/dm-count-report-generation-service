@@ -9,21 +9,27 @@ export type GetLastModifiedOutput = {
   scheduledJobUri: string;
   title: string;
   lastModified: DateTime;
+  status: string;
 };
 
 export const getLastModifiedTemplate = compileSparql(
   `\
 {{prefixes}}
-SELECT DISTINCT ?scheduledJob ?title (MAX(?modified) AS ?lastModified)
+SELECT ?scheduledJob ?title ?status (MAX(?modified) AS ?lastModified)
 WHERE {
   ?scheduledJob a cogs:ScheduledJob ;
                 dct:title ?title .
 
   ?job dct:creator ?scheduledJob ;
-       adms:status <http://redpencil.data.gift/id/concept/JobStatus/success> ;
+       adms:status ?status ;
        dct:modified ?modified .
+
+  FILTER(?status IN (
+    <http://redpencil.data.gift/id/concept/JobStatus/success>,
+    <http://redpencil.data.gift/id/concept/JobStatus/failed>
+  ))
 }
-GROUP BY ?scheduledJob ?title
+GROUP BY ?scheduledJob ?title ?status
 `
 );
 
@@ -34,6 +40,7 @@ export type HarvestingTimeStampResult = {
   organisationLabel: string;
   organisationId: string;
   lastExecutionTimestamp: DateTime;
+  status: string;
 };
 
 export type InsertLastExecutedReportInput = {
@@ -69,7 +76,8 @@ INSERT {
         mu:uuid {{toUuid this.uuid}};
         datamonitoring:targetAdministrativeUnit {{toNode this.organisationUri}};
         skos:prefLabel {{toString this.organisationLabel}};
-        datamonitoring:lastExecutionTime {{toDateTime this.lastExecutionTimestamp}}.
+        datamonitoring:lastExecutionTime {{toDateTime this.lastExecutionTimestamp}};
+        datamonitoring:status {{toNode this.status}} .
       {{/each}}
     {{/if}}
   }
