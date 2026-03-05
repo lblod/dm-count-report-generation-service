@@ -40,11 +40,20 @@ export async function mergeAdminUnitsFromHarvesterEndpoint(
   // Keep track of all existing URIs to avoid accidental duplication
   const existingUris = new Set(updatedMap[endpoint.url].map((u) => u.uri));
 
+  const normalizedLabelSet = new Set(
+    Array.from(labelSet).map((l: string) =>
+      l
+        .trim()
+        .toLowerCase()
+        .replace(/-(gemeente|ocmw)$/, '')
+    )
+  );
+
   const matchingUnits = orgResources.adminUnits.filter((adminUnit) => {
     const labels = adminUnit.label.split(',').map((l: string) => l.trim().toLowerCase());
-    return labels.some((l: string) => labelSet.has(l));
-  });
 
+    return labels.some((l: string) => normalizedLabelSet.has(l));
+  });
   for (const unit of matchingUnits) {
     // If we’ve already added this admin unit, merge govBodies
     if (existingUris.has(unit.uri)) {

@@ -84,8 +84,20 @@ const getHarvestTimestamp = async (progress: JobProgress, day?: DateOnly) => {
     const notFound: string[] = [];
 
     for (const adminUnit of adminUnits) {
+      progress.update(
+        `🔍 Matching admin unit "${adminUnit.label}" from ${harvesterUrl} with retrieved records...`
+      );
+
       const key = stripAndLower(adminUnit.label.split(',')[0]);
-      const matchedRecords = recordMap.get(key);
+
+      let matchedRecords = recordMap.get(key);
+
+      if (!matchedRecords) {
+        matchedRecords = Array.from(recordMap.entries())
+          .filter(([mapKey]) => mapKey.startsWith(key + '-'))
+          .map(([_, value]) => value)
+          .flat();
+      }
 
       if (!matchedRecords || matchedRecords.length === 0) {
         notFound.push(adminUnit.label);
